@@ -1,0 +1,303 @@
+openapi: 3.1.0
+info:
+  title: Padel Host App API
+  version: 0.1.0
+  description: IDs are UUIDv4 strings. Backend event statuses are Lobby, Running, Finished.
+servers:
+  - url: /api/v1
+
+paths:
+  /players:
+    get:
+      summary: List players
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+    post:
+      summary: Create player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlayerRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+
+  /events:
+    post:
+      summary: Create event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+    get:
+      summary: List events
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+  /events/{eventId}/players:
+    post:
+      summary: Add player to event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [playerId]
+              properties:
+                playerId: { type: string, format: uuid }
+      responses:
+        '204': { description: Added }
+
+  /events/{eventId}/start:
+    post:
+      summary: Start event and generate first round
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Running round state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /events/{eventId}/rounds/current:
+    get:
+      summary: Get current round with court assignments
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current round
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /matches/{matchId}/result:
+    post:
+      summary: Record match result
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordResultRequest'
+      responses:
+        '204': { description: Recorded }
+
+  /events/{eventId}/next:
+    post:
+      summary: Advance to next round when current round is complete
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Next round generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /events/{eventId}/finish:
+    post:
+      summary: Finish event and return summary
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Event summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSummary'
+
+components:
+  schemas:
+    Player:
+      type: object
+      required: [id, displayName, globalRankingScore]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        globalRankingScore: { type: integer }
+
+    CreatePlayerRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 60
+
+    Event:
+      type: object
+      required: [id, eventName, eventType, eventDate, status]
+      properties:
+        id: { type: string, format: uuid }
+        eventName: { type: string }
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        eventDate: { type: string, format: date }
+        status:
+          type: string
+          enum: [Lobby, Running, Finished]
+          description: Backend status only; Preview is frontend-only state.
+        selectedCourts:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 7 }
+
+    CreateEventRequest:
+      type: object
+      required: [eventName, eventType, eventDate, selectedCourts]
+      properties:
+        eventName:
+          type: string
+          minLength: 3
+          maxLength: 120
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        eventDate:
+          type: string
+          format: date
+        selectedCourts:
+          type: array
+          minItems: 1
+          items: { type: integer, minimum: 1, maximum: 7 }
+
+    MatchView:
+      type: object
+      required: [matchId, courtNumber, team1, team2, status]
+      properties:
+        matchId: { type: string, format: uuid }
+        courtNumber: { type: integer }
+        team1:
+          type: array
+          items: { $ref: '#/components/schemas/Player' }
+        team2:
+          type: array
+          items: { $ref: '#/components/schemas/Player' }
+        status:
+          type: string
+          enum: [Pending, Completed]
+
+    RoundView:
+      type: object
+      required: [eventId, roundNumber, matches]
+      properties:
+        eventId: { type: string, format: uuid }
+        roundNumber: { type: integer }
+        matches:
+          type: array
+          items: { $ref: '#/components/schemas/MatchView' }
+
+    RecordResultRequest:
+      type: object
+      description: One of three mode-specific payload shapes.
+      oneOf:
+        - type: object
+          required: [mode, winningTeam]
+          properties:
+            mode: { type: string, const: Americano }
+            winningTeam: { type: integer, enum: [1, 2] }
+        - type: object
+          required: [mode, team1Score, team2Score]
+          properties:
+            mode: { type: string, const: Mexicano }
+            team1Score: { type: integer, minimum: 0, maximum: 24 }
+            team2Score: { type: integer, minimum: 0, maximum: 24 }
+        - type: object
+          required: [mode, outcome]
+          properties:
+            mode: { type: string, const: BeatTheBox }
+            outcome: { type: string, enum: [Team1Win, Team2Win, Draw] }
+
+    EventSummary:
+      type: object
+      required: [eventId, finalStandings, rounds, matches]
+      properties:
+        eventId: { type: string, format: uuid }
+        finalStandings:
+          type: array
+          items:
+            type: object
+            required: [playerId, displayName, totalScore, rank]
+            properties:
+              playerId: { type: string, format: uuid }
+              displayName: { type: string }
+              totalScore: { type: integer }
+              rank: { type: integer }
+        rounds:
+          type: array
+          items:
+            type: object
+            required: [roundNumber, playerResults]
+            properties:
+              roundNumber: { type: integer }
+              playerResults:
+                type: array
+                items:
+                  type: object
+                  required: [playerId, scoreDelta]
+                  properties:
+                    playerId: { type: string, format: uuid }
+                    scoreDelta: { type: integer }
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchView'

@@ -1,0 +1,17 @@
+:root {
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  color: #10233a;
+  background: radial-gradient(circle at top right, #eaf3ff, #f7f9fc 60%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
