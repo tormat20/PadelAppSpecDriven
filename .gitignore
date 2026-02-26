@@ -16,6 +16,11 @@ build/
 .env.*
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+*.tmp
+*.swp
+coverage/
 matchi_btb/__pycache__/
 matchi_btb/.pytest_cache/
 Padel_app-v2/

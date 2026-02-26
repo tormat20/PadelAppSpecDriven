@@ -1,0 +1,454 @@
+openapi: 3.1.0
+info:
+  title: Padel Host App API
+  version: 0.2.0
+  description: Host-first MVP API for event setup, run flow, scoring, and summaries.
+servers:
+  - url: /api/v1
+
+paths:
+  /players:
+    get:
+      summary: Search or list players
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+    post:
+      summary: Create player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlayerRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+
+  /players/{playerId}:
+    get:
+      summary: Get one player
+      parameters:
+        - in: path
+          name: playerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '404':
+          description: Player not found
+
+  /events:
+    post:
+      summary: Create event in Lobby state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+
+  /events/{eventId}:
+    get:
+      summary: Get event details
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '404':
+          description: Event not found
+
+  /events/{eventId}/start:
+    post:
+      summary: Start event and generate round 1 assignments
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Running round view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /events/{eventId}/current-round:
+    get:
+      summary: Get current round assignments and status
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current round view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /events/{eventId}/rounds/{roundIndex}/results:
+    post:
+      summary: Submit one or more match results for a round
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: roundIndex
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRoundResultsRequest'
+      responses:
+        '200':
+          description: Updated current round view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+
+  /events/{eventId}/next:
+    post:
+      summary: Advance to next round
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Next round view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundView'
+        '409':
+          description: Current round incomplete or no remaining rounds
+
+  /events/{eventId}/finish:
+    post:
+      summary: Finish event and return summary
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSummary'
+
+components:
+  schemas:
+    Player:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        globalRankingPoints:
+          type: integer
+
+    CreatePlayerRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 60
+
+    EventDetail:
+      type: object
+      required: [id, eventName, eventType, eventDate, status, selectedCourts, players]
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventName:
+          type: string
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        eventDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [Lobby, Preview, Running, Finished]
+        selectedCourts:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+
+    CreateEventRequest:
+      type: object
+      required: [eventName, eventType, eventDate, selectedCourts, playerIds]
+      properties:
+        eventName:
+          type: string
+          minLength: 3
+          maxLength: 120
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        eventDate:
+          type: string
+          format: date
+        selectedCourts:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        playerIds:
+          type: array
+          minItems: 4
+          items:
+            type: string
+            format: uuid
+
+    Team:
+      type: object
+      required: [players]
+      properties:
+        players:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/Player'
+
+    MatchView:
+      type: object
+      required: [matchId, courtNumber, teamA, teamB, inputType, status]
+      properties:
+        matchId:
+          type: string
+          format: uuid
+        courtNumber:
+          type: integer
+          minimum: 1
+          maximum: 7
+        teamA:
+          $ref: '#/components/schemas/Team'
+        teamB:
+          $ref: '#/components/schemas/Team'
+        inputType:
+          type: string
+          enum: [WinLoss, Score24, WinLossDraw]
+        status:
+          type: string
+          enum: [Pending, Completed]
+
+    RoundView:
+      type: object
+      required: [eventId, eventType, roundIndex, totalRounds, selectedCourts, matches, canAdvance]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        roundIndex:
+          type: integer
+          minimum: 1
+        totalRounds:
+          type: integer
+          minimum: 1
+        selectedCourts:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchView'
+        canAdvance:
+          type: boolean
+
+    SubmitRoundResultsRequest:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MatchResultInput'
+
+    MatchResultInput:
+      type: object
+      required: [matchId, mode]
+      properties:
+        matchId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        winningTeam:
+          type: integer
+          enum: [1, 2]
+        teamAScore:
+          type: integer
+          minimum: 0
+          maximum: 24
+        teamBScore:
+          type: integer
+          minimum: 0
+          maximum: 24
+        outcome:
+          type: string
+          enum: [TeamAWin, TeamBWin, Draw]
+
+    StandingRow:
+      type: object
+      required: [rank, playerId, displayName, eventPoints]
+      properties:
+        rank:
+          type: integer
+        playerId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        eventPoints:
+          type: integer
+        globalRankingPointsAfterEvent:
+          type: integer
+
+    RoundBreakdownRow:
+      type: object
+      required: [roundIndex, playerId, scoreDelta]
+      properties:
+        roundIndex:
+          type: integer
+        playerId:
+          type: string
+          format: uuid
+        scoreDelta:
+          type: integer
+
+    MatchHistoryRow:
+      type: object
+      required: [roundIndex, courtNumber, teamAPlayerIds, teamBPlayerIds, result]
+      properties:
+        roundIndex:
+          type: integer
+        courtNumber:
+          type: integer
+        teamAPlayerIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        teamBPlayerIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        result:
+          type: object
+          additionalProperties: true
+
+    EventSummary:
+      type: object
+      required: [eventId, eventType, standings, roundBreakdown, matches]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: [Americano, Mexicano, BeatTheBox]
+        standings:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandingRow'
+        roundBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoundBreakdownRow'
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchHistoryRow'
