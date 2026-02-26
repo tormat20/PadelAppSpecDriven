@@ -2,18 +2,21 @@ type ResultEntryProps = {
   label: string
   onSelect: (value: string) => void
   options: string[]
+  selectedValue?: string
+  layout?: "dual" | "triple" | "grid24"
 }
 
-export function ResultEntry({ label, onSelect, options }: ResultEntryProps) {
+export function ResultEntry({ label, onSelect, options, selectedValue, layout }: ResultEntryProps) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
-      <div className="flex flex-wrap gap-2">
+    <div className="result-entry">
+      {label ? <p className="muted">{label}</p> : null}
+      <div className="result-options" data-layout={layout}>
         {options.map((option) => (
           <button
             key={option}
             type="button"
-            className="rounded-md border px-3 py-1 text-sm"
+            className="result-option"
+            data-selected={selectedValue === option}
             onClick={() => onSelect(option)}
           >
             {option}

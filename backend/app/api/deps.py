@@ -24,7 +24,13 @@ def services_scope():
         player_service = PlayerService(players_repo)
         event_service = EventService(events_repo, rounds_repo, matches_repo)
         round_service = RoundService(events_repo, rounds_repo, matches_repo, rankings_repo)
-        summary_service = SummaryService(events_repo, round_service)
+        summary_service = SummaryService(
+            events_repo,
+            rounds_repo,
+            matches_repo,
+            players_repo,
+            round_service,
+        )
 
         yield {
             "player_service": player_service,

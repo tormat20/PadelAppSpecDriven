@@ -22,3 +22,4 @@ class EventResponse(BaseModel):
     selectedCourts: list[int]
     playerIds: list[str]
     currentRoundNumber: int | None
+    totalRounds: int

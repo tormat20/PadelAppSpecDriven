@@ -1,34 +1,57 @@
+import { ResultEntry } from "../../components/matches/ResultEntry"
+import {
+  getMexicanoSideScoreOptions,
+  getSideRelativeSelectionKey,
+  toAmericanoPayload,
+  toBeatTheBoxPayload,
+  toMexicanoPayload,
+  type TeamSide,
+  type WinnerPayload,
+} from "./resultEntry"
+
 type Props = {
   mode: "Americano" | "Mexicano" | "BeatTheBox"
-  onPayload: (payload: any) => void
+  selectedSide: TeamSide
+  selectedPayload?: WinnerPayload
+  onPayload: (payload: WinnerPayload) => void
 }
 
-export function ModeInputs({ mode, onPayload }: Props) {
+export function ModeInputs({ mode, selectedSide, selectedPayload, onPayload }: Props) {
+  const selectedValue = selectedPayload ? getSideRelativeSelectionKey(selectedPayload, selectedSide) : undefined
+
   if (mode === "Mexicano") {
     return (
-      <div>
-        <button onClick={() => onPayload({ mode: "Mexicano", team1Score: 12, team2Score: 12 })}>
-          12 - 12
-        </button>
-        <button onClick={() => onPayload({ mode: "Mexicano", team1Score: 17, team2Score: 7 })}>
-          17 - 7
-        </button>
-      </div>
+      <ResultEntry
+        label=""
+        options={getMexicanoSideScoreOptions().map(String)}
+        selectedValue={selectedValue}
+        layout="grid24"
+        onSelect={(selected) => {
+          onPayload(toMexicanoPayload(selectedSide, Number(selected)))
+        }}
+      />
     )
   }
+
   if (mode === "BeatTheBox") {
     return (
-      <div>
-        <button onClick={() => onPayload({ mode: "BeatTheBox", outcome: "Team1Win" })}>Team 1 Win</button>
-        <button onClick={() => onPayload({ mode: "BeatTheBox", outcome: "Team2Win" })}>Team 2 Win</button>
-        <button onClick={() => onPayload({ mode: "BeatTheBox", outcome: "Draw" })}>Draw</button>
-      </div>
+      <ResultEntry
+        label=""
+        options={["Win", "Loss", "Draw"]}
+        selectedValue={selectedValue}
+        layout="triple"
+        onSelect={(selected) => onPayload(toBeatTheBoxPayload(selectedSide, selected as "Win" | "Loss" | "Draw"))}
+      />
     )
   }
+
   return (
-    <div>
-      <button onClick={() => onPayload({ mode: "Americano", winningTeam: 1 })}>Team 1 Win</button>
-      <button onClick={() => onPayload({ mode: "Americano", winningTeam: 2 })}>Team 2 Win</button>
-    </div>
+    <ResultEntry
+      label=""
+      options={["Win", "Loss"]}
+      selectedValue={selectedValue}
+      layout="dual"
+      onSelect={(selected) => onPayload(toAmericanoPayload(selectedSide, selected as "Win" | "Loss"))}
+    />
   )
 }

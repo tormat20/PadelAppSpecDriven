@@ -2,7 +2,12 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.deps import services_scope
 from app.api.schemas.events import CreateEventRequest, EventResponse
-from app.api.schemas.summary import EventSummaryResponse, StandingItem
+from app.api.schemas.summary import (
+    EventSummaryResponse,
+    FinalSummaryResponse,
+    ProgressSummaryResponse,
+    StandingItem,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -17,6 +22,7 @@ def _to_event_response(event, player_ids: list[str], courts: list[int]) -> Event
         selectedCourts=courts,
         playerIds=player_ids,
         currentRoundNumber=event.current_round_number,
+        totalRounds=event.round_count,
     )
 
 
@@ -66,7 +72,7 @@ def next_event_round(event_id: str):
 
 
 @router.post("/{event_id}/finish", response_model=EventSummaryResponse)
-def finish_event(event_id: str) -> EventSummaryResponse:
+def finish_event(event_id: str) -> FinalSummaryResponse:
     with services_scope() as services:
         try:
             summary = services["summary_service"].finish_event(event_id)
@@ -79,13 +85,57 @@ def finish_event(event_id: str) -> EventSummaryResponse:
                 )
                 for row in summary["standings"]
             ]
-            return EventSummaryResponse(
+            matrix = services["summary_service"].build_final_match_matrix(
+                event_id, summary["standings"]
+            )
+            return FinalSummaryResponse(
                 eventId=event_id,
                 finalStandings=standings,
                 rounds=[{"roundNumber": r.round_number} for r in summary["rounds"]],
                 matches=[
                     {"matchId": m.id, "courtNumber": m.court_number} for m in summary["matches"]
                 ],
+                columns=matrix["columns"],
+                playerRows=matrix["player_rows"],
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/{event_id}/summary", response_model=EventSummaryResponse)
+def get_event_summary(event_id: str) -> EventSummaryResponse:
+    with services_scope() as services:
+        try:
+            if services["summary_service"].is_final_summary_available(event_id):
+                summary = services["summary_service"].get_final_summary(event_id)
+                standings = [
+                    StandingItem(
+                        playerId=row[1],
+                        displayName=services["players_repo"].get(row[1]).display_name,
+                        totalScore=row[2],
+                        rank=row[3],
+                    )
+                    for row in summary["standings"]
+                ]
+                matrix = services["summary_service"].build_final_match_matrix(
+                    event_id, summary["standings"]
+                )
+                return FinalSummaryResponse(
+                    eventId=event_id,
+                    finalStandings=standings,
+                    rounds=[{"roundNumber": r.round_number} for r in summary["rounds"]],
+                    matches=[
+                        {"matchId": m.id, "courtNumber": m.court_number} for m in summary["matches"]
+                    ],
+                    columns=matrix["columns"],
+                    playerRows=matrix["player_rows"],
+                )
+
+            progress = services["summary_service"].get_progress_summary(event_id)
+            return ProgressSummaryResponse(
+                eventId=event_id,
+                columns=progress["columns"],
+                playerRows=progress["player_rows"],
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
