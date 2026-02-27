@@ -22,6 +22,8 @@ Thumbs.db
 *.tmp
 *.swp
 coverage/
+*.duckdb
+backend/*.duckdb
 matchi_btb/__pycache__/
 matchi_btb/.pytest_cache/
 Padel_app-v2/
