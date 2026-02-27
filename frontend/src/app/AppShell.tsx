@@ -5,12 +5,13 @@ import { LogoButton } from "../components/branding/LogoButton"
 
 export function AppShell() {
   return (
-    <div style={{ minHeight: "100vh", position: "relative" }}>
+    <div className="app-shell">
       <LightRaysBackground />
-      <header style={{ padding: 16, position: "relative", zIndex: 1 }}>
+      <header className="app-header shell-content">
         <LogoButton />
+        <span className="status-chip">Host workflow studio</span>
       </header>
-      <main style={{ padding: 16, position: "relative", zIndex: 1 }}>
+      <main className="app-main shell-content">
         <Outlet />
       </main>
     </div>

@@ -9,5 +9,6 @@ describe("ResultEntry", () => {
 
     expect(ResultEntry).toBeTypeOf("function")
     expect(view).toBeTruthy()
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

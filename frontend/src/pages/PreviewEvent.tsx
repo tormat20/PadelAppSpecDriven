@@ -18,15 +18,29 @@ export default function PreviewEventPage() {
     navigate(`/events/${eventId}/run`)
   }
 
-  if (!eventData) return <div>Loading preview...</div>
+  if (!eventData) return <div className="panel">Loading preview...</div>
 
   return (
-    <section>
-      <h2>Preview Event</h2>
-      <p>{eventData.eventName}</p>
-      <p>{eventData.eventType}</p>
-      <p>{eventData.eventDate}</p>
-      <button onClick={onStart}>Start Event</button>
+    <section className="page-shell" aria-label="Preview event page">
+      <header className="page-header panel">
+        <h2 className="page-title">Preview Event</h2>
+        <p className="page-subtitle">Final check before publishing round one.</p>
+      </header>
+      <section className="panel list-stack">
+        <div className="summary-row">
+          <span className="muted">Event</span>
+          <strong>{eventData.eventName}</strong>
+        </div>
+        <div className="summary-row">
+          <span className="muted">Mode</span>
+          <strong>{eventData.eventType}</strong>
+        </div>
+        <div className="summary-row">
+          <span className="muted">Date</span>
+          <strong>{eventData.eventDate}</strong>
+        </div>
+        <button className="button" onClick={onStart}>Start Event</button>
+      </section>
     </section>
   )
 }

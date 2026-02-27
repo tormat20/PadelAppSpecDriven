@@ -11,23 +11,18 @@ const modes: Array<{ key: "Americano" | "Mexicano" | "BeatTheBox"; blurb: string
 
 export function ModeAccordion({ selected, onSelect }: Props) {
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className="mode-list" aria-label="Game mode selector">
       {modes.map((mode) => {
         const active = selected === mode.key
         return (
           <button
             key={mode.key}
+            className="mode-card"
+            data-active={active}
             onClick={() => onSelect(mode.key)}
-            style={{
-              borderRadius: 14,
-              border: active ? "2px solid #1b6ca8" : "1px solid #c8d9e8",
-              background: active ? "#eef6fd" : "white",
-              padding: 14,
-              textAlign: "left",
-            }}
           >
-            <div style={{ fontWeight: 700 }}>{mode.key}</div>
-            <div>{mode.blurb}</div>
+            <div className="mode-title">{mode.key}</div>
+            <div className="mode-copy">{mode.blurb}</div>
           </button>
         )
       })}

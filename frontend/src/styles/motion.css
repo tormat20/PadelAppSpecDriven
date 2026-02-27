@@ -1,0 +1,53 @@
+.button:hover,
+.button-secondary:hover,
+.menu-card:hover,
+.mode-card:hover,
+.court-button:hover,
+.result-option:hover,
+.logo-button:hover {
+  transform: translateY(-1px);
+}
+
+.button:active,
+.button-secondary:active,
+.menu-card:active,
+.mode-card:active,
+.court-button:active,
+.result-option:active,
+.logo-button:active {
+  transform: translateY(0);
+}
+
+.page-shell,
+.panel,
+.match-card,
+.menu-card {
+  animation: soft-rise 260ms ease-out both;
+}
+
+@keyframes soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0ms !important;
+  }
+
+  .bg-light-rays {
+    background:
+      radial-gradient(circle at 22% 20%, rgba(70, 145, 172, 0.14), transparent 38%),
+      radial-gradient(circle at 78% 14%, rgba(41, 111, 155, 0.14), transparent 40%);
+  }
+}

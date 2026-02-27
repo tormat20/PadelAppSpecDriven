@@ -1,0 +1,36 @@
+:root {
+  --font-display: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Manrope", "Segoe UI", sans-serif;
+
+  --color-ink-strong: #0d1f2c;
+  --color-ink: #203549;
+  --color-ink-muted: #58718a;
+  --color-paper: #f4f8fc;
+  --color-surface: rgba(255, 255, 255, 0.82);
+  --color-surface-strong: rgba(255, 255, 255, 0.94);
+  --color-border: rgba(50, 85, 116, 0.22);
+  --color-accent: #0c8a8f;
+  --color-accent-strong: #0a6970;
+  --color-success: #14895f;
+  --color-danger: #b53f41;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  --z-bg: 0;
+  --z-content: 10;
+  --z-sticky: 20;
+  --z-overlay: 40;
+
+  --shadow-soft: 0 18px 40px rgba(20, 42, 62, 0.16);
+  --shadow-card: 0 8px 20px rgba(20, 42, 62, 0.12);
+}

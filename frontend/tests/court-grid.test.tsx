@@ -25,4 +25,9 @@ describe("CourtGrid", () => {
     expect(CourtGrid).toBeTypeOf("function")
     expect(element).toBeTruthy()
   })
+
+  it("handles empty match list", () => {
+    const element = CourtGrid({ matches: [] })
+    expect(element).toBeTruthy()
+  })
 })

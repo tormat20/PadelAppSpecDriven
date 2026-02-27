@@ -1,0 +1,30 @@
+:focus-visible {
+  outline: 3px solid #0c8a8f;
+  outline-offset: 2px;
+}
+
+.muted {
+  line-height: 1.4;
+}
+
+.button,
+.button-secondary,
+.menu-card,
+.mode-card,
+.court-button,
+.result-option,
+.logo-button {
+  box-shadow: 0 0 0 0 rgba(12, 138, 143, 0);
+}
+
+.button:focus-visible,
+.button-secondary:focus-visible,
+.menu-card:focus-visible,
+.mode-card:focus-visible,
+.court-button:focus-visible,
+.result-option:focus-visible,
+.logo-button:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+  box-shadow: 0 0 0 3px rgba(12, 138, 143, 0.2);
+}
