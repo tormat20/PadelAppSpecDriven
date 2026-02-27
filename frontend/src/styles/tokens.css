@@ -33,4 +33,10 @@
 
   --shadow-soft: 0 18px 40px rgba(20, 42, 62, 0.16);
   --shadow-card: 0 8px 20px rgba(20, 42, 62, 0.12);
+
+  --interactive-edge: rgba(45, 95, 186, 0.24);
+  --interactive-edge-strong: rgba(45, 95, 186, 0.48);
+  --interactive-glow: rgba(97, 168, 255, 0.42);
+  --interactive-glow-soft: rgba(97, 168, 255, 0.22);
+  --interactive-focus: rgba(12, 138, 143, 0.34);
 }

@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from app.repositories.players_repo import PlayersRepository
+from app.services.name_format import format_display_name
 
 
 class PlayerService:
@@ -8,7 +9,7 @@ class PlayerService:
         self.players_repo = players_repo
 
     def create_player(self, display_name: str):
-        return self.players_repo.create(str(uuid4()), display_name)
+        return self.players_repo.create(str(uuid4()), format_display_name(display_name))
 
     def search_players(self, query: str | None):
         return self.players_repo.search(query)

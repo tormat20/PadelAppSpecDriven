@@ -1,3 +1,5 @@
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+
 type ResultEntryProps = {
   label: string
   onSelect: (value: string) => void
@@ -15,7 +17,7 @@ export function ResultEntry({ label, onSelect, options, selectedValue, layout }:
           <button
             key={option}
             type="button"
-            className="result-option"
+            className={withInteractiveSurface("result-option")}
             data-selected={selectedValue === option}
             onClick={() => onSelect(option)}
           >

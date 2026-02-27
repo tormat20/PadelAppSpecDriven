@@ -21,6 +21,11 @@ export type MatchView = {
   status: MatchStatus
 }
 
+export type RunEventTeamBadgeView = {
+  team1?: string
+  team2?: string
+}
+
 export type RoundView = {
   eventId: string
   eventType: EventType
@@ -59,7 +64,10 @@ export type ProgressSummaryPlayerCell = {
   value: string
 }
 
+export type SummaryRoundCell = ProgressSummaryPlayerCell
+
 export type ProgressSummaryPlayerRow = {
+  rank: number
   playerId: string
   displayName: string
   cells: ProgressSummaryPlayerCell[]
@@ -68,7 +76,10 @@ export type ProgressSummaryPlayerRow = {
 export type FinalEventSummary = {
   mode: "final"
   eventId: string
+  orderingMode: string
+  orderingVersion: string
   finalStandings: SummaryStanding[]
+  crownedPlayerIds: string[]
   rounds: SummaryRound[]
   matches: SummaryMatch[]
   columns: ProgressSummaryColumn[]
@@ -78,6 +89,8 @@ export type FinalEventSummary = {
 export type InProgressEventSummary = {
   mode: "progress"
   eventId: string
+  orderingMode: string
+  orderingVersion: string
   columns: ProgressSummaryColumn[]
   playerRows: ProgressSummaryPlayerRow[]
 }

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import services_scope
 from app.api.schemas.players import CreatePlayerRequest, PlayerResponse
+from app.services.name_format import format_display_name
 
 router = APIRouter(prefix="/players", tags=["players"])
 
@@ -12,7 +13,9 @@ def list_players(query: str | None = Query(default=None)) -> list[PlayerResponse
         players = services["player_service"].search_players(query)
         return [
             PlayerResponse(
-                id=p.id, displayName=p.display_name, globalRankingScore=p.global_ranking_score
+                id=p.id,
+                displayName=format_display_name(p.display_name),
+                globalRankingScore=p.global_ranking_score,
             )
             for p in players
         ]
@@ -24,7 +27,7 @@ def create_player(payload: CreatePlayerRequest) -> PlayerResponse:
         player = services["player_service"].create_player(payload.displayName)
         return PlayerResponse(
             id=player.id,
-            displayName=player.display_name,
+            displayName=format_display_name(player.display_name),
             globalRankingScore=player.global_ranking_score,
         )
 
@@ -37,6 +40,6 @@ def get_player(player_id: str) -> PlayerResponse:
             raise HTTPException(status_code=404, detail="Player not found")
         return PlayerResponse(
             id=player.id,
-            displayName=player.display_name,
+            displayName=format_display_name(player.display_name),
             globalRankingScore=player.global_ranking_score,
         )

@@ -11,35 +11,127 @@
 
 .logo-button {
   align-items: center;
-  background: linear-gradient(135deg, #0f4f72, #0b8e88);
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: var(--radius-pill);
+  background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.98), rgba(233, 242, 250, 0.96));
+  border: 1px solid rgba(30, 76, 121, 0.28);
+  border-radius: 50%;
   box-shadow: var(--shadow-card);
-  color: #fff;
+  color: var(--color-ink-strong);
   cursor: pointer;
-  display: inline-flex;
-  gap: var(--space-2);
-  padding: 0.5rem 0.85rem;
+  display: flex;
+  justify-content: center;
+  min-height: 7rem;
+  min-width: 7rem;
+  overflow: hidden;
+  padding: 0.45rem;
+  position: relative;
 }
 
 .logo-mark {
   align-items: center;
-  background: rgba(255, 255, 255, 0.2);
+  background: radial-gradient(circle at 34% 32%, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0));
   border-radius: var(--radius-pill);
   display: inline-flex;
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 700;
-  height: 1.8rem;
+  height: 4.5rem;
   justify-content: center;
-  width: 1.8rem;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4.5rem;
+}
+
+.logo-mark-image {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.logo-mark-fallback {
+  align-items: center;
+  background: linear-gradient(140deg, #0c8a8f, #2b5fa8);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  display: inline-flex;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
 }
 
 .logo-text {
+  bottom: 0.42rem;
+  color: var(--color-ink-strong);
   font-family: var(--font-display);
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 0.66rem;
+  font-weight: 700;
+  left: 50%;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin: 0;
+  position: absolute;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.interactive-surface {
+  --proximity-x: 50%;
+  --proximity-y: 50%;
+  --proximity-opacity: 0;
+  border-color: var(--interactive-edge);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), var(--shadow-card);
+  overflow: hidden;
+  position: relative;
+}
+
+.interactive-surface::before {
+  background: radial-gradient(
+    circle at var(--proximity-x) var(--proximity-y),
+    rgba(255, 255, 255, calc(var(--proximity-opacity) * 0.52)),
+    rgba(151, 207, 255, calc(var(--proximity-opacity) * 0.22)) 34%,
+    transparent 68%
+  );
+  content: "";
+  inset: 0;
+  opacity: var(--proximity-opacity);
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 180ms ease;
+}
+
+.interactive-surface::after {
+  border: 1px solid transparent;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px transparent;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.interactive-surface:hover::after {
+  border-color: var(--interactive-edge-strong);
+  box-shadow: 0 0 18px var(--interactive-glow), 0 0 28px var(--interactive-glow-soft);
+}
+
+.interactive-surface:disabled,
+.interactive-surface[aria-disabled="true"] {
+  --proximity-opacity: 0;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.interactive-surface:disabled::before,
+.interactive-surface[aria-disabled="true"]::before,
+.interactive-surface:disabled::after,
+.interactive-surface[aria-disabled="true"]::after {
+  box-shadow: none;
+  opacity: 0;
 }
 
 .status-chip {
@@ -206,8 +298,6 @@
 .player-list {
   display: grid;
   gap: var(--space-2);
-  max-height: 210px;
-  overflow: auto;
 }
 
 .player-listbox {
@@ -320,7 +410,7 @@
 }
 
 .court-card[data-has-image="true"]::after {
-  background: linear-gradient(180deg, rgba(11, 20, 34, 0.58), rgba(11, 20, 34, 0.72));
+  background: linear-gradient(180deg, rgba(11, 20, 34, 0.28), rgba(11, 20, 34, 0.46));
   content: "";
   inset: 0;
   position: absolute;
@@ -401,16 +491,31 @@
 }
 
 .team-grouping {
+  align-items: center;
   background: rgba(14, 35, 53, 0.74);
   border: 1px solid rgba(144, 211, 255, 0.42);
   border-radius: var(--radius-sm);
   color: #f0f7ff;
+  display: flex;
   font-weight: 600;
+  justify-content: space-between;
   min-height: 4.1rem;
   padding: 0.6rem 0.75rem;
   position: absolute;
   text-align: left;
   width: 44%;
+}
+
+.team-result-badge {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-left: var(--space-2);
+  min-width: 2.2rem;
+  padding: 0.2rem 0.5rem;
+  text-align: center;
 }
 
 .team-grouping-left {
@@ -496,6 +601,15 @@
   transform: translateY(-1px);
 }
 
+.player-listbox-option.interactive-surface {
+  position: relative;
+}
+
+.row-action.interactive-surface {
+  overflow: hidden;
+  position: relative;
+}
+
 .summary-list {
   display: grid;
   gap: var(--space-2);
@@ -513,6 +627,33 @@
   gap: var(--space-2);
   justify-content: space-between;
   padding: 0.6rem 0.8rem;
+}
+
+.summary-player-name {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.summary-crown-icon {
+  display: inline-block;
+  height: 0.95rem;
+  object-fit: contain;
+  width: 0.95rem;
+}
+
+.summary-crown-fallback {
+  color: #0b3050;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.summary-rank-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+  width: 3.6rem;
 }
 
 .summary-matrix-wrap {

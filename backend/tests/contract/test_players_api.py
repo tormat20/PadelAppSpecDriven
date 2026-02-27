@@ -1,7 +1,8 @@
 def test_create_and_get_player(client):
-    created = client.post("/api/v1/players", json={"displayName": "Alice"})
+    created = client.post("/api/v1/players", json={"displayName": "alice"})
     assert created.status_code == 201
     player = created.json()
+    assert player["displayName"] == "Alice"
     fetched = client.get(f"/api/v1/players/{player['id']}")
     assert fetched.status_code == 200
     assert fetched.json()["displayName"] == "Alice"

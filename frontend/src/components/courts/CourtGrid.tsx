@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 
-import type { MatchView } from "../../lib/types"
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+import type { MatchView, RunEventTeamBadgeView } from "../../lib/types"
 
 export const COURT_IMAGE_SRC = "/images/courts/court-bg-removed.png"
 
@@ -18,6 +19,7 @@ type CourtGridProps = {
   showCourtImage?: boolean
   selectedTeamByMatch?: Record<string, 1 | 2>
   hoveredTeamByMatch?: Record<string, 1 | 2>
+  resultBadgeByMatch?: Record<string, RunEventTeamBadgeView>
   onTeamGroupClick?: (matchId: string, teamNumber: 1 | 2) => void
   onTeamGroupHover?: (matchId: string, teamNumber: 1 | 2 | null) => void
   renderMatchFooter?: (matchId: string) => ReactNode
@@ -47,6 +49,7 @@ export function CourtGrid({
   showCourtImage = false,
   selectedTeamByMatch = {},
   hoveredTeamByMatch = {},
+  resultBadgeByMatch = {},
   onTeamGroupClick,
   onTeamGroupHover,
   renderMatchFooter,
@@ -58,7 +61,7 @@ export function CourtGrid({
           {showCourtImage ? <img src={COURT_IMAGE_SRC} alt="" aria-hidden="true" className="court-card-image" /> : null}
           <h3 className="match-title">Court {match.courtNumber}</h3>
           <button
-            className="team-grouping team-grouping-left"
+            className={withInteractiveSurface("team-grouping team-grouping-left")}
             type="button"
             data-selected={selectedTeamByMatch[match.matchId] === 1}
             data-hovered={hoveredTeamByMatch[match.matchId] === 1}
@@ -66,11 +69,14 @@ export function CourtGrid({
             onMouseLeave={() => onTeamGroupHover?.(match.matchId, null)}
             onClick={() => onTeamGroupClick?.(match.matchId, 1)}
           >
-            {getTeamNames(match).team1.join(" + ")}
+            <span>{getTeamNames(match).team1.join(" + ")}</span>
+            {resultBadgeByMatch[match.matchId]?.team1 ? (
+              <span className="team-result-badge">{resultBadgeByMatch[match.matchId].team1}</span>
+            ) : null}
           </button>
           <p className="tag" style={{ width: "fit-content" }}>VS</p>
           <button
-            className="team-grouping team-grouping-right"
+            className={withInteractiveSurface("team-grouping team-grouping-right")}
             type="button"
             data-selected={selectedTeamByMatch[match.matchId] === 2}
             data-hovered={hoveredTeamByMatch[match.matchId] === 2}
@@ -78,7 +84,10 @@ export function CourtGrid({
             onMouseLeave={() => onTeamGroupHover?.(match.matchId, null)}
             onClick={() => onTeamGroupClick?.(match.matchId, 2)}
           >
-            {getTeamNames(match).team2.join(" + ")}
+            <span>{getTeamNames(match).team2.join(" + ")}</span>
+            {resultBadgeByMatch[match.matchId]?.team2 ? (
+              <span className="team-result-badge">{resultBadgeByMatch[match.matchId].team2}</span>
+            ) : null}
           </button>
           {renderMatchFooter ? renderMatchFooter(match.matchId) : null}
         </article>

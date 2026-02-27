@@ -89,22 +89,54 @@ function isProgressSummaryResponse(payload: unknown): payload is InProgressEvent
   return candidate.mode === "progress" && Array.isArray(candidate.playerRows) && Array.isArray(candidate.columns)
 }
 
+function normalizeProgressSummaryResponse(payload: any, eventId: string): InProgressEventSummary {
+  const rows = Array.isArray(payload?.playerRows)
+    ? payload.playerRows.map((row: any, index: number) => ({
+        rank: typeof row?.rank === "number" ? row.rank : index + 1,
+        playerId: row?.playerId ?? "",
+        displayName: row?.displayName ?? "",
+        cells: Array.isArray(row?.cells) ? row.cells : [],
+      }))
+    : []
+
+  return {
+    mode: "progress",
+    eventId: payload?.eventId ?? eventId,
+    orderingMode: payload?.orderingMode ?? "legacy",
+    orderingVersion: payload?.orderingVersion ?? "v1",
+    columns: Array.isArray(payload?.columns) ? payload.columns : [],
+    playerRows: rows,
+  }
+}
+
 function normalizeFinalSummaryResponse(payload: any, eventId: string): FinalEventSummary {
+  const rows = Array.isArray(payload?.playerRows)
+    ? payload.playerRows.map((row: any, index: number) => ({
+        rank: typeof row?.rank === "number" ? row.rank : index + 1,
+        playerId: row?.playerId ?? "",
+        displayName: row?.displayName ?? "",
+        cells: Array.isArray(row?.cells) ? row.cells : [],
+      }))
+    : []
+
   return {
     mode: "final",
     eventId: payload.eventId ?? eventId,
+    orderingMode: payload.orderingMode ?? "legacy",
+    orderingVersion: payload.orderingVersion ?? "v1",
     finalStandings: payload.finalStandings ?? [],
+    crownedPlayerIds: payload.crownedPlayerIds ?? [],
     rounds: payload.rounds ?? [],
     matches: payload.matches ?? [],
     columns: payload.columns ?? [],
-    playerRows: payload.playerRows ?? [],
+    playerRows: rows,
   }
 }
 
 export async function getEventSummary(eventId: string): Promise<EventSummaryResponse> {
   try {
     const summary = await request<unknown>(`/events/${eventId}/summary`)
-    if (isProgressSummaryResponse(summary)) return summary
+    if (isProgressSummaryResponse(summary)) return normalizeProgressSummaryResponse(summary, eventId)
     return normalizeFinalSummaryResponse(summary, eventId)
   } catch {
     const legacySummary = await finishEvent(eventId)

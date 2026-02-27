@@ -16,4 +16,14 @@ describe("player add-and-assign helpers", () => {
   it("returns created flow message when player is new", () => {
     expect(getAddPlayerMessage(false)).toContain("created")
   })
+
+  it("supports growing assigned player collection without truncation", () => {
+    let players = [] as Array<{ id: string; displayName: string }>
+    for (let index = 1; index <= 12; index += 1) {
+      players = addAssignedPlayer(players, { id: `p${index}`, displayName: `Player ${index}` })
+    }
+
+    expect(players).toHaveLength(12)
+    expect(players[11].displayName).toBe("Player 12")
+  })
 })

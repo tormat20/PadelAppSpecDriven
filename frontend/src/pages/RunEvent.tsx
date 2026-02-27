@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { CourtGrid, selectTeamGrouping } from "../components/courts/CourtGrid"
 import { ResultModal } from "../components/matches/ResultModal"
+import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
-import { getWinnerSelectionKey } from "../features/run-event/resultEntry"
+import { getMirroredBadgePair } from "../features/run-event/resultEntry"
 import { finishEvent, getCurrentRound, getEvent, searchPlayers, submitResult } from "../lib/api"
+import type { RunEventTeamBadgeView } from "../lib/types"
 
 export const RUN_PAGE_ACTIONS = ["Next Match", "Finish", "Go to Summary"] as const
 
@@ -15,6 +17,14 @@ type RunMatch = {
   courtNumber: number
   team1: string[]
   team2: string[]
+}
+
+export function mapSubmittedPayloadsToBadges(
+  submittedPayloads: Record<string, WinnerPayload>,
+): Record<string, RunEventTeamBadgeView> {
+  return Object.fromEntries(
+    Object.entries(submittedPayloads).map(([matchId, payload]) => [matchId, getMirroredBadgePair(payload)]),
+  )
 }
 
 export function mapMatchPlayersToDisplayNames(
@@ -69,6 +79,8 @@ export default function RunEventPage() {
     [eventData, roundData],
   )
 
+  const badgeByMatch = useMemo(() => mapSubmittedPayloadsToBadges(submittedPayloads), [submittedPayloads])
+
   const submit = async (matchId: string, payload: WinnerPayload) => {
     setSubmittedPayloads((current) => ({ ...current, [matchId]: payload }))
     await submitResult(matchId, payload)
@@ -116,6 +128,7 @@ export default function RunEventPage() {
           showCourtImage
           selectedTeamByMatch={selectedTeamGroupings}
           hoveredTeamByMatch={hoveredTeamGroupings}
+          resultBadgeByMatch={badgeByMatch}
           onTeamGroupClick={onTeamSideClick}
           onTeamGroupHover={(matchId, teamNumber) => {
             setHoveredTeamGroupings((current) => {
@@ -127,13 +140,6 @@ export default function RunEventPage() {
               return { ...current, [matchId]: teamNumber }
             })
           }}
-          renderMatchFooter={(matchId) => (
-            <p className="muted">
-              {submittedPayloads[matchId]
-                ? `Selected: ${getWinnerSelectionKey(submittedPayloads[matchId])}`
-                : "Click a team side to enter result"}
-            </p>
-          )}
         />
       </section>
 
@@ -150,10 +156,10 @@ export default function RunEventPage() {
       />
 
       <section className="panel grid-columns-2">
-        <button className="button" onClick={() => void onAdvanceClick()} disabled={!isComplete}>
+        <button className={withInteractiveSurface("button")} onClick={() => void onAdvanceClick()} disabled={!isComplete}>
           {isFinalRound ? RUN_PAGE_ACTIONS[1] : RUN_PAGE_ACTIONS[0]}
         </button>
-        <button className="button-secondary" onClick={() => navigate(`/events/${eventId}/summary`)}>
+        <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/summary`)}>
           {RUN_PAGE_ACTIONS[2]}
         </button>
       </section>

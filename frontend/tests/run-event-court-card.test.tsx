@@ -24,6 +24,22 @@ describe("RunEvent court card rendering with image context", () => {
     expect(view).toBeTruthy()
   })
 
+  it("supports inline team badge values without footer helper text", () => {
+    const view = CourtGrid({
+      matches: [
+        {
+          matchId: "m1",
+          courtNumber: 2,
+          team1: ["A", "B"],
+          team2: ["C", "D"],
+        },
+      ],
+      resultBadgeByMatch: { m1: { team1: "15", team2: "9" } },
+    })
+
+    expect(view).toBeTruthy()
+  })
+
   it("maps team identifiers to display names when available", () => {
     const matches = [
       { matchId: "m1", courtNumber: 1, team1: ["p1", "p2"], team2: ["p3", "p4"] },

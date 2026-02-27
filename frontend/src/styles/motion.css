@@ -45,9 +45,15 @@
     transition-duration: 0ms !important;
   }
 
-  .bg-light-rays {
-    background:
-      radial-gradient(circle at 22% 20%, rgba(70, 145, 172, 0.14), transparent 38%),
-      radial-gradient(circle at 78% 14%, rgba(41, 111, 155, 0.14), transparent 40%);
+  .prism-container {
+    opacity: 0.6;
+  }
+
+  .interactive-surface {
+    --proximity-opacity: 0 !important;
+  }
+
+  .interactive-surface::before {
+    opacity: 0 !important;
   }
 }

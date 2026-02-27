@@ -1,3 +1,6 @@
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+import { getEventModeLabel } from "../../lib/eventMode"
+
 type Props = {
   selected: string
   onSelect: (value: "Americano" | "Mexicano" | "BeatTheBox") => void
@@ -17,11 +20,11 @@ export function ModeAccordion({ selected, onSelect }: Props) {
         return (
           <button
             key={mode.key}
-            className="mode-card"
+            className={withInteractiveSurface("mode-card")}
             data-active={active}
             onClick={() => onSelect(mode.key)}
           >
-            <div className="mode-title">{mode.key}</div>
+            <div className="mode-title">{getEventModeLabel(mode.key)}</div>
             <div className="mode-copy">{mode.blurb}</div>
           </button>
         )

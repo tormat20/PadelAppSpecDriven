@@ -1,0 +1,16 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #070b16;
+  color: #ecf2ff;
+  font-family: 'Work Sans', sans-serif;
+}
+
+a {
+  color: inherit;
+}

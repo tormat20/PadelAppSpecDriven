@@ -1,6 +1,7 @@
 import { ModeInputs } from "../../features/run-event/modeInputs"
 import type { EventType } from "../../lib/types"
 import type { TeamSide, WinnerPayload } from "../../features/run-event/resultEntry"
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
 
 type Props = {
   isOpen: boolean
@@ -26,7 +27,7 @@ export function ResultModal({
       <div className="result-modal" role="dialog" aria-modal="true" aria-label="Submit match result" onClick={(e) => e.stopPropagation()}>
         <header className="result-modal-header">
           <h3 className="match-title">Submit Result</h3>
-          <button type="button" className="button-secondary" onClick={onClose}>Close</button>
+          <button type="button" className={withInteractiveSurface("button-secondary")} onClick={onClose}>Close</button>
         </header>
 
         <ModeInputs

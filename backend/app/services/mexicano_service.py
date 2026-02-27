@@ -7,7 +7,22 @@ class MexicanoService:
         return generate_round_1(EventType.MEXICANO, player_ids, courts)
 
     def generate_next_round(
-        self, current_round: int, ordered_player_ids: list[str], courts: list[int]
+        self,
+        current_round: int,
+        ordered_player_ids: list[str],
+        courts: list[int],
+        previous_matches=None,
+        previous_rank_map=None,
+        partner_history=None,
+        event_seed: str = "",
     ):
-        # Best-effort: use supplied ordering from scores.
-        return generate_next_round(EventType.MEXICANO, current_round, ordered_player_ids, courts)
+        return generate_next_round(
+            EventType.MEXICANO,
+            current_round,
+            ordered_player_ids,
+            courts,
+            previous_matches=previous_matches,
+            previous_rank_map=previous_rank_map,
+            partner_history=partner_history,
+            event_seed=event_seed,
+        )

@@ -30,6 +30,8 @@ def test_in_progress_summary_returns_progress_matrix(client):
     payload = summary_response.json()
     assert payload["mode"] == "progress"
     assert payload["eventId"] == event_id
+    assert payload["orderingMode"] == "progress-score-desc"
     assert len(payload["playerRows"]) == 4
-    assert len(payload["columns"]) >= 1
-    assert all(cell["value"] == "-" for cell in payload["playerRows"][0]["cells"])
+    assert len(payload["columns"]) >= 2
+    assert payload["columns"][-1]["label"] == "Total"
+    assert all("rank" in row for row in payload["playerRows"])

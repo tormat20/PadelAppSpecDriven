@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { FormEvent, KeyboardEvent } from "react"
 
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
 import { createOrReusePlayer, searchPlayers, searchPlayersByPrefix } from "../../lib/api"
 import type { AssignedPlayer } from "../../features/create-event/draftPlayers"
 import { PLAYER_MESSAGES } from "../../features/create-event/playerMessages"
@@ -17,6 +18,8 @@ type Props = {
   assignedPlayers: AssignedPlayer[]
   onAssignedPlayersChange: (players: AssignedPlayer[]) => void
 }
+
+export const PLAYER_SECTION_TITLE = "Players"
 
 export function addAssignedPlayer(players: AssignedPlayer[], player: AssignedPlayer): AssignedPlayer[] {
   if (players.some((assigned) => assigned.id === player.id)) return players
@@ -165,6 +168,7 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
 
   return (
     <div className="list-stack" aria-label="Player selector">
+      <h3 className="section-title">{PLAYER_SECTION_TITLE}</h3>
       <form className="player-search-row" onSubmit={onAddSubmit}>
         <input
           className="input"
@@ -177,8 +181,8 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
           aria-expanded={query.trim().length > 0}
           aria-activedescendant={activeOptionId}
         />
-        <button className="button-secondary" type="button" onClick={() => runPrefixSearch(query)}>Search</button>
-        <button className="button" type="submit" disabled={!query.trim()}>
+        <button className={withInteractiveSurface("button-secondary")} type="button" onClick={() => runPrefixSearch(query)}>Search</button>
+        <button className={withInteractiveSurface("button")} type="submit" disabled={!query.trim()}>
           Add New
         </button>
       </form>
@@ -186,7 +190,6 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
       {statusMessage ? <p className="muted">{statusMessage}</p> : null}
 
       <section className="list-stack" aria-label="Search suggestions">
-        <h3 className="section-title">Suggestions</h3>
         <div className="player-listbox" role="listbox" id="player-suggestion-listbox" aria-label="Player suggestions">
           {query.trim().length >= 1 && prefixMatches.length === 0 ? (
             <p className="muted player-listbox-empty">{PLAYER_MESSAGES.emptySearch}</p>
@@ -202,7 +205,7 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
                   type="button"
                   role="option"
                   aria-selected={isActive}
-                  className="player-listbox-option"
+                  className={withInteractiveSurface("player-listbox-option")}
                   data-active={isActive}
                   disabled={assigned}
                   onMouseEnter={() => setActiveSuggestionIndex(index)}
@@ -218,14 +221,14 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
       </section>
 
       <section className="list-stack" aria-label="Assigned players">
-        <h3 className="section-title">Assigned to this event</h3>
+        <h3 className="section-title">Assigned</h3>
         {assignedPlayers.length === 0 ? (
           <p className="muted">{PLAYER_MESSAGES.emptyAssigned}</p>
         ) : (
           <div className="player-list">
             {assignedPlayers.map((player) => (
               <div className="player-item" key={player.id}>
-                <button className="row-action row-action-remove" onClick={() => unassignPlayer(player.id)} type="button">
+                  <button className={withInteractiveSurface("row-action row-action-remove")} onClick={() => unassignPlayer(player.id)} type="button">
                   -
                 </button>
                 <span>{player.displayName}</span>

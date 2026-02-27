@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { filterPrefixSuggestions } from "../src/features/create-event/playerSearch"
+import { PLAYER_SECTION_TITLE } from "../src/components/players/PlayerSelector"
 
 describe("player prefix suggestions", () => {
   it("starts matching from one typed character", () => {
@@ -38,5 +39,9 @@ describe("player prefix suggestions", () => {
       "Alice",
     ])
     expect(filterPrefixSuggestions(catalog, "ale").map((player) => player.displayName)).toEqual(["Alex"])
+  })
+
+  it("uses Players as section heading label", () => {
+    expect(PLAYER_SECTION_TITLE).toBe("Players")
   })
 })

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { CourtSelector } from "../components/courts/CourtSelector"
 import { ModeAccordion } from "../components/mode/ModeAccordion"
 import { PlayerSelector } from "../components/players/PlayerSelector"
+import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { clearDraftPlayers, loadDraftPlayers, saveDraftPlayers } from "../features/create-event/draftPlayers"
 import { isCreateEventDisabled, normalizeEventSchedule } from "../features/create-event/validation"
 import { createEvent } from "../lib/api"
@@ -47,7 +48,7 @@ export default function CreateEventPage() {
         <p className="page-subtitle">Pick mode, date, courts, and players before generating pairings.</p>
       </header>
 
-      <section className="grid-columns-2">
+      <section className="grid-columns-2 create-event-grid">
         <div className="panel form-grid">
           <ModeAccordion selected={eventType} onSelect={setEventType} />
           <input
@@ -68,7 +69,7 @@ export default function CreateEventPage() {
             />
           </div>
           <CourtSelector selectedCourts={courts} onChange={setCourts} />
-          <button className="button" onClick={submit} disabled={submitDisabled}>
+          <button className={withInteractiveSurface("button")} onClick={submit} disabled={submitDisabled}>
             Create Event
           </button>
           <p className="muted">Select date, 24-hour time, at least one court, and players in groups of 4.</p>

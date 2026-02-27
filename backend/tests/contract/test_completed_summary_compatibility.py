@@ -55,3 +55,9 @@ def test_completed_summary_route_remains_compatible(client):
     assert payload["mode"] == "final"
     assert "finalStandings" in payload
     assert "matches" in payload
+    labels = [column["label"] for column in payload["columns"]]
+    assert labels[-1] == "Total"
+    assert all(label.startswith("R") for label in labels[:-1])
+    for row in payload["playerRows"]:
+        numeric_cells = row["cells"][:-1]
+        assert all(cell["value"].lstrip("-").isdigit() for cell in numeric_cells)

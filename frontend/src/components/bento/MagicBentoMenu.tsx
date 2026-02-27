@@ -1,5 +1,11 @@
 import { useNavigate } from "react-router-dom"
 
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+
+export function getMenuCardClassName(): string {
+  return withInteractiveSurface("menu-card")
+}
+
 const cards = [
   { title: "Create Event", to: "/events/create", subtitle: "Configure courts and players" },
   { title: "Resume Event", to: "/events/run", subtitle: "Enter live round results" },
@@ -13,7 +19,7 @@ export function MagicBentoMenu() {
       {cards.map((card) => (
         <button
           key={card.title}
-          className="menu-card"
+          className={getMenuCardClassName()}
           onClick={() => navigate(card.to)}
         >
           <p className="menu-card-title">{card.title}</p>

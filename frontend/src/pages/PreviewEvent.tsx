@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 
+import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { getEvent, startEvent } from "../lib/api"
+import { getEventModeLabel } from "../lib/eventMode"
 
 export default function PreviewEventPage() {
   const navigate = useNavigate()
@@ -33,13 +35,13 @@ export default function PreviewEventPage() {
         </div>
         <div className="summary-row">
           <span className="muted">Mode</span>
-          <strong>{eventData.eventType}</strong>
+          <strong>{getEventModeLabel(eventData.eventType)}</strong>
         </div>
         <div className="summary-row">
           <span className="muted">Date</span>
           <strong>{eventData.eventDate}</strong>
         </div>
-        <button className="button" onClick={onStart}>Start Event</button>
+        <button className={withInteractiveSurface("button")} onClick={onStart}>Start Event</button>
       </section>
     </section>
   )

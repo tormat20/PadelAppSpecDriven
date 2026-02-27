@@ -9,6 +9,7 @@ type BeatTheBoxPayload = { mode: "BeatTheBox"; outcome: "Team1Win" | "Team2Win" 
 export type WinnerPayload = AmericanoPayload | MexicanoPayload | BeatTheBoxPayload
 export type TeamSide = 1 | 2
 export type RelativeOutcome = "Win" | "Loss" | "Draw"
+export type TeamBadgePair = { team1: string; team2: string }
 
 export async function submitAmericanoWin(matchId: string, winningTeam: 1 | 2) {
   await submitResult(matchId, { mode: "Americano", winningTeam })
@@ -60,6 +61,26 @@ export function getSideRelativeSelectionKey(payload: WinnerPayload, selectedSide
 
   const selectedScore = selectedSide === 1 ? payload.team1Score : payload.team2Score
   return String(selectedScore)
+}
+
+export function getMirroredBadgePair(payload: WinnerPayload): TeamBadgePair {
+  if (payload.mode === "Americano") {
+    return payload.winningTeam === 1
+      ? { team1: "Win", team2: "Loss" }
+      : { team1: "Loss", team2: "Win" }
+  }
+
+  if (payload.mode === "BeatTheBox") {
+    if (payload.outcome === "Draw") return { team1: "Draw", team2: "Draw" }
+    return payload.outcome === "Team1Win"
+      ? { team1: "Win", team2: "Loss" }
+      : { team1: "Loss", team2: "Win" }
+  }
+
+  return {
+    team1: String(payload.team1Score),
+    team2: String(payload.team2Score),
+  }
 }
 
 export function getWinnerSelectionKey(payload: WinnerPayload): string {

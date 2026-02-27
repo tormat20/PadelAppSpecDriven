@@ -19,6 +19,7 @@
 
 .button:focus-visible,
 .button-secondary:focus-visible,
+.interactive-surface:focus-visible,
 .menu-card:focus-visible,
 .mode-card:focus-visible,
 .court-button:focus-visible,
@@ -27,4 +28,18 @@
 .input:focus-visible,
 .select:focus-visible {
   box-shadow: 0 0 0 3px rgba(12, 138, 143, 0.2);
+}
+
+.interactive-surface:focus-visible::after {
+  border-color: var(--interactive-edge-strong);
+  box-shadow: 0 0 0 3px var(--interactive-focus), 0 0 20px rgba(12, 138, 143, 0.24);
+}
+
+.logo-button:focus-visible {
+  outline-offset: 3px;
+}
+
+.summary-matrix th[scope="col"],
+.summary-rank-cell {
+  white-space: nowrap;
 }

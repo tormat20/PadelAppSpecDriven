@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   clearWinnerSelection,
+  getMirroredBadgePair,
   getSideRelativeSelectionKey,
   isWinnerOptionSelected,
   toAmericanoPayload,
@@ -37,5 +38,11 @@ describe("ResultEntry winner selected-state persistence", () => {
     expect(getSideRelativeSelectionKey({ mode: "Americano", winningTeam: 2 }, 2)).toBe("Win")
     expect(getSideRelativeSelectionKey({ mode: "Americano", winningTeam: 2 }, 1)).toBe("Loss")
     expect(getSideRelativeSelectionKey({ mode: "BeatTheBox", outcome: "Draw" }, 1)).toBe("Draw")
+  })
+
+  it("derives mirrored badges for win/loss and draw modes", () => {
+    expect(getMirroredBadgePair({ mode: "Americano", winningTeam: 1 })).toEqual({ team1: "Win", team2: "Loss" })
+    expect(getMirroredBadgePair({ mode: "Americano", winningTeam: 2 })).toEqual({ team1: "Loss", team2: "Win" })
+    expect(getMirroredBadgePair({ mode: "BeatTheBox", outcome: "Draw" })).toEqual({ team1: "Draw", team2: "Draw" })
   })
 })

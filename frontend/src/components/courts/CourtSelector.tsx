@@ -1,3 +1,5 @@
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+
 type Props = {
   selectedCourts: number[]
   onChange: (next: number[]) => void
@@ -15,7 +17,7 @@ export function CourtSelector({ selectedCourts, onChange }: Props) {
         <button
           key={court}
           type="button"
-          className="court-button"
+          className={withInteractiveSurface("court-button")}
           data-selected={selectedCourts.includes(court)}
           onClick={() => toggle(court)}
         >

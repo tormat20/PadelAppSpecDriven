@@ -30,4 +30,21 @@ describe("CourtGrid", () => {
     const element = CourtGrid({ matches: [] })
     expect(element).toBeTruthy()
   })
+
+  it("renders with tinted team controls and inline result badges", () => {
+    const element = CourtGrid({
+      matches: [
+        {
+          matchId: "m1",
+          courtNumber: 1,
+          team1: ["Alice", "Bob"],
+          team2: ["Carla", "Daniel"],
+        },
+      ],
+      showCourtImage: true,
+      resultBadgeByMatch: { m1: { team1: "Win", team2: "Loss" } },
+    })
+
+    expect(element).toBeTruthy()
+  })
 })
