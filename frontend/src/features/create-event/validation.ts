@@ -1,5 +1,20 @@
 const TIME_24H_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
+function pad2(value: number): string {
+  return value.toString().padStart(2, "0")
+}
+
+export function getTodayDateISO(now: Date = new Date()): string {
+  const year = now.getFullYear()
+  const month = pad2(now.getMonth() + 1)
+  const day = pad2(now.getDate())
+  return `${year}-${month}-${day}`
+}
+
+export function getRequiredPlayerCount(courts: number[]): number {
+  return courts.length * 4
+}
+
 export function normalizeEventDate(value: string): string {
   return value.trim()
 }
@@ -44,7 +59,6 @@ export function isCreateEventDisabled(input: {
     input.eventName.trim().length < 2 ||
     hasInvalidSchedule ||
     input.courts.length === 0 ||
-    input.playerIds.length < 4 ||
-    input.playerIds.length % 4 !== 0
+    input.playerIds.length !== getRequiredPlayerCount(input.courts)
   )
 }

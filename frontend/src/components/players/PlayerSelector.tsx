@@ -16,6 +16,7 @@ import {
 
 type Props = {
   assignedPlayers: AssignedPlayer[]
+  totalPlayersRequired: number
   onAssignedPlayersChange: (players: AssignedPlayer[]) => void
 }
 
@@ -34,7 +35,7 @@ export function getAddPlayerMessage(reused: boolean) {
   return reused ? PLAYER_MESSAGES.reusedAndAssigned : PLAYER_MESSAGES.createdAndAssigned
 }
 
-export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Props) {
+export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssignedPlayersChange }: Props) {
   const [query, setQuery] = useState("")
   const [catalog, setCatalog] = useState<AssignedPlayer[]>([])
   const [prefixMatches, setPrefixMatches] = useState<AssignedPlayer[]>([])
@@ -221,7 +222,12 @@ export function PlayerSelector({ assignedPlayers, onAssignedPlayersChange }: Pro
       </section>
 
       <section className="list-stack" aria-label="Assigned players">
-        <h3 className="section-title">Assigned</h3>
+        <div className="section-header">
+          <h3 className="section-title">Assigned</h3>
+          <span className="assigned-count">
+            {assignedPlayers.length} / {totalPlayersRequired}
+          </span>
+        </div>
         {assignedPlayers.length === 0 ? (
           <p className="muted">{PLAYER_MESSAGES.emptyAssigned}</p>
         ) : (

@@ -16,9 +16,21 @@ describe("CreateEvent validation helper", () => {
         eventDate: "2026-03-10",
         eventTime24h: "20:15",
         courts: [1, 2],
-        playerIds: ["p1", "p2", "p3", "p4"],
+        playerIds: ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"],
       }),
     ).toBe(false)
+  })
+
+  it("disables submission when selected players do not match courts x 4", () => {
+    expect(
+      isCreateEventDisabled({
+        eventName: "Tuesday Ladder",
+        eventDate: "2026-03-10",
+        eventTime24h: "20:15",
+        courts: [1, 2],
+        playerIds: ["p1", "p2", "p3", "p4"],
+      }),
+    ).toBe(true)
   })
 
   it("disables submission when 24-hour time is invalid", () => {

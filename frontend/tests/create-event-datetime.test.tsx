@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  getRequiredPlayerCount,
+  getTodayDateISO,
   isValidEventSchedule,
   isValidEventTime24h,
   normalizeEventSchedule,
@@ -27,5 +29,15 @@ describe("CreateEvent 24-hour date-time validation", () => {
 
     expect(isValidEventSchedule({ eventDate: "", eventTime24h: "19:30" })).toBe(false)
     expect(normalizeEventSchedule({ eventDate: "", eventTime24h: "19:30" })).toBe("")
+  })
+
+  it("returns courts x 4 as required player count", () => {
+    expect(getRequiredPlayerCount([])).toBe(0)
+    expect(getRequiredPlayerCount([1])).toBe(4)
+    expect(getRequiredPlayerCount([1, 2, 3])).toBe(12)
+  })
+
+  it("formats today's date as local ISO date", () => {
+    expect(getTodayDateISO(new Date("2026-03-10T13:00:00"))).toBe("2026-03-10")
   })
 })

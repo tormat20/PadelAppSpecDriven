@@ -244,6 +244,17 @@
   grid-template-columns: minmax(180px, 1fr) 150px;
 }
 
+.today-date-link {
+  background: none;
+  border: none;
+  color: var(--color-accent-strong);
+  cursor: pointer;
+  font-size: 0.9rem;
+  justify-self: start;
+  padding: 0;
+  text-decoration: underline;
+}
+
 .mode-card {
   background: var(--color-surface-strong);
   border: 1px solid var(--color-border);
@@ -267,6 +278,11 @@
 .muted {
   color: var(--color-ink-muted);
   font-size: 0.92rem;
+}
+
+.court-selector {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .court-list {
@@ -375,6 +391,19 @@
   font-family: var(--font-display);
   font-size: 0.95rem;
   margin: 0;
+}
+
+.section-header {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.assigned-count {
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .visually-hidden {
@@ -631,8 +660,14 @@
 
 .summary-player-name {
   align-items: center;
-  display: inline-flex;
+  display: flex;
   gap: 0.35rem;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.summary-player-label {
+  text-align: left;
 }
 
 .summary-crown-icon {
@@ -675,6 +710,11 @@
 
 .summary-matrix th:first-child,
 .summary-matrix td:first-child {
+  text-align: center;
+}
+
+.summary-matrix th:nth-child(2),
+.summary-matrix td:nth-child(2) {
   text-align: left;
 }
 

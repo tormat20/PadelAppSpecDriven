@@ -6,7 +6,12 @@ import { ModeAccordion } from "../components/mode/ModeAccordion"
 import { PlayerSelector } from "../components/players/PlayerSelector"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { clearDraftPlayers, loadDraftPlayers, saveDraftPlayers } from "../features/create-event/draftPlayers"
-import { isCreateEventDisabled, normalizeEventSchedule } from "../features/create-event/validation"
+import {
+  getRequiredPlayerCount,
+  getTodayDateISO,
+  isCreateEventDisabled,
+  normalizeEventSchedule,
+} from "../features/create-event/validation"
 import { createEvent } from "../lib/api"
 
 export default function CreateEventPage() {
@@ -19,6 +24,7 @@ export default function CreateEventPage() {
   const [assignedPlayers, setAssignedPlayers] = useState(loadDraftPlayers)
 
   const playerIds = useMemo(() => assignedPlayers.map((player) => player.id), [assignedPlayers])
+  const requiredPlayers = getRequiredPlayerCount(courts)
 
   useEffect(() => {
     saveDraftPlayers(assignedPlayers)
@@ -68,15 +74,28 @@ export default function CreateEventPage() {
               aria-label="Event time"
             />
           </div>
+          <button
+            className="today-date-link"
+            type="button"
+            onClick={() => setEventDate(getTodayDateISO())}
+          >
+            Today's date
+          </button>
           <CourtSelector selectedCourts={courts} onChange={setCourts} />
           <button className={withInteractiveSurface("button")} onClick={submit} disabled={submitDisabled}>
             Create Event
           </button>
-          <p className="muted">Select date, 24-hour time, at least one court, and players in groups of 4.</p>
+          <p className="muted">
+            Select date, 24-hour time, and exactly {requiredPlayers} players ({courts.length} courts x 4).
+          </p>
         </div>
 
         <div className="panel">
-          <PlayerSelector assignedPlayers={assignedPlayers} onAssignedPlayersChange={setAssignedPlayers} />
+          <PlayerSelector
+            assignedPlayers={assignedPlayers}
+            totalPlayersRequired={requiredPlayers}
+            onAssignedPlayersChange={setAssignedPlayers}
+          />
         </div>
       </section>
     </section>

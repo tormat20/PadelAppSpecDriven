@@ -18,6 +18,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-26
 - Existing backend event/round/match/player persistence; no schema migration expected (010-nav-prism-crowns)
 - TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories (011-summary-rank-ordering)
 - Existing DuckDB-backed event/round/match/player/ranking persistence; no schema migration planned (011-summary-rank-ordering)
+- Existing player/event/match persistence; no migration required (012-event-player-logic)
 
 - TypeScript 5.x, React 18, Node.js 20+ for tooling + React, React Router, Vite, Vitest (001-frontend-visual-redesign)
 
@@ -37,9 +38,9 @@ npm test && npm run lint
 TypeScript 5.x, React 18, Node.js 20+ for tooling: Follow standard conventions
 
 ## Recent Changes
+- 012-event-player-logic: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories
 - 011-summary-rank-ordering: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories
 - 010-nav-prism-crowns: Added TypeScript 5.x + React 18 (frontend), Python 3.12 (backend API response updates) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed repositories, OGL-based prism rendering dependency behavior per provided implementation
-- 001-branding-interaction-polish: Added TypeScript 5.x + React 18 (frontend), CSS modules/stylesheets in existing frontend style system + React Router, Vite, Vitest, existing in-repo MagicBento and branding components
 
 
 <!-- MANUAL ADDITIONS START -->

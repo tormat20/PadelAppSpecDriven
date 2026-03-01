@@ -12,18 +12,21 @@ export function CourtSelector({ selectedCourts, onChange }: Props) {
   }
 
   return (
-    <div className="court-list" aria-label="Court selector">
-      {Array.from({ length: 7 }, (_, i) => i + 1).map((court) => (
-        <button
-          key={court}
-          type="button"
-          className={withInteractiveSurface("court-button")}
-          data-selected={selectedCourts.includes(court)}
-          onClick={() => toggle(court)}
-        >
-          {court}
-        </button>
-      ))}
+    <div className="court-selector" aria-label="Court selector">
+      <p className="section-title">Courts</p>
+      <div className="court-list">
+        {Array.from({ length: 7 }, (_, i) => i + 1).map((court) => (
+          <button
+            key={court}
+            type="button"
+            className={withInteractiveSurface("court-button")}
+            data-selected={selectedCourts.includes(court)}
+            onClick={() => toggle(court)}
+          >
+            {court}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -141,12 +141,12 @@ export default function SummaryPage() {
                 {orderedRows.map((row, index) => (
                   <tr key={row.playerId}>
                     <td className="summary-rank-cell">{getRowRank(row, index)}</td>
-                    <td>
+                    <td className="summary-player-cell">
                       <span className="summary-player-name">
-                        <span>{row.displayName}</span>
-                      {showCrown && isPlayerCrowned(crownedPlayers, row.playerId) ? <CrownIcon /> : null}
-                    </span>
-                  </td>
+                        <span className="summary-player-label">{row.displayName}</span>
+                        {showCrown && isPlayerCrowned(crownedPlayers, row.playerId) ? <CrownIcon /> : null}
+                      </span>
+                    </td>
                   {row.cells.map((cell) => (
                     <td key={cell.columnId}>{getProgressCellDisplay(cell.value)}</td>
                   ))}

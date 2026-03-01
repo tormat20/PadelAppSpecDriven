@@ -10,7 +10,7 @@ import {
 
 describe("Summary crown rendering helpers", () => {
   it("keeps crown icon constants stable", () => {
-    expect(CROWN_ICON_SRC).toBe("/images/icons/crown.png")
+    expect(CROWN_ICON_SRC).toBe("/images/icons/crown-color.png")
     expect(CROWN_ICON_ALT).toBe("Crowned winner")
   })
 
