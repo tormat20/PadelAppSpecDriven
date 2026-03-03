@@ -10,7 +10,7 @@ def test_event_flow_and_crowns_remain_valid_with_ranking_metadata(client):
         "/api/v1/events",
         json={
             "eventName": "Ranking Regression Flow",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-27",
             "selectedCourts": [1, 2],
             "playerIds": _seed_players(client, "RRF", 8),
@@ -34,7 +34,7 @@ def test_event_flow_and_crowns_remain_valid_with_ranking_metadata(client):
 
             submitted = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "Americano", "winningTeam": winning_team},
+                json={"mode": "WinnersCourt", "winningTeam": winning_team},
             )
             assert submitted.status_code == 204
 

@@ -191,7 +191,7 @@ components:
         eventName: { type: string }
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         eventDate: { type: string, format: date }
         status:
           type: string
@@ -211,7 +211,7 @@ components:
           maxLength: 120
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         eventDate:
           type: string
           format: date
@@ -253,7 +253,7 @@ components:
         - type: object
           required: [mode, winningTeam]
           properties:
-            mode: { type: string, const: Americano }
+            mode: { type: string, const: WinnersCourt }
             winningTeam: { type: integer, enum: [1, 2] }
         - type: object
           required: [mode, team1Score, team2Score]

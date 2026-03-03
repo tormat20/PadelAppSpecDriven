@@ -17,12 +17,12 @@
 ### 2) MirroredOutcomePair
 - **Purpose**: Deterministic two-side display result derived from one host selection.
 - **Fields**:
-  - `mode`: `Americano` | `BeatTheBox` | `Mexicano`
+  - `mode`: `WinnersCourt` | `BeatTheBox` | `Mexicano`
   - `selectedSide`: side where host made selection
   - `selectedSideValue`: chosen outcome/score
   - `opposingSideValue`: computed mirror value
 - **Validation rules**:
-  - Americano/BeatTheBox Win-Loss values must be complementary.
+  - WinnersCourt/BeatTheBox Win-Loss values must be complementary.
   - BeatTheBox draw maps to draw on both sides.
   - Mexicano values must satisfy `selected + opposing = 24`.
 

@@ -12,7 +12,7 @@ Define externally visible UI behavior for inline mirrored result badges, setup p
 
 ## Mode Display Rules
 
-### Americano
+### WinnersCourt
 1. Selecting `Win` for one side displays `Loss` for the opposing side.
 2. Selecting `Loss` for one side displays `Win` for the opposing side.
 
@@ -46,7 +46,7 @@ Define externally visible UI behavior for inline mirrored result badges, setup p
 - [X] Contract check: team buttons render inline right-aligned badges after selection
 - [X] Contract check: muted helper text below cards is removed
 - [X] Contract check: Mexicano badge pairs always sum to 24
-- [X] Contract check: Americano/BeatTheBox mirrored outcomes render correctly on both sides
+- [X] Contract check: WinnersCourt/BeatTheBox mirrored outcomes render correctly on both sides
 - [X] Contract check: setup player section heading/list behavior matches contract
 
 ### Evidence

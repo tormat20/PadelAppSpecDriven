@@ -5,7 +5,7 @@ from app.domain.scheduling import generate_next_round, generate_round_1
 
 def test_generate_round_1():
     players = [f"p{i}" for i in range(8)]
-    plan = generate_round_1(EventType.AMERICANO, players, [2, 1])
+    plan = generate_round_1(EventType.WINNERS_COURT, players, [2, 1])
     assert plan.round_number == 1
     assert len(plan.matches) == 2
     assert plan.matches[0].court_number == 1
@@ -36,7 +36,7 @@ def test_generate_next_round_for_mexicano_uses_top_courts_and_avoids_repeat_part
     assert set(top_match.team1) != {"p0", "p1"}
 
 
-def test_generate_next_round_for_americano_respects_movement_and_bounds():
+def test_generate_next_round_for_winners_court_respects_movement_and_bounds():
     previous_matches = [
         Match(
             id="m1",
@@ -73,7 +73,7 @@ def test_generate_next_round_for_americano_respects_movement_and_bounds():
     ]
 
     plan = generate_next_round(
-        EventType.AMERICANO,
+        EventType.WINNERS_COURT,
         1,
         [f"p{i}" for i in range(1, 9)],
         [1, 2],

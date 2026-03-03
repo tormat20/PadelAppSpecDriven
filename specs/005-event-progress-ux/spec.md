@@ -88,7 +88,7 @@ As a host, I can open a progress summary before final round completion to review
 - **FR-006**: Team overlays on each court card MUST display player display names (not raw player identifiers) and remain clearly readable over the court image.
 - **FR-007**: Team-side zones on each court card MUST be clickable and side-specific hover highlighting MUST be shown.
 - **FR-008**: Clicking a team-side zone MUST open a result modal bound to that selected side.
-- **FR-009**: Modal options MUST be mode-specific: Americano = Win/Loss, BeatTheBox = Win/Loss/Draw, Mexicano = exactly 24 clickable alternatives.
+- **FR-009**: Modal options MUST be mode-specific: WinnersCourt = Win/Loss, BeatTheBox = Win/Loss/Draw, Mexicano = exactly 24 clickable alternatives.
 - **FR-010**: For Mexicano modal selections, choosing score `X` for the selected side MUST automatically assign `24 - X` to the opposing side.
 - **FR-011**: Modal result semantics MUST be side-relative (the chosen outcome applies to the clicked side).
 - **FR-012**: Magic Bento-inspired hover/effect behavior MUST be applied to interactive cards/buttons in event flows and documented as the default style guidance for future components.

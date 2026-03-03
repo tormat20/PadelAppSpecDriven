@@ -68,7 +68,7 @@
 ## Relationships
 
 - `CourtLadder` constrains legal `MatchAssignment.courtNumber` values.
-- `PlayerStandingSnapshot` feeds `RoundAssignment` ordering for Mexicano and overflow handling for Americano.
+- `PlayerStandingSnapshot` feeds `RoundAssignment` ordering for Mexicano and overflow handling for WinnersCourt.
 - `PartnerHistory` constrains team construction in `RoundAssignment`.
 - `RoundAssignment.matches` become persisted matches used to derive `SummaryRoundCell` values.
 

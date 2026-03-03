@@ -13,8 +13,8 @@ Define API and UI expectations for crown winner highlighting on final summary vi
 ## Winner Resolution Contract
 
 1. Mexicano final summary crowns all players tied at highest total score.
-2. Americano final summary crowns both players from winning team in final-round highest-court match.
-3. Americano draw handling is not applicable for crowns (draw outcome not supported for Americano result input).
+2. WinnersCourt final summary crowns both players from winning team in final-round highest-court match.
+3. WinnersCourt draw handling is not applicable for crowns (draw outcome not supported for WinnersCourt result input).
 4. BeatTheBox does not announce winners and shows no crowns.
 
 ## UI Rendering Contract

@@ -43,7 +43,7 @@ This feature extends UI/interaction behavior and summary-view semantics while pr
 - **Purpose**: Encapsulates result entry state after host clicks a side on a court card.
 - **Fields**:
   - `matchId`: selected match identifier
-  - `mode`: event mode (`Americano`, `BeatTheBox`, `Mexicano`)
+  - `mode`: event mode (`WinnersCourt`, `BeatTheBox`, `Mexicano`)
   - `selectedSide`: clicked side (`team1` or `team2`)
   - `isOpen`: modal visibility state
   - `availableOptions`: mode-specific option set shown to host

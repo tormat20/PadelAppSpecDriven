@@ -38,7 +38,7 @@ Court image usage note:
 3. Hover left/right team side and verify only hovered side highlights.
 4. Click a side and verify result modal opens for the clicked side.
 5. Verify mode-specific modal options:
-   - Americano: Win/Loss
+   - WinnersCourt: Win/Loss
    - BeatTheBox: Win/Loss/Draw
    - Mexicano: exactly 24 clickable options
 6. In Mexicano modal, choose score `X` and verify opposite side is set to `24 - X`.

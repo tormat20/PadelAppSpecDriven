@@ -1,7 +1,7 @@
 from app.domain.enums import EventType
 
 
-def americano_score(winning_team: int) -> tuple[int, int]:
+def winners_court_score(winning_team: int) -> tuple[int, int]:
     if winning_team not in (1, 2):
         raise ValueError("winning_team must be 1 or 2")
     return (1, 0) if winning_team == 1 else (0, 1)
@@ -26,7 +26,7 @@ def beat_the_box_delta(outcome: str) -> tuple[int, int]:
 
 
 def result_type_for_event(event_type: EventType) -> str:
-    if event_type == EventType.AMERICANO:
+    if event_type == EventType.WINNERS_COURT:
         return "WinLoss"
     if event_type == EventType.MEXICANO:
         return "Score24"

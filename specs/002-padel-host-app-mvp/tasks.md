@@ -72,7 +72,7 @@
 - [X] T028 [P] [US1] Implement matches repository and SQL in `backend/app/db/repositories/matches_repo.py`
 - [X] T029 [P] [US1] Implement rankings repository and SQL in `backend/app/db/repositories/rankings_repo.py`
 - [X] T030 [US1] Implement event orchestration service in `backend/app/services/event_service.py`
-- [X] T031 [US1] Implement Americano mode service in `backend/app/services/americano_service.py`
+- [X] T031 [US1] Implement WinnersCourt mode service in `backend/app/services/winners_court_service.py`
 - [X] T032 [US1] Implement Mexicano mode service in `backend/app/services/mexicano_service.py`
 - [X] T033 [US1] Implement Beat the Box mode service in `backend/app/services/beat_the_box_service.py`
 - [X] T034 [US1] Implement players router in `backend/app/api/routers/players.py`

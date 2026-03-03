@@ -13,7 +13,7 @@ Define payload expectations required for deterministic frontend rendering of ran
 ## Mode-Specific Metadata Expectations
 
 1. Mexicano final metadata supports competition tie ranks.
-2. Americano final metadata supports court-priority winner/loser slot ordering and alphabetical intra-slot ordering.
+2. WinnersCourt final metadata supports court-priority winner/loser slot ordering and alphabetical intra-slot ordering.
 3. BeatTheBox metadata supports global carry-over score progression grouping and within-group descending totals.
 
 ## Failure/Fallback Behavior

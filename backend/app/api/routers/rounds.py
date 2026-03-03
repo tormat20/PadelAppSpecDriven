@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.deps import services_scope
 from app.api.schemas.rounds import MatchView, RecordResultRequest, RoundView
+from app.core.errors import DomainError
 
 router = APIRouter(tags=["rounds"])
 
@@ -25,6 +26,8 @@ def current_round(event_id: str) -> RoundView:
                     for m in view["matches"]
                 ],
             )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -34,5 +37,7 @@ def submit_result(match_id: str, payload: RecordResultRequest) -> None:
     with services_scope() as services:
         try:
             services["round_service"].record_result(match_id, payload.mode, payload.model_dump())
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

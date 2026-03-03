@@ -9,8 +9,8 @@
 ## 2) Validate inline mirrored results in run-event
 
 1. Start or resume an event and open run-event view.
-2. For Americano, select `Win` on one side and verify opposite side displays `Loss` inside its button.
-3. For Americano, select `Loss` and verify opposite side displays `Win`.
+2. For WinnersCourt, select `Win` on one side and verify opposite side displays `Loss` inside its button.
+3. For WinnersCourt, select `Loss` and verify opposite side displays `Win`.
 4. For BeatTheBox, select `Draw` and verify both sides display `Draw`.
 5. For Mexicano, select score `X` and verify selected side shows `X` while opposite side shows `24 - X`.
 6. Confirm result values appear on the right side of team buttons.

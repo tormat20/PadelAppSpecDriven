@@ -33,7 +33,7 @@ def test_submit_result_and_next(client):
         "/api/v1/events",
         json={
             "eventName": "Round Test",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -44,12 +44,12 @@ def test_submit_result_and_next(client):
     current = client.get(f"/api/v1/events/{event_id}/rounds/current").json()
 
     blocked = client.post(f"/api/v1/events/{event_id}/next")
-    assert blocked.status_code == 400
+    assert blocked.status_code == 409
 
     for match in current["matches"]:
         result = client.post(
             f"/api/v1/matches/{_match_id(match)}/result",
-            json={"mode": "Americano", "winningTeam": 1},
+            json={"mode": "WinnersCourt", "winningTeam": 1},
         )
         assert result.status_code == 204
 
@@ -64,7 +64,7 @@ def test_americano_next_round_moves_winners_and_losers(client):
         "/api/v1/events",
         json={
             "eventName": "Americano Movement",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -76,14 +76,14 @@ def test_americano_next_round_moves_winners_and_losers(client):
     assert (
         client.post(
             f"/api/v1/matches/{_match_id(first_match)}/result",
-            json={"mode": "Americano", "winningTeam": 1},
+            json={"mode": "WinnersCourt", "winningTeam": 1},
         ).status_code
         == 204
     )
     assert (
         client.post(
             f"/api/v1/matches/{_match_id(second_match)}/result",
-            json={"mode": "Americano", "winningTeam": 2},
+            json={"mode": "WinnersCourt", "winningTeam": 2},
         ).status_code
         == 204
     )
@@ -106,7 +106,7 @@ def test_next_round_assignment_is_deterministic_for_same_inputs(client):
             "/api/v1/events",
             json={
                 "eventName": event_name,
-                "eventType": "Americano",
+                "eventType": "WinnersCourt",
                 "eventDate": "2026-02-26",
                 "selectedCourts": [1, 2],
                 "playerIds": player_ids,
@@ -116,11 +116,11 @@ def test_next_round_assignment_is_deterministic_for_same_inputs(client):
         first_match, second_match = current["matches"]
         client.post(
             f"/api/v1/matches/{_match_id(first_match)}/result",
-            json={"mode": "Americano", "winningTeam": 1},
+            json={"mode": "WinnersCourt", "winningTeam": 1},
         )
         client.post(
             f"/api/v1/matches/{_match_id(second_match)}/result",
-            json={"mode": "Americano", "winningTeam": 2},
+            json={"mode": "WinnersCourt", "winningTeam": 2},
         )
         next_round = client.post(f"/api/v1/events/{event_id}/next").json()
         return {

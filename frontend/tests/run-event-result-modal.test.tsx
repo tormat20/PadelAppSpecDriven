@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { toAmericanoPayload, toBeatTheBoxPayload } from "../src/features/run-event/resultEntry"
+import { toWinnersCourtPayload, toBeatTheBoxPayload } from "../src/features/run-event/resultEntry"
 
 describe("RunEvent result modal mode options", () => {
-  it("maps Americano side-relative win/loss selections", () => {
-    expect(toAmericanoPayload(1, "Win")).toEqual({ mode: "Americano", winningTeam: 1 })
-    expect(toAmericanoPayload(1, "Loss")).toEqual({ mode: "Americano", winningTeam: 2 })
+  it("maps WinnersCourt side-relative win/loss selections", () => {
+    expect(toWinnersCourtPayload(1, "Win")).toEqual({ mode: "WinnersCourt", winningTeam: 1 })
+    expect(toWinnersCourtPayload(1, "Loss")).toEqual({ mode: "WinnersCourt", winningTeam: 2 })
   })
 
   it("maps BeatTheBox side-relative options including draw", () => {

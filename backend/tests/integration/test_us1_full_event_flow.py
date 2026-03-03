@@ -11,7 +11,7 @@ def test_us1_end_to_end_event_flow(client):
         "/api/v1/events",
         json={
             "eventName": "US1 Full",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -25,7 +25,7 @@ def test_us1_end_to_end_event_flow(client):
             match_id = match.get("matchId") or match.get("match_id")
             client.post(
                 f"/api/v1/matches/{match_id}/result",
-                json={"mode": "Americano", "winningTeam": 1},
+                json={"mode": "WinnersCourt", "winningTeam": 1},
             )
         nxt = client.post(f"/api/v1/events/{event_id}/next")
         if nxt.status_code != 200:
@@ -33,4 +33,4 @@ def test_us1_end_to_end_event_flow(client):
         current = nxt.json()
 
     summary = client.post(f"/api/v1/events/{event_id}/finish")
-    assert summary.status_code in (200, 400)
+    assert summary.status_code in (200, 409)

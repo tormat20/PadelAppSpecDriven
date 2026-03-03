@@ -43,13 +43,13 @@
 - **Purpose**: Represents deterministic crown assignment results for final summaries.
 - **Fields**:
   - `eventId`: summary event identifier
-  - `mode`: `Mexicano` | `Americano` | `BeatTheBox`
+  - `mode`: `Mexicano` | `WinnersCourt` | `BeatTheBox`
   - `crownedPlayerIds`: ordered list of player IDs to mark with crown icon
   - `resolutionSource`: `mexicano-top-score` | `americano-final-highest-court` | `none`
 - **Validation rules**:
   - Progress summaries must have empty `crownedPlayerIds`.
   - Mexicano final summaries include all top-score ties.
-  - Americano final summaries include exactly two players from winning team of final-round highest-court match when determinable.
+  - WinnersCourt final summaries include exactly two players from winning team of final-round highest-court match when determinable.
   - BeatTheBox summaries include no crowns.
 
 ### 5) FinalSummaryResponseExtension

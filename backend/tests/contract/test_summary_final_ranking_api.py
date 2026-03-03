@@ -35,8 +35,8 @@ def _complete_event(client, event_id: str, mode: str, round_count: int) -> None:
         for match in current_round.json()["matches"]:
             if mode == "Mexicano":
                 payload = {"mode": "Mexicano", "team1Score": 12, "team2Score": 12}
-            elif mode == "Americano":
-                payload = {"mode": "Americano", "winningTeam": 1}
+            elif mode == "WinnersCourt":
+                payload = {"mode": "WinnersCourt", "winningTeam": 1}
             else:
                 payload = {"mode": "BeatTheBox", "outcome": "Team1Win"}
 
@@ -51,19 +51,19 @@ def _complete_event(client, event_id: str, mode: str, round_count: int) -> None:
 def test_final_summary_exposes_rank_and_ordering_metadata(client):
     event_id = _create_event(
         client,
-        "Americano",
+        "WinnersCourt",
         "Final Ranking Contract",
         _seed_players(client, "FRC", 8),
         [1, 2],
     )
-    _complete_event(client, event_id, "Americano", 6)
+    _complete_event(client, event_id, "WinnersCourt", 6)
 
     summary_response = client.get(f"/api/v1/events/{event_id}/summary")
     assert summary_response.status_code == 200
     payload = summary_response.json()
 
     assert payload["mode"] == "final"
-    assert payload["orderingMode"] == "final-americano-court-priority"
+    assert payload["orderingMode"] == "final-winners-court-priority"
     assert payload["orderingVersion"] == "v1"
     assert payload["columns"][-1]["label"] == "Total"
     assert all("rank" in row for row in payload["playerRows"])

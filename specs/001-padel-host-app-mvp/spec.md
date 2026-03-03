@@ -71,17 +71,17 @@ As a host, I finish the event and view standings and full match history.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST support event types `Americano`, `Mexicano`, `BeatTheBox`.
+- **FR-001**: System MUST support event types `WinnersCourt`, `Mexicano`, `BeatTheBox`.
 - **FR-002**: System MUST create events with name, type, date, selected courts (subset of 7).
 - **FR-003**: System MUST allow adding existing players and creating new players.
 - **FR-004**: System MUST generate and persist rounds/matches/court assignments per mode.
 - **FR-005**: System MUST support mode-specific result input:
-  - Americano: winning team
+  - WinnersCourt: winning team
   - Mexicano: team scores totaling 24
   - BeatTheBox: win/loss/draw
 - **FR-006**: System MUST update round and event scores after each result.
 - **FR-007**: System MUST prevent advancing round until all current matches are completed.
-- **FR-008**: System MUST stop at fixed rounds (6 for Americano/Mexicano, 3 for BeatTheBox).
+- **FR-008**: System MUST stop at fixed rounds (6 for WinnersCourt/Mexicano, 3 for BeatTheBox).
 - **FR-009**: System MUST persist event metadata, rounds, matches, teams, and results.
 - **FR-010**: System MUST persist per-round and total event scores.
 - **FR-011**: BeatTheBox MUST update persistent global ranking (+25/-15/+5).

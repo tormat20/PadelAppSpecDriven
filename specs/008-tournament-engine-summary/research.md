@@ -1,7 +1,7 @@
 # Phase 0 Research: Tournament Engine and Round Summary Overhaul
 
 ## Decision 1: Use mode-specific round generators instead of shared generic regrouping
-- **Decision**: Implement distinct next-round scheduling behavior for Americano, Mexicano, and BeatTheBox.
+- **Decision**: Implement distinct next-round scheduling behavior for WinnersCourt, Mexicano, and BeatTheBox.
 - **Rationale**: The current generic regrouping logic cannot satisfy mode-specific movement and partner constraints.
 - **Alternatives considered**:
   - Keep one generic generator with many mode flags.
@@ -14,8 +14,8 @@
   - Assume contiguous numbering and infer missing courts.
   - Treat court `1` as always top regardless of event selection.
 
-## Decision 3: Americano overflow handling uses seeded pseudo-random spill
-- **Decision**: Cap each Americano next-round court group at 4 players and resolve overflow via pseudo-random spill to adjacent valid courts using a stable event-derived seed.
+## Decision 3: WinnersCourt overflow handling uses seeded pseudo-random spill
+- **Decision**: Cap each WinnersCourt next-round court group at 4 players and resolve overflow via pseudo-random spill to adjacent valid courts using a stable event-derived seed.
 - **Rationale**: Preserves requested random-like redistribution while keeping identical-state outcomes deterministic and testable.
 - **Alternatives considered**:
   - True randomness (breaks deterministic requirement).

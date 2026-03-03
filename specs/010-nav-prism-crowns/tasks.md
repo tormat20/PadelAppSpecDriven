@@ -25,7 +25,7 @@
 **⚠️ CRITICAL**: Complete this phase before starting user stories.
 
 - [X] T005 Extend final summary API schema with `crownedPlayerIds` in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/api/schemas/summary.py`
-- [X] T006 Add crown winner resolution logic for Mexicano/Americano/BeatTheBox in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_service.py`
+- [X] T006 Add crown winner resolution logic for Mexicano/WinnersCourt/BeatTheBox in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_service.py`
 - [X] T007 Wire `crownedPlayerIds` into finish/summary endpoints in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/api/routers/events.py`
 - [X] T008 Update frontend summary response types to include `crownedPlayerIds` in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/frontend/src/lib/types.ts`
 - [X] T009 Update frontend summary normalization/parsing for `crownedPlayerIds` in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/frontend/src/lib/api.ts`
@@ -38,12 +38,12 @@
 
 **Goal**: Show crown icons next to final-summary winners using mode-specific rules and no crowns on progress summaries.
 
-**Independent Test**: Complete an event and open summary; validate crowns for Mexicano ties and Americano final highest-court winners, and confirm zero crowns on progress/BeatTheBox.
+**Independent Test**: Complete an event and open summary; validate crowns for Mexicano ties and WinnersCourt final highest-court winners, and confirm zero crowns on progress/BeatTheBox.
 
 ### Tests for User Story 1
 
 - [X] T010 [P] [US1] Add backend contract test for `crownedPlayerIds` payload in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/contract/test_summary_crowned_players_api.py`
-- [X] T011 [P] [US1] Add backend integration test for Americano highest-court winner crown resolution in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_americano_crown_resolution.py`
+- [X] T011 [P] [US1] Add backend integration test for WinnersCourt highest-court winner crown resolution in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_winners_court_crown_resolution.py`
 - [X] T012 [P] [US1] Add frontend summary crown rendering test coverage in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/frontend/tests/summary-crown-rendering.test.tsx`
 
 ### Implementation for User Story 1
@@ -146,7 +146,7 @@
 ```bash
 # Parallel test authoring
 T010 backend/tests/contract/test_summary_crowned_players_api.py
-T011 backend/tests/integration/test_americano_crown_resolution.py
+T011 backend/tests/integration/test_winners_court_crown_resolution.py
 T012 frontend/tests/summary-crown-rendering.test.tsx
 ```
 

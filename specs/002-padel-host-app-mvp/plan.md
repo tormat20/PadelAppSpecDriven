@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deliver a host-first web MVP that runs complete padel events for Americano, Mexicano, and Beat the Box. Use a layered backend (FastAPI + services + repositories + raw SQL on DuckDB) and a component-driven frontend (React + TypeScript + Tailwind + shadcn/ui) with mode-specific result capture, round advancement, and persistent event history including Beat the Box global ranking updates.
+Deliver a host-first web MVP that runs complete padel events for WinnersCourt, Mexicano, and Beat the Box. Use a layered backend (FastAPI + services + repositories + raw SQL on DuckDB) and a component-driven frontend (React + TypeScript + Tailwind + shadcn/ui) with mode-specific result capture, round advancement, and persistent event history including Beat the Box global ranking updates.
 
 ## Technical Context
 
@@ -75,7 +75,7 @@ backend/
    |  `- scheduling.py
    |- services/
    |  |- event_service.py
-   |  |- americano_service.py
+   |  |- winners_court_service.py
    |  |- mexicano_service.py
    |  `- beat_the_box_service.py
    |- db/

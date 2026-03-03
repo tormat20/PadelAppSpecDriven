@@ -13,7 +13,7 @@ import {
   getNextActiveSuggestionIndex,
   LISTBOX_NAVIGATION_KEYS,
 } from "../../features/create-event/playerSearch"
-
+import OcrImportPanel from "../ocr/OcrImportPanel"
 type Props = {
   assignedPlayers: AssignedPlayer[]
   totalPlayersRequired: number
@@ -38,6 +38,8 @@ export function getAddPlayerMessage(reused: boolean) {
 export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssignedPlayersChange }: Props) {
   const [query, setQuery] = useState("")
   const [catalog, setCatalog] = useState<AssignedPlayer[]>([])
+  const [isOcrOpen, setIsOcrOpen] = useState(false)
+  const [pastedFile, setPastedFile] = useState<File | null>(null)
   const [prefixMatches, setPrefixMatches] = useState<AssignedPlayer[]>([])
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
   const [statusMessage, setStatusMessage] = useState("")
@@ -53,6 +55,27 @@ export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssign
 
   useEffect(() => {
     void refreshCatalog()
+  }, [])
+
+  // Always-on paste listener — intercepts image pastes even when the
+  // accordion is collapsed. Opens the accordion and forwards the file.
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile()
+          if (file) {
+            setIsOcrOpen(true)
+            setPastedFile(file)
+          }
+          break
+        }
+      }
+    }
+    document.addEventListener("paste", handler)
+    return () => document.removeEventListener("paste", handler)
   }, [])
 
   const updateMatches = useMemo(() => {
@@ -170,6 +193,41 @@ export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssign
   return (
     <div className="list-stack" aria-label="Player selector">
       <h3 className="section-title">{PLAYER_SECTION_TITLE}</h3>
+
+      {/* OCR accordion toggle */}
+      <button
+        className={withInteractiveSurface("button-secondary")}
+        aria-expanded={isOcrOpen}
+        aria-controls="ocr-import-panel"
+        type="button"
+        onClick={() => setIsOcrOpen((v) => !v)}
+      >
+        {isOcrOpen ? "▲ Import from image" : "▼ Import from image"}
+      </button>
+
+      {/* OCR accordion panel */}
+      {isOcrOpen && (
+        <div id="ocr-import-panel">
+          <OcrImportPanel
+            catalog={catalog}
+            mode="roster"
+            pendingFile={pastedFile}
+            onConfirmRoster={(players) => {
+              // Merge all OCR players into the roster in a single state update
+              // to avoid the stale-closure problem of calling assignPlayer one-by-one.
+              const merged = players.reduce(
+                (acc, p) => addAssignedPlayer(acc, p),
+                assignedPlayers,
+              )
+              onAssignedPlayersChange(merged)
+              setIsOcrOpen(false)
+              setPastedFile(null)
+            }}
+            onConfirmRegister={() => {}}
+          />
+        </div>
+      )}
+
       <form className="player-search-row" onSubmit={onAddSubmit}>
         <input
           className="input"

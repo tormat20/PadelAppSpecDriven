@@ -19,10 +19,10 @@ def _play_round(client, event_id: str, mode: str, round_number: int, total_round
                 f"/api/v1/matches/{match['matchId']}/result",
                 json={"mode": "Mexicano", "team1Score": 12, "team2Score": 12},
             )
-        elif mode == "Americano":
+        elif mode == "WinnersCourt":
             result = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "Americano", "winningTeam": 1},
+                json={"mode": "WinnersCourt", "winningTeam": 1},
             )
         else:
             result = client.post(
@@ -58,7 +58,7 @@ def _create_and_complete_event(client, event_type: str, prefix: str, player_coun
 
 def test_final_summary_includes_crowned_player_ids_for_modes(client):
     mexicano_event = _create_and_complete_event(client, "Mexicano", "MXC", 4)
-    americano_event = _create_and_complete_event(client, "Americano", "AMC", 8)
+    winners_court_event = _create_and_complete_event(client, "WinnersCourt", "AMC", 8)
     btb_event = _create_and_complete_event(client, "BeatTheBox", "BTC", 4)
 
     mexicano_summary = client.get(f"/api/v1/events/{mexicano_event}/summary")
@@ -68,12 +68,12 @@ def test_final_summary_includes_crowned_player_ids_for_modes(client):
     assert "crownedPlayerIds" in mexicano_payload
     assert len(mexicano_payload["crownedPlayerIds"]) >= 1
 
-    americano_summary = client.get(f"/api/v1/events/{americano_event}/summary")
-    assert americano_summary.status_code == 200
-    americano_payload = americano_summary.json()
-    assert americano_payload["mode"] == "final"
-    assert "crownedPlayerIds" in americano_payload
-    assert len(americano_payload["crownedPlayerIds"]) == 2
+    winners_court_summary = client.get(f"/api/v1/events/{winners_court_event}/summary")
+    assert winners_court_summary.status_code == 200
+    winners_court_payload = winners_court_summary.json()
+    assert winners_court_payload["mode"] == "final"
+    assert "crownedPlayerIds" in winners_court_payload
+    assert len(winners_court_payload["crownedPlayerIds"]) == 2
 
     btb_summary = client.get(f"/api/v1/events/{btb_event}/summary")
     assert btb_summary.status_code == 200
@@ -87,7 +87,7 @@ def test_progress_summary_does_not_render_crowns(client):
         "/api/v1/events",
         json={
             "eventName": "Progress Crown Contract",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-27",
             "selectedCourts": [1],
             "playerIds": _seed_players(client, "PRC", 4),

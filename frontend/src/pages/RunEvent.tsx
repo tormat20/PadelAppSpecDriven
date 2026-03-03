@@ -3,12 +3,13 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { CourtGrid, selectTeamGrouping } from "../components/courts/CourtGrid"
 import { ResultModal } from "../components/matches/ResultModal"
+import Stepper from "../components/stepper/Stepper"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
 import { getMirroredBadgePair } from "../features/run-event/resultEntry"
 import { finishEvent, getCurrentRound, getEvent, searchPlayers, submitResult } from "../lib/api"
-import type { RunEventTeamBadgeView } from "../lib/types"
+import type { EventRecord, RunEventTeamBadgeView } from "../lib/types"
 
 export const RUN_PAGE_ACTIONS = ["Next Match", "Finish", "Go to Summary"] as const
 
@@ -42,11 +43,31 @@ export function canAdvanceRound(roundData: any, completed: Record<string, boolea
   return !!roundData && roundData.matches.every((m: any) => completed[m.matchId])
 }
 
+/**
+ * Derives the props needed to render a read-only round-progress Stepper.
+ * Returns null when totalRounds is not a positive integer (stepper should not render).
+ *
+ * @param totalRounds - event.totalRounds from the API (0 or positive integer)
+ * @param roundNumber - roundData.roundNumber from the API (1-indexed)
+ */
+export function getRoundStepperProps(
+  totalRounds: number,
+  roundNumber: number,
+): { steps: { label: string }[]; currentStep: number } | null {
+  if (totalRounds < 1) return null
+  const clampedRound = roundNumber < 1 ? 1 : roundNumber
+  return {
+    steps: Array.from({ length: totalRounds }, (_, i) => ({ label: String(i + 1) })),
+    currentStep: clampedRound - 1,
+  }
+}
+
 export default function RunEventPage() {
   const navigate = useNavigate()
   const { eventId = "" } = useParams()
   const [eventData, setEventData] = useState<any>(null)
   const [roundData, setRoundData] = useState<any>(null)
+  const [loadError, setLoadError] = useState("")
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [submittedPayloads, setSubmittedPayloads] = useState<Record<string, WinnerPayload>>({})
   const [selectedTeamGroupings, setSelectedTeamGroupings] = useState<Record<string, 1 | 2>>({})
@@ -54,15 +75,23 @@ export default function RunEventPage() {
   const [modalContext, setModalContext] = useState<{ matchId: string; selectedSide: TeamSide } | null>(null)
 
   const load = async () => {
-    const [eventRes, roundRes, playersCatalog] = await Promise.all([
-      getEvent(eventId),
-      getCurrentRound(eventId),
-      searchPlayers(""),
-    ])
+    setLoadError("")
+    const [eventRes, roundRes, playersCatalog] = await Promise.all([getEvent(eventId), getCurrentRound(eventId), searchPlayers("")])
 
     const playerNameById = Object.fromEntries(playersCatalog.map((player) => [player.id, player.displayName]))
 
-    setEventData(eventRes)
+    const typedEvent = eventRes as EventRecord
+    const lifecycleStatus =
+      typedEvent.lifecycleStatus ??
+      (typedEvent.status === "Finished" ? "finished" : typedEvent.status === "Running" ? "ongoing" : typedEvent.setupStatus === "ready" ? "ready" : "planned")
+    if (lifecycleStatus !== "ongoing") {
+      setLoadError("Event is not currently running. Open the event preview to start or resume.")
+      setEventData(typedEvent)
+      setRoundData(null)
+      return
+    }
+
+    setEventData(typedEvent)
     setRoundData({
       ...roundRes,
       matches: mapMatchPlayersToDisplayNames(roundRes.matches, playerNameById),
@@ -70,7 +99,10 @@ export default function RunEventPage() {
   }
 
   useEffect(() => {
-    if (eventId) void load()
+    if (!eventId) return
+    load().catch((error) => {
+      setLoadError(error instanceof Error ? error.message : "Failed to load run view")
+    })
   }, [eventId])
 
   const isComplete = useMemo(() => canAdvanceRound(roundData, completed), [completed, roundData])
@@ -113,13 +145,37 @@ export default function RunEventPage() {
     setModalContext({ matchId, selectedSide: teamNumber })
   }
 
+  if (loadError) {
+    return (
+      <section className="page-shell" aria-label="Run event page">
+        <section className="panel list-stack">
+          <p className="warning-text">{loadError}</p>
+          <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/preview`)}>
+            Go to Preview
+          </button>
+        </section>
+      </section>
+    )
+  }
+
   if (!eventData || !roundData) return <div className="panel">Loading run view...</div>
+
+  const roundStepperProps = getRoundStepperProps(Number(eventData.totalRounds ?? 0), roundData.roundNumber)
 
   return (
     <section className="page-shell" aria-label="Run event page">
       <header className="page-header panel">
         <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
         <p className="page-subtitle">Submit each result to unlock the next round.</p>
+        {roundStepperProps && (
+          <Stepper
+            steps={roundStepperProps.steps}
+            currentStep={roundStepperProps.currentStep}
+            direction={1}
+          >
+            <></>
+          </Stepper>
+        )}
       </header>
 
       <section className="panel run-grid">

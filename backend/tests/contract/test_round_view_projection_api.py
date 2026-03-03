@@ -12,7 +12,7 @@ def test_current_round_projection_contains_courts_and_matches(client):
         "/api/v1/events",
         json={
             "eventName": "Projection Test",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,

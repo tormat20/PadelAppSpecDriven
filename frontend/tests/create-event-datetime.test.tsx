@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  getRecommendedEventName,
   getRequiredPlayerCount,
   getTodayDateISO,
+  isPastSchedule,
   isValidEventSchedule,
   isValidEventTime24h,
   normalizeEventSchedule,
@@ -39,5 +41,21 @@ describe("CreateEvent 24-hour date-time validation", () => {
 
   it("formats today's date as local ISO date", () => {
     expect(getTodayDateISO(new Date("2026-03-10T13:00:00"))).toBe("2026-03-10")
+  })
+
+  it("detects past schedule values", () => {
+    const now = new Date("2026-03-10T10:00:00")
+    expect(isPastSchedule({ eventDate: "2026-03-10", eventTime24h: "09:30" }, now)).toBe(true)
+    expect(isPastSchedule({ eventDate: "2026-03-10", eventTime24h: "11:00" }, now)).toBe(false)
+  })
+
+  it("builds recommended event names from weekday and mode", () => {
+    expect(getRecommendedEventName({ eventDate: "2026-03-12", modeLabel: "Mexicano", eventTime24h: "19:00" })).toBe(
+      "Thursday Mexicano - 19:00",
+    )
+    expect(getRecommendedEventName({ eventDate: "2026-03-12", modeLabel: "Winners Court", eventTime24h: "" })).toBe(
+      "Thursday Winners Court",
+    )
+    expect(getRecommendedEventName({ eventDate: "", modeLabel: "BeatTheBox", eventTime24h: "18:00" })).toBe("")
   })
 })

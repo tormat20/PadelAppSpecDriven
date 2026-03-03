@@ -8,8 +8,8 @@ export function getMenuCardClassName(): string {
 
 const cards = [
   { title: "Create Event", to: "/events/create", subtitle: "Configure courts and players" },
-  { title: "Resume Event", to: "/events/run", subtitle: "Enter live round results" },
-  { title: "Player Setup", to: "/events/create", subtitle: "Search or register participants" },
+  { title: "View Events", to: "/events", subtitle: "Browse and manage all events" },
+  { title: "Register Player", to: "/players/register", subtitle: "Add a new player to the roster" },
 ]
 
 export function MagicBentoMenu() {

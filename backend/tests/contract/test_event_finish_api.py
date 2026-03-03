@@ -23,4 +23,4 @@ def test_finish_requires_final_round(client):
     client.post(f"/api/v1/events/{event_id}/start")
 
     finish_early = client.post(f"/api/v1/events/{event_id}/finish")
-    assert finish_early.status_code == 400
+    assert finish_early.status_code == 409

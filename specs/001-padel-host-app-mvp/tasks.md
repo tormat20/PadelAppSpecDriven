@@ -120,9 +120,9 @@
 - [X] T023 [US1] Implement event creation/start service in `backend/app/services/event_service.py`
   - AC: Creates `Lobby` event, attaches players/courts, validates minimum playable setup, starts event to `Running`.
   - Artifacts: `backend/app/services/event_service.py`
-- [X] T024 [US1] Implement Americano round-1 scheduling in `backend/app/services/americano_service.py`
+- [X] T024 [US1] Implement WinnersCourt round-1 scheduling in `backend/app/services/winners_court_service.py`
   - AC: Generates normalized round plan mapped to selected courts and persists matches.
-  - Artifacts: `backend/app/services/americano_service.py`
+  - Artifacts: `backend/app/services/winners_court_service.py`
 - [X] T025 [US1] Implement players and events routers in `backend/app/api/routers/players.py` and `backend/app/api/routers/events.py`
   - AC: Endpoints return expected Pydantic schemas, UUID string IDs, and 400/404 behavior.
   - Artifacts: `backend/app/api/routers/players.py`, `backend/app/api/routers/events.py`
@@ -152,10 +152,10 @@
 ### Tests for User Story 2
 
 - [X] T030 [P] [US2] Add scoring unit tests in `backend/tests/unit/test_scoring.py`
-  - AC: Covers Americano win/loss, Mexicano sum=24 validation, BeatTheBox win/loss/draw deltas.
+  - AC: Covers WinnersCourt win/loss, Mexicano sum=24 validation, BeatTheBox win/loss/draw deltas.
   - Artifacts: `backend/tests/unit/test_scoring.py`
 - [X] T031 [P] [US2] Add scheduling unit tests in `backend/tests/unit/test_scheduling.py`
-  - AC: Covers round 1/next-round generation for Americano and Mexicano partner-repeat constraint.
+  - AC: Covers round 1/next-round generation for WinnersCourt and Mexicano partner-repeat constraint.
   - Artifacts: `backend/tests/unit/test_scheduling.py`
 - [X] T032 [P] [US2] Add results-and-advance API contract tests in `backend/tests/contract/test_round_progression_api.py`
   - AC: Validates `/matches/{matchId}/result` and `/events/{eventId}/next` schemas + errors.
@@ -181,7 +181,7 @@
 - [X] T038 [US2] Extend rounds router for results + next round in `backend/app/api/routers/rounds.py`
   - AC: Implements `POST /matches/{matchId}/result` and `POST /events/{id}/next`.
   - Artifacts: `backend/app/api/routers/rounds.py`
-- [X] T039 [US2] Build Run Event court grid + Americano result entry UI in `frontend/src/pages/RunEvent.tsx`
+- [X] T039 [US2] Build Run Event court grid + WinnersCourt result entry UI in `frontend/src/pages/RunEvent.tsx`
   - AC: Court cards render teams and allow click-to-select winner per match.
   - Artifacts: `frontend/src/pages/RunEvent.tsx`
 - [X] T040 [US2] Add result submission and next-round gating in `frontend/src/features/run-event/resultEntry.ts` and `frontend/src/features/run-event/nextRound.ts`

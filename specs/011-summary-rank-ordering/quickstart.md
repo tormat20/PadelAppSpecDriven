@@ -11,9 +11,9 @@
 2. Confirm rows are sorted by total descending.
 3. Confirm tie display uses competition ranking (`1,1,3,4...`).
 
-## 3) Validate Americano final ordering
+## 3) Validate WinnersCourt final ordering
 
-1. Use an Americano fixture with multiple courts in final round.
+1. Use an WinnersCourt fixture with multiple courts in final round.
 2. Confirm ordering processes courts from highest to lowest.
 3. Confirm each court contributes winners first, then losers.
 4. Confirm players within winners/losers slots are alphabetically ordered by display name.

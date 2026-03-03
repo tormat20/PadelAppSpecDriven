@@ -1,16 +1,35 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.domain.enums import EventStatus, EventType
+from app.domain.enums import EventStatus, EventType, SetupStatus
 
 
 class CreateEventRequest(BaseModel):
     eventName: str = Field(min_length=3, max_length=120)
     eventType: EventType
     eventDate: date
-    selectedCourts: list[int] = Field(min_length=1)
+    eventTime24h: str = Field(default="00:00", min_length=5, max_length=5)
+    createAction: Literal["create_event", "create_event_slot", "auto"] = Field(default="auto")
+    selectedCourts: list[int] = Field(default_factory=list)
     playerIds: list[str] = Field(default_factory=list)
+
+
+class UpdateEventSetupRequest(BaseModel):
+    expectedVersion: int = Field(ge=1)
+    eventName: str | None = Field(default=None, min_length=3, max_length=120)
+    eventType: EventType | None = None
+    eventDate: date | None = None
+    eventTime24h: str | None = Field(default=None, min_length=5, max_length=5)
+    selectedCourts: list[int] | None = None
+    playerIds: list[str] | None = None
+
+
+class PlanningWarningsResponse(BaseModel):
+    pastDateTime: bool
+    duplicateSlot: bool
+    duplicateCount: int
 
 
 class EventResponse(BaseModel):
@@ -18,7 +37,13 @@ class EventResponse(BaseModel):
     eventName: str
     eventType: EventType
     eventDate: date
+    eventTime24h: str | None
     status: EventStatus
+    setupStatus: SetupStatus
+    lifecycleStatus: Literal["planned", "ready", "ongoing", "finished"]
+    missingRequirements: list[str]
+    warnings: PlanningWarningsResponse
+    version: int
     selectedCourts: list[int]
     playerIds: list[str]
     currentRoundNumber: int | None

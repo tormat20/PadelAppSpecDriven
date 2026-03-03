@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define externally visible scheduling behavior when advancing to the next round for Americano, Mexicano, and BeatTheBox.
+Define externally visible scheduling behavior when advancing to the next round for WinnersCourt, Mexicano, and BeatTheBox.
 
 ## Shared Contract
 
@@ -11,7 +11,7 @@ Define externally visible scheduling behavior when advancing to the next round f
 3. Top court is always the highest selected court number; bottom court is the lowest.
 4. Identical input state yields identical next-round assignments.
 
-## Americano Contract
+## WinnersCourt Contract
 
 1. Match result must always have a winner (no draw outcome).
 2. Winners move one court toward top; losers move one court toward bottom.
@@ -43,7 +43,7 @@ Define externally visible scheduling behavior when advancing to the next round f
 
 ## Verification Log Placeholders
 
-- [ ] Americano movement and boundary clamping verified
-- [ ] Americano overflow seeded determinism verified
+- [ ] WinnersCourt movement and boundary clamping verified
+- [ ] WinnersCourt overflow seeded determinism verified
 - [ ] Mexicano ranking/tie-break and no-repeat partner constraints verified
 - [ ] BeatTheBox fixed 3-step cycle verified

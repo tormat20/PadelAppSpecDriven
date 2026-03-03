@@ -5,12 +5,12 @@
 
 ## Summary
 
-Overhaul round progression and finished-summary behavior so tournament logic matches mode rules and host expectations: Americano court movement with bounded ladder behavior, Mexicano ranking-driven regrouping with non-repeated partners, BeatTheBox fixed in-court partner rotation, and final summary matrix by round (`R1..RN`) with numeric round values and totals.
+Overhaul round progression and finished-summary behavior so tournament logic matches mode rules and host expectations: WinnersCourt court movement with bounded ladder behavior, Mexicano ranking-driven regrouping with non-repeated partners, BeatTheBox fixed in-court partner rotation, and final summary matrix by round (`R1..RN`) with numeric round values and totals.
 
 Implementation focus:
 - Replace MVP generic `generate_next_round` behavior with mode-specific scheduling.
 - Preserve existing scoring formulas and submission payload contracts.
-- Keep result pipeline deterministic, including seeded pseudo-random overflow handling in Americano.
+- Keep result pipeline deterministic, including seeded pseudo-random overflow handling in WinnersCourt.
 
 ## Technical Context
 
@@ -21,7 +21,7 @@ Implementation focus:
 **Target Platform**: Local/dev Linux and browser-based host UI (desktop + mobile responsive views)  
 **Project Type**: Web application monorepo (backend API + frontend SPA)  
 **Performance Goals**: Next-round generation remains immediate in host flow (single action completion under normal event sizes)  
-**Constraints**: Maintain existing result scoring formulas; top court is highest selected court number; deterministic outputs for identical input state; Americano has no draws  
+**Constraints**: Maintain existing result scoring formulas; top court is highest selected court number; deterministic outputs for identical input state; WinnersCourt has no draws  
 **Scale/Scope**: Player counts in multiples of 4 across selected courts (up to selected-court capacity), round transitions through full event lifecycle
 
 ## Constitution Check

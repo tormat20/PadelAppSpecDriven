@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add an explicit rank column and deterministic ranking/order behavior for summary tables across all modes. Mexicano final rows rank by descending total with competition tie ranking, Americano final rows rank by final-round highest-to-lowest-court winner/loser sequence with alphabetical intra-pair ordering, and BeatTheBox rows display numeric round points, total points, and court-group ordering derived from global carry-over score progression. The implementation updates backend summary contracts and frontend rendering to keep crown logic and existing event flows intact.
+Add an explicit rank column and deterministic ranking/order behavior for summary tables across all modes. Mexicano final rows rank by descending total with competition tie ranking, WinnersCourt final rows rank by final-round highest-to-lowest-court winner/loser sequence with alphabetical intra-pair ordering, and BeatTheBox rows display numeric round points, total points, and court-group ordering derived from global carry-over score progression. The implementation updates backend summary contracts and frontend rendering to keep crown logic and existing event flows intact.
 
 ## Technical Context
 

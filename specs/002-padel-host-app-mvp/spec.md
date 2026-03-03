@@ -33,7 +33,7 @@ A host enters results per court with low friction so rounds can advance without 
 
 **Acceptance Scenarios**:
 
-1. **Given** an Americano match is in progress, **When** the host selects the winning team, **Then** the match is marked completed and player round points are updated.
+1. **Given** an WinnersCourt match is in progress, **When** the host selects the winning team, **Then** the match is marked completed and player round points are updated.
 2. **Given** a Mexicano match is in progress, **When** the host enters a score split that sums to 24, **Then** the match is marked completed and each player receives their team's score for the round.
 3. **Given** a Beat the Box match is in progress, **When** the host selects win, loss, or draw, **Then** the match is marked completed and global ranking points are applied.
 
@@ -62,7 +62,7 @@ Players can view a shared running screen to see court number, teams, and who par
 - Host attempts to advance round before all court results are completed.
 - Host enters an invalid Mexicano score that does not sum to 24.
 - Mexicano next-round partner rules cannot be satisfied perfectly due to player count or prior pairings.
-- Americano court movement reaches highest or lowest court boundaries.
+- WinnersCourt court movement reaches highest or lowest court boundaries.
 - Beat the Box has players with equal global ranking at box boundaries.
 - Event is interrupted mid-round and later reopened; prior saved state must remain consistent.
 
@@ -70,24 +70,24 @@ Players can view a shared running screen to see court number, teams, and who par
 
 ### Functional Requirements
 
-- **FR-001**: System MUST allow a host to create an event with event name, event type (Americano, Mexicano, Beat the Box), event date, selected courts, and selected players.
+- **FR-001**: System MUST allow a host to create an event with event name, event type (WinnersCourt, Mexicano, Beat the Box), event date, selected courts, and selected players.
 - **FR-002**: System MUST support adding players to an event from both newly created player records and existing player records.
 - **FR-003**: System MUST enforce that matches are formed as 2v2 groups of 4 players on each active court per round.
 - **FR-004**: System MUST present event lifecycle states that include Lobby, Preview, Running, and Finished.
 - **FR-005**: System MUST provide a Preview screen showing event metadata, selected courts, and player list before event start.
 - **FR-006**: System MUST generate round 1 assignments according to the selected event mode when the host starts the event.
 - **FR-007**: System MUST show all selected courts at once during Running, including court number and team composition for each court.
-- **FR-008**: System MUST support mode-specific result entry: Americano team win/loss, Mexicano score split totaling 24, and Beat the Box win/loss/draw.
+- **FR-008**: System MUST support mode-specific result entry: WinnersCourt team win/loss, Mexicano score split totaling 24, and Beat the Box win/loss/draw.
 - **FR-009**: System MUST mark a match as completed immediately after a valid result is entered.
 - **FR-010**: System MUST update per-player round scoring based on mode rules when results are entered.
 - **FR-011**: System MUST apply Beat the Box global ranking updates with +25 win, -15 loss, and +5 draw and persist those updates across events.
 - **FR-012**: System MUST enable the Next Match action only when all matches in the current round are completed.
 - **FR-013**: System MUST generate next-round assignments per mode rules when Next Match is activated.
-- **FR-014**: System MUST apply Americano movement rules where winners move up one court, losers move down one court, and winners on the highest court remain there.
+- **FR-014**: System MUST apply WinnersCourt movement rules where winners move up one court, losers move down one court, and winners on the highest court remain there.
 - **FR-015**: System MUST apply Mexicano round progression by ranking players by round score and regrouping into successive matches of four players.
 - **FR-016**: System MUST prevent identical partner repetition for the same player in consecutive Mexicano rounds when a valid alternative pairing exists.
 - **FR-017**: System MUST apply Beat the Box format as 3 rounds per box where each player partners with different players across the 3 rounds.
-- **FR-018**: System MUST enforce fixed event duration structures: Americano and Mexicano use 6 rounds of 15 minutes, Beat the Box uses 3 rounds of 30 minutes.
+- **FR-018**: System MUST enforce fixed event duration structures: WinnersCourt and Mexicano use 6 rounds of 15 minutes, Beat the Box uses 3 rounds of 30 minutes.
 - **FR-019**: System MUST allow hosts to finish an event only after the final round is completed.
 - **FR-020**: System MUST show an event summary containing final standings, per-round player results, and all match records with court and team details.
 - **FR-021**: System MUST persist event metadata, players, rounds, matches, entered results, and event-level player scoring for every event.

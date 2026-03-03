@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Define deterministic rank assignment rules for summary responses across Mexicano, Americano, and BeatTheBox.
+Define deterministic rank assignment rules for summary responses across Mexicano, WinnersCourt, and BeatTheBox.
 
 ## Ranking Rules
 
 1. Progress summaries: rank rows by current accumulated points/score descending for all modes.
 2. Mexicano final summaries: rank rows by total descending, using competition ranking for ties (`1,1,3,4...`).
-3. Americano final summaries:
+3. WinnersCourt final summaries:
    - Process final-round courts from highest to lowest court number.
    - For each court, winners slot precedes losers slot.
    - Within each winners/losers slot, players are alphabetically ordered by display name.

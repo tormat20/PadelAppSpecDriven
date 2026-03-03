@@ -27,7 +27,7 @@
 - [ ] Team overlays show display names (not IDs)
 - [ ] Team-side hover highlights only hovered side
 - [ ] Team-side click opens result modal for that selected side
-- [ ] Americano modal shows Win/Loss for selected side
+- [ ] WinnersCourt modal shows Win/Loss for selected side
 - [ ] BeatTheBox modal shows Win/Loss/Draw for selected side
 - [ ] Mexicano modal shows exactly 24 clickable score options
 - [ ] Mexicano selected-side score `X` assigns opposing score `24 - X`

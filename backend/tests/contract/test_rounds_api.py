@@ -11,7 +11,7 @@ def test_rounds_current_and_next_behaviors(client):
         "/api/v1/events",
         json={
             "eventName": "Rounds",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -24,4 +24,4 @@ def test_rounds_current_and_next_behaviors(client):
     assert "matches" in current.json()
 
     blocked = client.post(f"/api/v1/events/{event_id}/next")
-    assert blocked.status_code == 400
+    assert blocked.status_code == 409

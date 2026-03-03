@@ -17,10 +17,10 @@
 - **Fields**:
   - `id` (uuid or bigint, PK)
   - `event_name` (text, required)
-  - `event_type` (enum: `Americano|Mexicano|BeatTheBox`)
+  - `event_type` (enum: `WinnersCourt|Mexicano|BeatTheBox`)
   - `event_date` (date, required)
   - `status` (enum: `Lobby|Preview|Running|Finished`)
-  - `round_count` (int; 6 for Americano/Mexicano, 3 for BeatTheBox)
+  - `round_count` (int; 6 for WinnersCourt/Mexicano, 3 for BeatTheBox)
   - `round_duration_minutes` (int; 15 or 30)
   - `current_round_number` (int, nullable before start)
   - `created_at`, `updated_at`

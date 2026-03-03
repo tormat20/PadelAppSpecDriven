@@ -11,7 +11,7 @@ def test_event_create_start_finish_lifecycle(client):
         "/api/v1/events",
         json={
             "eventName": "Lifecycle",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -29,7 +29,7 @@ def test_event_create_start_finish_lifecycle(client):
         assert (
             client.post(
                 f"/api/v1/matches/{match_id}/result",
-                json={"mode": "Americano", "winningTeam": 1},
+                json={"mode": "WinnersCourt", "winningTeam": 1},
             ).status_code
             == 204
         )
@@ -42,8 +42,8 @@ def test_event_create_start_finish_lifecycle(client):
             match_id = match.get("matchId") or match.get("match_id")
             client.post(
                 f"/api/v1/matches/{match_id}/result",
-                json={"mode": "Americano", "winningTeam": 1},
+                json={"mode": "WinnersCourt", "winningTeam": 1},
             )
 
     finished = client.post(f"/api/v1/events/{event_id}/finish")
-    assert finished.status_code in (200, 400)
+    assert finished.status_code in (200, 409)

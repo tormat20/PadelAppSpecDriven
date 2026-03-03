@@ -35,14 +35,14 @@
 
 ## Phase 3: User Story 1 - Final Results Show Deterministic Rank Order (Priority: P1) 🎯 MVP
 
-**Goal**: Deliver deterministic final-summary rank ordering rules for Mexicano, Americano, and BeatTheBox.
+**Goal**: Deliver deterministic final-summary rank ordering rules for Mexicano, WinnersCourt, and BeatTheBox.
 
 **Independent Test**: Complete each mode and verify final summary rank values and row order exactly match mode-specific rules.
 
 ### Tests for User Story 1
 
 - [X] T009 [P] [US1] Add backend contract tests for final-summary rank/order metadata in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/contract/test_summary_final_ranking_api.py`
-- [X] T010 [P] [US1] Add backend integration tests for Americano court-priority + alphabetical intra-pair ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_summary_americano_final_ordering.py`
+- [X] T010 [P] [US1] Add backend integration tests for WinnersCourt court-priority + alphabetical intra-pair ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_summary_winners_court_final_ordering.py`
 - [X] T011 [P] [US1] Add backend integration tests for Mexicano competition tie ranking in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_summary_mexicano_competition_ranking.py`
 - [X] T012 [P] [US1] Add backend integration tests for BeatTheBox final points and group ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/tests/integration/test_summary_btb_final_ordering.py`
 - [X] T013 [P] [US1] Add frontend tests for final-summary deterministic rank order rendering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/frontend/tests/summary-final-ranking-order.test.tsx`
@@ -50,7 +50,7 @@
 ### Implementation for User Story 1
 
 - [X] T014 [US1] Implement Mexicano final rank/order computation with competition tie ranking in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_ordering.py`
-- [X] T015 [US1] Implement Americano final court-priority winner/loser sequencing with alphabetical intra-pair ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_ordering.py`
+- [X] T015 [US1] Implement WinnersCourt final court-priority winner/loser sequencing with alphabetical intra-pair ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_ordering.py`
 - [X] T016 [US1] Implement BeatTheBox final numeric round points, totals, and court-group ordering in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_ordering.py`
 - [X] T017 [US1] Apply ordered ranked rows when building final summary payloads in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/backend/app/services/summary_service.py`
 - [X] T018 [US1] Render final summary rows from ranked order metadata in `/home/tor-mattsson/repos/padel-app/Padel-app-specdrive-v1/frontend/src/pages/Summary.tsx`
@@ -145,7 +145,7 @@
 ```bash
 # Parallel tests for mode-specific final ranking
 T009 backend/tests/contract/test_summary_final_ranking_api.py
-T010 backend/tests/integration/test_summary_americano_final_ordering.py
+T010 backend/tests/integration/test_summary_winners_court_final_ordering.py
 T011 backend/tests/integration/test_summary_mexicano_competition_ranking.py
 T012 backend/tests/integration/test_summary_btb_final_ordering.py
 T013 frontend/tests/summary-final-ranking-order.test.tsx

@@ -19,6 +19,15 @@ Auto-generated from all feature plans. Last updated: 2026-02-26
 - TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories (011-summary-rank-ordering)
 - Existing DuckDB-backed event/round/match/player/ranking persistence; no schema migration planned (011-summary-rank-ordering)
 - Existing player/event/match persistence; no migration required (012-event-player-logic)
+- TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed SQL repositories (013-planned-event-slots)
+- Existing DuckDB event/player/match persistence with event schema updates for planning metadata and optimistic concurrency version (013-planned-event-slots)
+- Existing DuckDB event/player/match persistence with event metadata and optimistic concurrency version fields (014-dual-event-creation)
+- Existing DuckDB persistence for events/rounds/matches/results; persisted run-state and round pointer are source of truth (015-resume-ongoing-events)
+- Existing DuckDB persistence for events/rounds/matches/results with setup-status and runtime status fields as event-state source-of-truth (016-event-state-restart)
+- TypeScript 5.9, React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (new, to be `npm install`ed) (017-create-event-stepper)
+- Backend DuckDB via existing REST API (`createEvent`, `updateEvent`); `localStorage` draft for player list (017-create-event-stepper)
+- TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (already installed) (018-nav-ui-polish)
+- No new persistence — player creation uses the existing `POST /api/v1/players` endpoint via `createPlayer()` in `lib/api.ts`; event-slot view state (filter, sort, mode blobs) continues to use `localStorage` under existing keys (018-nav-ui-polish)
 
 - TypeScript 5.x, React 18, Node.js 20+ for tooling + React, React Router, Vite, Vitest (001-frontend-visual-redesign)
 
@@ -38,9 +47,9 @@ npm test && npm run lint
 TypeScript 5.x, React 18, Node.js 20+ for tooling: Follow standard conventions
 
 ## Recent Changes
-- 012-event-player-logic: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories
-- 011-summary-rank-ordering: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB repositories
-- 010-nav-prism-crowns: Added TypeScript 5.x + React 18 (frontend), Python 3.12 (backend API response updates) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed repositories, OGL-based prism rendering dependency behavior per provided implementation
+- 018-nav-ui-polish: Added TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (already installed)
+- 017-create-event-stepper: Added TypeScript 5.9, React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (new, to be `npm install`ed)
+- 016-event-state-restart: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed SQL repositories
 
 
 <!-- MANUAL ADDITIONS START -->

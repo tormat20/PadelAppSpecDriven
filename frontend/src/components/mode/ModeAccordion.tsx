@@ -3,11 +3,11 @@ import { getEventModeLabel } from "../../lib/eventMode"
 
 type Props = {
   selected: string
-  onSelect: (value: "Americano" | "Mexicano" | "BeatTheBox") => void
+  onSelect: (value: "WinnersCourt" | "Mexicano" | "BeatTheBox") => void
 }
 
-const modes: Array<{ key: "Americano" | "Mexicano" | "BeatTheBox"; blurb: string }> = [
-  { key: "Americano", blurb: "Win/loss court movement" },
+const modes: Array<{ key: "WinnersCourt" | "Mexicano" | "BeatTheBox"; blurb: string }> = [
+  { key: "WinnersCourt", blurb: "Win/loss court movement" },
   { key: "Mexicano", blurb: "24-point score regrouping" },
   { key: "BeatTheBox", blurb: "3-round box rotations" },
 ]

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
   event_name TEXT NOT NULL,
-  event_type TEXT NOT NULL CHECK (event_type IN ('Americano', 'Mexicano', 'BeatTheBox')),
+  event_type TEXT NOT NULL CHECK (event_type IN ('WinnersCourt', 'Mexicano', 'BeatTheBox')),
   event_date DATE NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('Lobby', 'Running', 'Finished')),
   round_count INTEGER NOT NULL,

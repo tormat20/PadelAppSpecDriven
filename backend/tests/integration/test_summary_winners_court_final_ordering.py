@@ -6,7 +6,7 @@ def _create_players_with_names(client, names: list[str]) -> dict[str, str]:
     return player_by_id
 
 
-def test_americano_final_ordering_is_court_priority_with_alphabetical_pairs(client):
+def test_winners_court_final_ordering_is_court_priority_with_alphabetical_pairs(client):
     players = _create_players_with_names(
         client,
         ["Zoe", "Amy", "Nils", "Bo", "Yara", "Iris", "Karl", "Ola"],
@@ -14,8 +14,8 @@ def test_americano_final_ordering_is_court_priority_with_alphabetical_pairs(clie
     created = client.post(
         "/api/v1/events",
         json={
-            "eventName": "Americano Final Ordering",
-            "eventType": "Americano",
+            "eventName": "WinnersCourt Final Ordering",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-27",
             "selectedCourts": [1, 2],
             "playerIds": list(players.keys()),
@@ -45,14 +45,14 @@ def test_americano_final_ordering_is_court_priority_with_alphabetical_pairs(clie
 
                 result = client.post(
                     f"/api/v1/matches/{match['matchId']}/result",
-                    json={"mode": "Americano", "winningTeam": winning_team},
+                    json={"mode": "WinnersCourt", "winningTeam": winning_team},
                 )
                 assert result.status_code == 204
         else:
             for match in matches:
                 result = client.post(
                     f"/api/v1/matches/{match['matchId']}/result",
-                    json={"mode": "Americano", "winningTeam": 1},
+                    json={"mode": "WinnersCourt", "winningTeam": 1},
                 )
                 assert result.status_code == 204
 

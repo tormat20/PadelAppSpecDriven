@@ -53,16 +53,18 @@ class SummaryOrderingService:
             ranked = self._assign_competition_rank(ordered, totals_by_player)
             return ranked, SummaryOrderingMetadata(ordering_mode="final-mexicano-total-desc")
 
-        if event_type == EventType.AMERICANO:
-            ordered = self._order_americano_final(rows, rounds, matches)
+        if event_type == EventType.WINNERS_COURT:
+            ordered = self._order_winners_court_final(rows, rounds, matches)
             ranked = self._assign_sequential_rank(ordered)
-            return ranked, SummaryOrderingMetadata(ordering_mode="final-americano-court-priority")
+            return ranked, SummaryOrderingMetadata(ordering_mode="final-winners-court-priority")
 
         ordered = self._order_btb_final(rows, totals_by_player, courts, global_scores)
         ranked = self._assign_sequential_rank(ordered)
         return ranked, SummaryOrderingMetadata(ordering_mode="final-btb-global-court-groups")
 
-    def _order_americano_final(self, rows: list[dict], rounds: list, matches: list) -> list[dict]:
+    def _order_winners_court_final(
+        self, rows: list[dict], rounds: list, matches: list
+    ) -> list[dict]:
         if not rows:
             return []
 

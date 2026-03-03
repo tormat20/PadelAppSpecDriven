@@ -19,7 +19,7 @@ Define externally visible run-event behavior for court overlays, side selection,
 
 ## Modal Option Contract
 
-### Americano
+### WinnersCourt
 1. Modal shows exactly two options: `Win`, `Loss` (relative to clicked side).
 
 ### BeatTheBox
@@ -41,7 +41,7 @@ Define externally visible run-event behavior for court overlays, side selection,
 - [X] Contract check: court cards use `images/courts/court-bg-removed.png`
 - [X] Contract check: overlays display names (not IDs) when mapping data available
 - [ ] Contract check: side click opens modal and close/cancel keeps match unmodified
-- [X] Contract check: mode-specific options match Americano/BeatTheBox/Mexicano contract
+- [X] Contract check: mode-specific options match WinnersCourt/BeatTheBox/Mexicano contract
 - [X] Contract check: Mexicano `X` selection assigns opponent `24 - X`
 
 ### Evidence
@@ -50,5 +50,5 @@ Define externally visible run-event behavior for court overlays, side selection,
 - `frontend/src/pages/RunEvent.tsx` maps identifier arrays via `mapMatchPlayersToDisplayNames` before rendering court overlays.
 - `frontend/tests/run-event-court-card.test.tsx` validates court image path and display-name mapping helper.
 - `frontend/src/components/matches/ResultModal.tsx` + `frontend/src/features/run-event/modeInputs.tsx` implement side-relative modal flow and mode-specific options.
-- `frontend/tests/run-event-result-modal.test.tsx` validates Americano/BeatTheBox side-relative payload mapping.
+- `frontend/tests/run-event-result-modal.test.tsx` validates WinnersCourt/BeatTheBox side-relative payload mapping.
 - `frontend/tests/run-event-mexicano-options.test.tsx` validates exactly 24 options and complement score rule.

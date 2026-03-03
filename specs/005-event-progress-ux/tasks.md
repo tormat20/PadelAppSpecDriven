@@ -77,7 +77,7 @@
 - [X] T020 [P] [US2] Add court overlay rendering tests for image path + display names in `frontend/tests/run-event-court-card.test.tsx`
 - [X] T021 [P] [US2] Add team-side hover/select interaction tests in `frontend/tests/run-event-team-grouping.test.tsx`
 - [X] T022 [P] [US2] Add side-relative winner state persistence tests in `frontend/tests/result-entry-selection-state.test.tsx`
-- [X] T023 [P] [US2] Add result modal option matrix tests (Americano/BeatTheBox/Mexicano) in `frontend/tests/run-event-result-modal.test.tsx`
+- [X] T023 [P] [US2] Add result modal option matrix tests (WinnersCourt/BeatTheBox/Mexicano) in `frontend/tests/run-event-result-modal.test.tsx`
 - [X] T024 [P] [US2] Add Mexicano complement score tests (`X` -> `24-X`) in `frontend/tests/run-event-mexicano-options.test.tsx`
 
 ### Implementation for User Story 2

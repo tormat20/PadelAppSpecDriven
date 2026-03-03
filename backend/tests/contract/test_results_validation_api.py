@@ -34,7 +34,7 @@ def test_reject_americano_without_winner(client):
         "/api/v1/events",
         json={
             "eventName": "Americano Winner Validation",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": player_ids,
@@ -46,6 +46,6 @@ def test_reject_americano_without_winner(client):
 
     bad = client.post(
         f"/api/v1/matches/{match_id}/result",
-        json={"mode": "Americano"},
+        json={"mode": "WinnersCourt"},
     )
     assert bad.status_code == 400

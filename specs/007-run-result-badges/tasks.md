@@ -30,7 +30,7 @@
 
 **⚠️ CRITICAL**: Complete this phase before user story implementation.
 
-- [X] T005 Add mirrored outcome mapping helpers (Americano/BeatTheBox) in `frontend/src/features/run-event/resultEntry.ts`
+- [X] T005 Add mirrored outcome mapping helpers (WinnersCourt/BeatTheBox) in `frontend/src/features/run-event/resultEntry.ts`
 - [X] T006 Add Mexicano complement display helper (`X` and `24 - X`) in `frontend/src/features/run-event/resultEntry.ts`
 - [X] T007 [P] Add inline team badge state helpers for selected/opposing side in `frontend/src/features/run-event/resultEntry.ts`
 - [X] T008 [P] Add lightweight run-event badge view typing in `frontend/src/lib/types.ts`
@@ -44,11 +44,11 @@
 
 **Goal**: Render right-aligned inline result badges on team buttons with mirrored semantics per mode and remove redundant below-card helper text.
 
-**Independent Test**: In run-event, select outcomes for Americano/BeatTheBox/Mexicano and verify both team buttons immediately show mirrored right-side values (`X` and `24 - X` for Mexicano) with no muted helper line below cards.
+**Independent Test**: In run-event, select outcomes for WinnersCourt/BeatTheBox/Mexicano and verify both team buttons immediately show mirrored right-side values (`X` and `24 - X` for Mexicano) with no muted helper line below cards.
 
 ### Tests for User Story 1
 
-- [X] T010 [P] [US1] Add mirrored outcome helper tests for Americano/BeatTheBox in `frontend/tests/result-entry-selection-state.test.tsx`
+- [X] T010 [P] [US1] Add mirrored outcome helper tests for WinnersCourt/BeatTheBox in `frontend/tests/result-entry-selection-state.test.tsx`
 - [X] T011 [P] [US1] Add Mexicano complement badge tests in `frontend/tests/run-event-mexicano-options.test.tsx`
 - [X] T012 [P] [US1] Add inline badge rendering expectations on run-event cards in `frontend/tests/run-event-team-grouping.test.tsx`
 - [X] T013 [P] [US1] Add no-helper-text regression test for run-event card footer in `frontend/tests/run-event-court-card.test.tsx`

@@ -47,13 +47,13 @@ def generate_next_round(
     if not ordered_courts:
         raise ValueError("At least one court is required")
 
-    if event_type == EventType.AMERICANO:
+    if event_type == EventType.WINNERS_COURT:
         if not previous_matches:
             round_plan = generate_round_1(event_type, ordered_player_ids, ordered_courts)
             return RoundPlan(round_number=next_round, matches=round_plan.matches)
         return RoundPlan(
             round_number=next_round,
-            matches=_generate_americano_matches(previous_matches, ordered_courts, event_seed),
+            matches=_generate_winners_court_matches(previous_matches, ordered_courts, event_seed),
         )
 
     if event_type == EventType.MEXICANO:
@@ -92,7 +92,7 @@ def _clamp_court_index(idx: int, court_count: int) -> int:
     return max(0, min(court_count - 1, idx))
 
 
-def _generate_americano_matches(
+def _generate_winners_court_matches(
     previous_matches: list[Match],
     ordered_courts: list[int],
     event_seed: str,
@@ -168,7 +168,7 @@ def _generate_americano_matches(
 
     if not matches:
         round_plan = generate_round_1(
-            EventType.AMERICANO, _flatten_previous_players(previous_matches), ordered_courts
+            EventType.WINNERS_COURT, _flatten_previous_players(previous_matches), ordered_courts
         )
         return round_plan.matches
     return matches
@@ -279,7 +279,7 @@ def _flatten_previous_players(previous_matches: list[Match]) -> list[str]:
 
 
 def _result_type(event_type: EventType) -> ResultType:
-    if event_type == EventType.AMERICANO:
+    if event_type == EventType.WINNERS_COURT:
         return ResultType.WIN_LOSS
     if event_type == EventType.MEXICANO:
         return ResultType.SCORE_24

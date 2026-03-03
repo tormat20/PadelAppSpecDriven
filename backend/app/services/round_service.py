@@ -1,14 +1,16 @@
 from collections import defaultdict
 from uuid import uuid4
 
+from app.core.errors import DomainError
 from app.domain.enums import EventType, RoundStatus
-from app.domain.scoring import americano_score, beat_the_box_delta, mexicano_score
+from app.domain.scoring import winners_court_score, beat_the_box_delta, mexicano_score
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.rankings_repo import RankingsRepository
 from app.repositories.rounds_repo import RoundsRepository
-from app.services.americano_service import AmericanoService
+from app.services.winners_court_service import WinnersCourtService
 from app.services.beat_the_box_service import BeatTheBoxService
+from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.mexicano_service import MexicanoService
 
 
@@ -24,14 +26,18 @@ class RoundService:
         self.rounds_repo = rounds_repo
         self.matches_repo = matches_repo
         self.rankings_repo = rankings_repo
-        self.americano_service = AmericanoService()
+        self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
         self.btb_service = BeatTheBoxService()
 
     def get_current_round_view(self, event_id: str) -> dict:
         round_obj = self.rounds_repo.get_current_round(event_id)
         if not round_obj:
-            raise ValueError("Round not found")
+            raise DomainError(
+                "ROUND_NOT_FOUND",
+                "No active round found for this event.",
+                status_code=404,
+            )
         matches = self.matches_repo.list_by_round(round_obj.id)
         return {
             "event_id": event_id,
@@ -49,11 +55,11 @@ class RoundService:
         team1_score: int | None = None
         team2_score: int | None = None
 
-        if mode == "Americano":
+        if mode == "WinnersCourt":
             winner_team = payload.get("winningTeam")
             if winner_team not in (1, 2):
-                raise ValueError("Americano requires a winning team")
-            americano_score(winner_team)
+                raise ValueError("WinnersCourt requires a winning team")
+            winners_court_score(winner_team)
         elif mode == "Mexicano":
             raw_team1 = payload.get("team1Score")
             raw_team2 = payload.get("team2Score")
@@ -88,18 +94,38 @@ class RoundService:
     def next_round(self, event_id: str) -> dict:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+
+        lifecycle_status = derive_lifecycle_status(event)
+        if lifecycle_status != "ongoing":
+            raise DomainError(
+                "EVENT_NOT_ONGOING",
+                "Event must be ongoing to advance rounds.",
+                status_code=409,
+            )
 
         current_round = self.rounds_repo.get_current_round(event_id)
         if not current_round:
-            raise ValueError("No current round")
+            raise DomainError(
+                "ROUND_NOT_FOUND",
+                "No active round found for this event.",
+                status_code=404,
+            )
 
         if self.matches_repo.count_pending_in_round(current_round.id) > 0:
-            raise ValueError("Cannot advance with pending matches")
+            raise DomainError(
+                "ROUND_PENDING_RESULTS",
+                "Submit all match results before advancing to the next round.",
+                status_code=409,
+            )
 
         self.rounds_repo.set_status(current_round.id, RoundStatus.COMPLETED)
         if current_round.round_number >= event.round_count:
-            raise ValueError("Final round reached")
+            raise DomainError(
+                "EVENT_FINAL_ROUND_REACHED",
+                "Final round reached. Finish the event to view summary.",
+                status_code=409,
+            )
 
         player_ids = self.events_repo.list_player_ids(event_id)
         courts = self.events_repo.list_courts(event_id)
@@ -107,8 +133,8 @@ class RoundService:
         partner_history = self._build_previous_partner_map(current_matches)
         event_seed = f"{event_id}:{current_round.round_number + 1}"
 
-        if event.event_type == EventType.AMERICANO:
-            plan = self.americano_service.generate_next_round(
+        if event.event_type == EventType.WINNERS_COURT:
+            plan = self.winners_court_service.generate_next_round(
                 current_round.round_number,
                 player_ids,
                 courts,

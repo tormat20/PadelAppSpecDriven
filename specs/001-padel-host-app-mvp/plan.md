@@ -6,7 +6,7 @@
 ## Summary
 
 Build a host-first padel event platform with FastAPI + DuckDB backend and React + TypeScript frontend.
-The MVP supports full event lifecycle (Lobby -> Preview -> Running -> Summary) for Americano, Mexicano, and BeatTheBox with persistent event history and BeatTheBox global ranking updates.
+The MVP supports full event lifecycle (Lobby -> Preview -> Running -> Summary) for WinnersCourt, Mexicano, and BeatTheBox with persistent event history and BeatTheBox global ranking updates.
 
 ## Technical Context
 

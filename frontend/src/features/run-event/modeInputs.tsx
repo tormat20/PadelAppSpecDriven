@@ -2,7 +2,7 @@ import { ResultEntry } from "../../components/matches/ResultEntry"
 import {
   getMexicanoSideScoreOptions,
   getSideRelativeSelectionKey,
-  toAmericanoPayload,
+  toWinnersCourtPayload,
   toBeatTheBoxPayload,
   toMexicanoPayload,
   type TeamSide,
@@ -10,7 +10,7 @@ import {
 } from "./resultEntry"
 
 type Props = {
-  mode: "Americano" | "Mexicano" | "BeatTheBox"
+  mode: "WinnersCourt" | "Mexicano" | "BeatTheBox"
   selectedSide: TeamSide
   selectedPayload?: WinnerPayload
   onPayload: (payload: WinnerPayload) => void
@@ -51,7 +51,7 @@ export function ModeInputs({ mode, selectedSide, selectedPayload, onPayload }: P
       options={["Win", "Loss"]}
       selectedValue={selectedValue}
       layout="dual"
-      onSelect={(selected) => onPayload(toAmericanoPayload(selectedSide, selected as "Win" | "Loss"))}
+      onSelect={(selected) => onPayload(toWinnersCourtPayload(selectedSide, selected as "Win" | "Loss"))}
     />
   )
 }

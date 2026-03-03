@@ -14,14 +14,14 @@
   - Dense rank style (`1,1,2,3...`).
   - Unique sequential ranks even when tied.
 
-## Decision: Americano final ranking follows court-priority winner/loser sequencing
+## Decision: WinnersCourt final ranking follows court-priority winner/loser sequencing
 - **Decision**: Rank order is produced by final-round court descending: winners first, then losers, court by court.
 - **Rationale**: Aligns outcomes with event narrative and explicit product requirement.
 - **Alternatives considered**:
   - Rank by total score only.
   - Rank by standings rank produced by prior scoring pipeline.
 
-## Decision: Americano intra-pair ordering uses alphabetical display-name order
+## Decision: WinnersCourt intra-pair ordering uses alphabetical display-name order
 - **Decision**: Within each winners pair and losers pair, order players alphabetically by display name.
 - **Rationale**: Deterministic and human-checkable without depending on insertion order.
 - **Alternatives considered**:

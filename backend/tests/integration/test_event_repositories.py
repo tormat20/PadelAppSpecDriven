@@ -8,7 +8,7 @@ def test_event_data_persists_across_api_reads(client):
         "/api/v1/events",
         json={
             "eventName": "Integration Repo",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": players,

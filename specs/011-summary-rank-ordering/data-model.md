@@ -17,16 +17,16 @@
 ### 2) ModeOrderingRule
 - **Purpose**: Rule set defining row order and rank generation for each mode.
 - **Fields**:
-  - `mode`: `Mexicano` | `Americano` | `BeatTheBox`
+  - `mode`: `Mexicano` | `WinnersCourt` | `BeatTheBox`
   - `progressRule`: ranking behavior during in-progress summary
   - `finalRule`: ranking behavior during final summary
   - `tieRule`: tie policy where applicable
 - **Validation rules**:
   - Mexicano final tie rule uses competition ranking.
-  - Americano final intra-pair order is alphabetical by display name.
+  - WinnersCourt final intra-pair order is alphabetical by display name.
   - BeatTheBox grouping follows global carry-over score progression.
 
-### 3) AmericanoCourtOutcomeSlot
+### 3) WinnersCourtOutcomeSlot
 - **Purpose**: Rank slot information generated from final-round court outcomes.
 - **Fields**:
   - `courtNumber`: final-round court identifier
@@ -61,7 +61,7 @@
 ## Relationships
 
 - `ModeOrderingRule` governs generation of `SummaryRankedRow`.
-- `AmericanoCourtOutcomeSlot` contributes ordered segments to Americano `SummaryRankedRow` output.
+- `WinnersCourtOutcomeSlot` contributes ordered segments to WinnersCourt `SummaryRankedRow` output.
 - `BeatTheBoxCourtGroup` contributes grouped ordering for BeatTheBox `SummaryRankedRow` output.
 - `SummaryOrderingMetadata` carries final ordered rows and rank values to frontend.
 

@@ -1,7 +1,14 @@
 from dataclasses import dataclass
 from datetime import date
 
-from app.domain.enums import EventStatus, EventType, MatchStatus, ResultType, RoundStatus
+from app.domain.enums import (
+    EventStatus,
+    EventType,
+    MatchStatus,
+    ResultType,
+    RoundStatus,
+    SetupStatus,
+)
 
 
 @dataclass(slots=True)
@@ -21,6 +28,9 @@ class Event:
     round_count: int
     round_duration_minutes: int
     current_round_number: int | None
+    event_time: str | None
+    setup_status: SetupStatus
+    version: int
 
 
 @dataclass(slots=True)

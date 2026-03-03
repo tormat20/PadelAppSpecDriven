@@ -11,4 +11,9 @@ def test_migrations_apply_once(tmp_path):
 
     with get_connection() as conn:
         rows = conn.execute("SELECT name FROM schema_migrations ORDER BY name").fetchall()
-    assert [r[0] for r in rows] == ["001_init.sql"]
+    assert [r[0] for r in rows] == [
+        "001_init.sql",
+        "002_planned_event_slots.sql",
+        "003_foreign_keys_cascade.sql",
+        "004_rename_americano_to_winners_court.sql",
+    ]

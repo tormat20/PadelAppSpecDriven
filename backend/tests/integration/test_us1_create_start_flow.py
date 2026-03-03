@@ -7,7 +7,7 @@ def test_us1_create_start_flow(client):
         "/api/v1/events",
         json={
             "eventName": "US1 Flow",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": players,

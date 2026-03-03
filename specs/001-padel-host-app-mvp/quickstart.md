@@ -28,7 +28,7 @@ API base URL: `http://127.0.0.1:8000/api/v1`
 cd backend
 uv run pytest
 uv run pytest tests/unit/test_scheduling_service.py
-uv run pytest tests/integration/test_event_flow.py::test_americano_full_flow
+uv run pytest tests/integration/test_event_flow.py::test_winners_court_full_flow
 ```
 
 ## 4) Backend lint/type-check
@@ -66,7 +66,7 @@ npm run test
 
 ## 8) Manual MVP verification flow
 1. Create 8 players.
-2. Create an Americano event with courts 1 and 2.
+2. Create an WinnersCourt event with courts 1 and 2.
 3. Add all 8 players and start event.
 4. Enter results for round 1 matches.
 5. Advance to round 2 and verify assignments changed.
@@ -85,5 +85,5 @@ curl -X POST http://127.0.0.1:8000/api/v1/players \
 # create event
 curl -X POST http://127.0.0.1:8000/api/v1/events \
   -H "Content-Type: application/json" \
-  -d '{"eventName":"Thursday Padel","eventType":"Americano","eventDate":"2026-02-25","selectedCourts":[1,2]}'
+  -d '{"eventName":"Thursday Padel","eventType":"WinnersCourt","eventDate":"2026-02-25","selectedCourts":[1,2]}'
 ```

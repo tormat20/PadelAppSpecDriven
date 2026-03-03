@@ -23,7 +23,7 @@
 
 ## Decision 4: Scheduling model by event type
 - **Decision**:
-  - Americano: winners move up one court, losers move down one court, top-court winners stay.
+  - WinnersCourt: winners move up one court, losers move down one court, top-court winners stay.
   - Mexicano: regroup by round score into blocks of four; enforce no same partner in consecutive rounds when possible.
   - Beat the Box: groups of four based on persistent global ranking with fixed three-round partner rotation.
 - **Rationale**: Exactly maps to business rules while keeping deterministic behavior for testing.
@@ -33,7 +33,7 @@
 
 ## Decision 5: Scoring strategy
 - **Decision**:
-  - Americano stores win/loss outcomes and updates event-local standings.
+  - WinnersCourt stores win/loss outcomes and updates event-local standings.
   - Mexicano stores explicit team scores that must sum to 24; each player gets team score.
   - Beat the Box applies persistent global ranking deltas (+25 win, -15 loss, +5 draw).
 - **Rationale**: Preserves required input modes and enables accurate event summary and future stats.

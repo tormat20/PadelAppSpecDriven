@@ -26,13 +26,13 @@ As a host running a live event, I want selected outcomes shown directly inside e
 
 **Why this priority**: This is the fastest feedback loop for live score entry and directly reduces operator mistakes.
 
-**Independent Test**: In run-event flow, select outcomes for Americano, BeatTheBox, and Mexicano and verify each team button shows mirrored values/outcomes correctly on the right side.
+**Independent Test**: In run-event flow, select outcomes for WinnersCourt, BeatTheBox, and Mexicano and verify each team button shows mirrored values/outcomes correctly on the right side.
 
 **Acceptance Scenarios**:
 
 1. **Given** a Mexicano match, **When** the host selects score `X` on one team button, **Then** that button shows `X` and the opposing team button shows `24 - X`.
-2. **Given** an Americano match, **When** one side is set to `Win`, **Then** the opposing side shows `Loss`.
-3. **Given** an Americano match, **When** one side is set to `Loss`, **Then** the opposing side shows `Win`.
+2. **Given** an WinnersCourt match, **When** one side is set to `Win`, **Then** the opposing side shows `Loss`.
+3. **Given** an WinnersCourt match, **When** one side is set to `Loss`, **Then** the opposing side shows `Win`.
 4. **Given** a BeatTheBox match, **When** one side is set to `Draw`, **Then** both sides show `Draw`.
 5. **Given** an outcome has been selected, **When** the card refreshes, **Then** no extra muted helper text is needed below the card.
 
@@ -85,7 +85,7 @@ As a host running matches, I want the court image to be clearer while keeping ti
 - **FR-001**: The system MUST display selected match outcomes as right-aligned badges/values inside each team button.
 - **FR-002**: The system MUST remove redundant muted helper text below run-event court cards.
 - **FR-003**: For Mexicano selection, the selected team button MUST show `X` and the opposing team button MUST show `24 - X`.
-- **FR-004**: For Americano and BeatTheBox win/loss selections, team-button outcomes MUST be mirrored as `Win/Loss` or `Loss/Win`.
+- **FR-004**: For WinnersCourt and BeatTheBox win/loss selections, team-button outcomes MUST be mirrored as `Win/Loss` or `Loss/Win`.
 - **FR-005**: For BeatTheBox draw selection, both team buttons MUST show `Draw`.
 - **FR-006**: Team-button displayed results MUST update immediately after a valid selection and remain visible until changed.
 - **FR-007**: The create-event player area MUST use `Players` as the section heading above add/search controls.
@@ -114,7 +114,7 @@ As a host running matches, I want the court image to be clearer while keeping ti
 
 - **SC-001**: In host validation sessions, at least 95% of users identify both teams' current selected outcomes from button labels in under 2 seconds per card.
 - **SC-002**: In Mexicano validation, 100% of tested selections display complementary values summing to 24 across both team buttons.
-- **SC-003**: In Americano/BeatTheBox validation, 100% of tested selections display correct mirrored outcomes across both team buttons.
+- **SC-003**: In WinnersCourt/BeatTheBox validation, 100% of tested selections display correct mirrored outcomes across both team buttons.
 - **SC-004**: In create-event validation, 100% of assigned players are visible without fixed-height clipping during normal setup usage.
 - **SC-005**: In run-event visual review, at least 90% of hosts report improved court readability with no loss of team-button readability.
 - **SC-006**: Regression validation confirms existing match submission and progression behavior remains unchanged across previously passing event-flow checks.

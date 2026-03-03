@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deliver an app-shell refresh that adds a full-width top navigation placeholder, converts the logo button to image-only centered branding, introduces final-summary crown winner highlighting (Mexicano ties crowned, Americano highest-court final-round winners crowned), and replaces the existing global background with the specified prism implementation while preserving reduced-motion accessibility and interaction clarity.
+Deliver an app-shell refresh that adds a full-width top navigation placeholder, converts the logo button to image-only centered branding, introduces final-summary crown winner highlighting (Mexicano ties crowned, WinnersCourt highest-court final-round winners crowned), and replaces the existing global background with the specified prism implementation while preserving reduced-motion accessibility and interaction clarity.
 
 ## Technical Context
 

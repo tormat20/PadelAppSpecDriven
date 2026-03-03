@@ -37,7 +37,7 @@
 
 ## Decision 6: Scheduling strategy per mode
 - **Decision**:
-  - Americano: round-by-round court movement (winners up, losers down, top court stays).
+  - WinnersCourt: round-by-round court movement (winners up, losers down, top court stays).
   - Mexicano: rank by round team points, regroup top-4/next-4, prevent same partner as previous round.
   - BeatTheBox: boxes of 4 ordered by global ranking, fixed 3-round partner rotations per box.
 - **Rationale**: Direct match with spec rules and deterministic testability.
@@ -47,7 +47,7 @@
 
 ## Decision 7: Scoring model
 - **Decision**:
-  - Americano: store winner/loser outcome per match and event-local round points.
+  - WinnersCourt: store winner/loser outcome per match and event-local round points.
   - Mexicano: store exact team scores (sum=24) and assign each player their team score.
   - BeatTheBox: support win/loss/draw with global ranking deltas (+25/-15/+5).
 - **Rationale**: Covers all required result input types and summary reporting.

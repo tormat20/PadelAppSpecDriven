@@ -1,0 +1,160 @@
+/*
+ * Stepper component styles
+ * Uses CSS design tokens from tokens.css — no hardcoded colours except
+ * the gradient that intentionally matches the .button gradient from components.css.
+ *
+ * prefers-reduced-motion is already suppressed globally via motion.css:
+ * all transition-duration values are set to 0ms when the user prefers
+ * reduced motion, so the motion/react AnimatePresence transitions
+ * will be instant without any additional code here.
+ */
+
+/* ─── Root container ──────────────────────────────────────────────── */
+
+.stepper {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* ─── Indicator bar ───────────────────────────────────────────────── */
+
+.stepper-header {
+  padding: 0 var(--space-2);
+}
+
+.stepper-steps {
+  align-items: flex-start;
+  display: flex;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Individual step item: circle stacked above label */
+.stepper-step {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+
+/* Connector line between steps — fills the remaining horizontal space */
+.stepper-connector {
+  border-top: 2px solid var(--color-border);
+  flex: 1;
+  margin-top: 1.1rem; /* vertically centres with the circle */
+  min-width: var(--space-3);
+}
+
+/* ─── Step circle ────────────────────────────────────────────────── */
+
+.stepper-circle {
+  align-items: center;
+  border-radius: 50%;
+  color: inherit;
+  display: inline-flex;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  height: 2.2rem;
+  justify-content: center;
+  line-height: 1;
+  text-align: center;
+  width: 2.2rem;
+}
+
+/* Inactive: muted border, muted number */
+.stepper-circle[data-state="inactive"] {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-ink-muted);
+  cursor: default;
+}
+
+/* Active: accent border with center dot */
+.stepper-circle[data-state="active"] {
+  background: var(--color-surface-strong);
+  border: 2px solid var(--color-accent);
+  color: var(--color-accent);
+  cursor: default;
+}
+
+/* Complete: filled with accent gradient (matches .button from components.css) */
+.stepper-circle[data-state="complete"] {
+  /* Intentional non-token value: this gradient is locked to the .button design
+     pattern and intentionally mirrors linear-gradient(120deg, var(--color-accent), #2d5fba) */
+  background: linear-gradient(120deg, var(--color-accent), #2d5fba);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.stepper-circle[data-state="complete"]:hover {
+  box-shadow:
+    0 4px 14px rgba(12, 138, 143, 0.32),
+    0 0 0 1px rgba(97, 168, 255, 0.4);
+  transform: translateY(-1px);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+/* button reset for the clickable variant */
+button.stepper-circle {
+  appearance: none;
+  background: linear-gradient(120deg, var(--color-accent), #2d5fba);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+button.stepper-circle:focus-visible {
+  box-shadow: 0 0 0 3px var(--interactive-focus);
+  outline: none;
+}
+
+/* Center dot for active step */
+.stepper-active-dot {
+  background: var(--color-accent);
+  border-radius: 50%;
+  display: block;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+/* ─── Step label ─────────────────────────────────────────────────── */
+
+.stepper-label {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stepper-label[data-state="inactive"] {
+  color: var(--color-ink-muted);
+}
+
+.stepper-label[data-state="active"] {
+  color: var(--color-ink-strong);
+  font-weight: 700;
+}
+
+.stepper-label[data-state="complete"] {
+  color: var(--color-ink-strong);
+}
+
+/* ─── Content region ─────────────────────────────────────────────── */
+
+/* Clip overflow so exiting panels don't spill outside the stepper */
+.stepper-content {
+  overflow: hidden;
+  position: relative;
+}
+
+/* The motion.div that wraps each step's content */
+.stepper-panel {
+  width: 100%;
+}

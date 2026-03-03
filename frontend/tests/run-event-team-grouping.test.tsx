@@ -18,7 +18,7 @@ describe("RunEvent team grouping click interactions", () => {
 
   it("maps submitted payloads to inline mirrored badge values", () => {
     const badges = mapSubmittedPayloadsToBadges({
-      m1: { mode: "Americano", winningTeam: 1 },
+      m1: { mode: "WinnersCourt", winningTeam: 1 },
       m2: { mode: "Mexicano", team1Score: 18, team2Score: 6 },
     })
 

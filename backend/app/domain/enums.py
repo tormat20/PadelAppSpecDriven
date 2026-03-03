@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class EventType(str, Enum):
-    AMERICANO = "Americano"
+    WINNERS_COURT = "WinnersCourt"
     MEXICANO = "Mexicano"
     BEAT_THE_BOX = "BeatTheBox"
 
@@ -11,6 +11,11 @@ class EventStatus(str, Enum):
     LOBBY = "Lobby"
     RUNNING = "Running"
     FINISHED = "Finished"
+
+
+class SetupStatus(str, Enum):
+    PLANNED = "planned"
+    READY = "ready"
 
 
 class RoundStatus(str, Enum):

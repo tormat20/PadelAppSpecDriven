@@ -24,7 +24,7 @@
 - [ ] Run-event cards show no muted helper text below court cards
 - [ ] Team buttons show right-aligned inline result badges after selection
 - [ ] Mexicano badge values mirror as `X` and `24 - X`
-- [ ] Americano/BeatTheBox badges mirror as `Win/Loss`, `Loss/Win`, and `Draw/Draw` where valid
+- [ ] WinnersCourt/BeatTheBox badges mirror as `Win/Loss`, `Loss/Win`, and `Draw/Draw` where valid
 - [ ] Court image remains clearly visible after overlay reduction
 - [ ] Team button tint/readability remains clear on desktop and mobile
 

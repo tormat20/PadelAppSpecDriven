@@ -5,14 +5,14 @@ import {
   getMirroredBadgePair,
   getSideRelativeSelectionKey,
   isWinnerOptionSelected,
-  toAmericanoPayload,
+  toWinnersCourtPayload,
   toBeatTheBoxPayload,
   upsertWinnerSelection,
 } from "../src/features/run-event/resultEntry"
 
 describe("ResultEntry winner selected-state persistence", () => {
   it("stores the most recent winner selection per match", () => {
-    const state = upsertWinnerSelection({}, "m1", { mode: "Americano", winningTeam: 1 })
+    const state = upsertWinnerSelection({}, "m1", { mode: "WinnersCourt", winningTeam: 1 })
     expect(isWinnerOptionSelected(state, "m1", "team1")).toBe(true)
     expect(isWinnerOptionSelected(state, "m1", "team2")).toBe(false)
   })
@@ -27,22 +27,22 @@ describe("ResultEntry winner selected-state persistence", () => {
   })
 
   it("builds side-relative winner payload semantics", () => {
-    expect(toAmericanoPayload(2, "Win")).toEqual({ mode: "Americano", winningTeam: 2 })
-    expect(toAmericanoPayload(2, "Loss")).toEqual({ mode: "Americano", winningTeam: 1 })
+    expect(toWinnersCourtPayload(2, "Win")).toEqual({ mode: "WinnersCourt", winningTeam: 2 })
+    expect(toWinnersCourtPayload(2, "Loss")).toEqual({ mode: "WinnersCourt", winningTeam: 1 })
 
     expect(toBeatTheBoxPayload(1, "Win")).toEqual({ mode: "BeatTheBox", outcome: "Team1Win" })
     expect(toBeatTheBoxPayload(1, "Loss")).toEqual({ mode: "BeatTheBox", outcome: "Team2Win" })
   })
 
   it("derives side-relative selection keys from submitted payload", () => {
-    expect(getSideRelativeSelectionKey({ mode: "Americano", winningTeam: 2 }, 2)).toBe("Win")
-    expect(getSideRelativeSelectionKey({ mode: "Americano", winningTeam: 2 }, 1)).toBe("Loss")
+    expect(getSideRelativeSelectionKey({ mode: "WinnersCourt", winningTeam: 2 }, 2)).toBe("Win")
+    expect(getSideRelativeSelectionKey({ mode: "WinnersCourt", winningTeam: 2 }, 1)).toBe("Loss")
     expect(getSideRelativeSelectionKey({ mode: "BeatTheBox", outcome: "Draw" }, 1)).toBe("Draw")
   })
 
   it("derives mirrored badges for win/loss and draw modes", () => {
-    expect(getMirroredBadgePair({ mode: "Americano", winningTeam: 1 })).toEqual({ team1: "Win", team2: "Loss" })
-    expect(getMirroredBadgePair({ mode: "Americano", winningTeam: 2 })).toEqual({ team1: "Loss", team2: "Win" })
+    expect(getMirroredBadgePair({ mode: "WinnersCourt", winningTeam: 1 })).toEqual({ team1: "Win", team2: "Loss" })
+    expect(getMirroredBadgePair({ mode: "WinnersCourt", winningTeam: 2 })).toEqual({ team1: "Loss", team2: "Win" })
     expect(getMirroredBadgePair({ mode: "BeatTheBox", outcome: "Draw" })).toEqual({ team1: "Draw", team2: "Draw" })
   })
 })

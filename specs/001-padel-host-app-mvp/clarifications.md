@@ -60,7 +60,7 @@ No other exceptions are allowed.
 
 Each event mode must have pure domain-level unit tests.
 
-### Americano
+### WinnersCourt
 - Court movement logic
 - Score update logic
 
@@ -97,7 +97,7 @@ POST /matches/{matchId}/result
 
 Integration coverage is required for:
 
-- Americano
+- WinnersCourt
 - Mexicano
 - Beat the Box
 

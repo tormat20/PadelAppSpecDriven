@@ -236,7 +236,7 @@ components:
           type: string
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         eventDate:
           type: string
           format: date
@@ -265,7 +265,7 @@ components:
           maxLength: 120
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         eventDate:
           type: string
           format: date
@@ -325,7 +325,7 @@ components:
           format: uuid
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         roundIndex:
           type: integer
           minimum: 1
@@ -364,7 +364,7 @@ components:
           format: uuid
         mode:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         winningTeam:
           type: integer
           enum: [1, 2]
@@ -439,7 +439,7 @@ components:
           format: uuid
         eventType:
           type: string
-          enum: [Americano, Mexicano, BeatTheBox]
+          enum: [WinnersCourt, Mexicano, BeatTheBox]
         standings:
           type: array
           items:

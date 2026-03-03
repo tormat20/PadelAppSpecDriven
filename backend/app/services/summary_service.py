@@ -1,9 +1,11 @@
+from app.core.errors import DomainError
 from app.domain.enums import EventStatus, EventType, MatchStatus, ResultType
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.players_repo import PlayersRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.services.name_format import format_display_name
+from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.summary_ordering import SummaryOrderingService
 from app.services.round_service import RoundService
 
@@ -27,7 +29,7 @@ class SummaryService:
     def is_final_summary_available(self, event_id: str) -> bool:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
         return (
             event.current_round_number is not None
             and event.current_round_number >= event.round_count
@@ -36,9 +38,20 @@ class SummaryService:
     def finish_event(self, event_id: str) -> dict:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+        lifecycle_status = derive_lifecycle_status(event)
+        if lifecycle_status != "ongoing":
+            raise DomainError(
+                "EVENT_NOT_ONGOING",
+                "Only ongoing events can be finished.",
+                status_code=409,
+            )
         if event.current_round_number is None or event.current_round_number < event.round_count:
-            raise ValueError("Event can only be finished after final round")
+            raise DomainError(
+                "EVENT_NOT_AT_FINAL_ROUND",
+                "Event can only be finished after final round.",
+                status_code=409,
+            )
 
         summary = self.round_service.summarize(event_id)
         self.events_repo.set_status(event_id, EventStatus.FINISHED, event.current_round_number)
@@ -47,26 +60,30 @@ class SummaryService:
     def get_final_summary(self, event_id: str) -> dict:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
         if not self.is_final_summary_available(event_id):
-            raise ValueError("Event can only be summarized after final round")
+            raise DomainError(
+                "EVENT_NOT_AT_FINAL_ROUND",
+                "Event can only be summarized after final round.",
+                status_code=409,
+            )
         return self.round_service.summarize(event_id)
 
     def crowned_player_ids(self, event_id: str, summary: dict) -> list[str]:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
 
         if event.event_type == EventType.MEXICANO:
             return self._crowned_players_for_mexicano(summary.get("standings", []))
-        if event.event_type == EventType.AMERICANO:
-            return self._crowned_players_for_americano(summary)
+        if event.event_type == EventType.WINNERS_COURT:
+            return self._crowned_players_for_winners_court(summary)
         return []
 
     def build_final_round_matrix(self, event_id: str, summary: dict) -> dict:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
 
         standings = summary.get("standings", [])
         rounds = self.rounds_repo.list_rounds(event_id)
@@ -128,7 +145,7 @@ class SummaryService:
     def get_progress_summary(self, event_id: str) -> dict:
         event = self.events_repo.get(event_id)
         if not event:
-            raise ValueError("Event not found")
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
 
         player_ids = self.events_repo.list_player_ids(event_id)
         rounds = self.rounds_repo.list_rounds(event_id)
@@ -242,7 +259,7 @@ class SummaryService:
         crowned = [row[1] for row in standings if row[2] == top_score]
         return crowned
 
-    def _crowned_players_for_americano(self, summary: dict) -> list[str]:
+    def _crowned_players_for_winners_court(self, summary: dict) -> list[str]:
         rounds = summary.get("rounds", [])
         if not rounds:
             return []

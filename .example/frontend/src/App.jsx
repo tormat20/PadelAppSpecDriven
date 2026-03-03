@@ -11,9 +11,9 @@ const API_BASE = 'http://127.0.0.1:8000'
 
 const bentoCards = [
   {
-    id: 'americano',
+    id: 'winnersCourt',
     label: 'Mode',
-    title: 'Americano',
+    title: 'Winners Court',
     description: (
       <>
       Play with your partner and reach for the top! 

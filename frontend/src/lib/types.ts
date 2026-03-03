@@ -1,6 +1,54 @@
-export type EventType = "Americano" | "Mexicano" | "BeatTheBox"
+export type EventType = "WinnersCourt" | "Mexicano" | "BeatTheBox"
 
 export type MatchStatus = "Pending" | "Completed"
+
+export type SetupStatus = "planned" | "ready"
+
+export type PlanningWarnings = {
+  pastDateTime: boolean
+  duplicateSlot: boolean
+  duplicateCount: number
+}
+
+export type EventRecord = {
+  id: string
+  eventName: string
+  eventType: EventType
+  eventDate: string
+  eventTime24h?: string | null
+  status: "Lobby" | "Running" | "Finished"
+  setupStatus: SetupStatus
+  lifecycleStatus?: "planned" | "ready" | "ongoing" | "finished"
+  missingRequirements: string[]
+  warnings: PlanningWarnings
+  version: number
+  selectedCourts: number[]
+  playerIds: string[]
+  currentRoundNumber: number | null
+  totalRounds: number
+}
+
+export type CreateActionType = "create_event" | "create_event_slot"
+
+export type CreateEventPayload = {
+  eventName: string
+  eventType: EventType
+  eventDate: string
+  eventTime24h: string
+  createAction: CreateActionType
+  selectedCourts: number[]
+  playerIds: string[]
+}
+
+export type UpdateEventPayload = {
+  expectedVersion: number
+  eventName?: string
+  eventType?: EventType
+  eventDate?: string
+  eventTime24h?: string
+  selectedCourts?: number[]
+  playerIds?: string[]
+}
 
 export type Player = {
   id: string

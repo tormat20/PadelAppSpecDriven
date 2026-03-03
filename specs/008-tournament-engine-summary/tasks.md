@@ -31,7 +31,7 @@
 **⚠️ CRITICAL**: Complete this phase before user story work.
 
 - [X] T005 Add court-ladder ordering and boundary helper functions in `backend/app/domain/scheduling.py`
-- [X] T006 Add deterministic seeded spill helper for Americano overflow in `backend/app/domain/scheduling.py`
+- [X] T006 Add deterministic seeded spill helper for WinnersCourt overflow in `backend/app/domain/scheduling.py`
 - [X] T007 Add previous-partner extraction helper for prior round matches in `backend/app/services/round_service.py`
 - [X] T008 [P] Add per-round aggregation helper for final summary matrix in `backend/app/services/summary_service.py`
 - [X] T009 [P] Add summary round-cell typing updates in `frontend/src/lib/types.ts`
@@ -42,24 +42,24 @@
 
 ## Phase 3: User Story 1 - Correct Court Movement by Mode (Priority: P1) 🎯 MVP
 
-**Goal**: Generate next rounds according to Americano/Mexicano/BeatTheBox rules using selected-court ladder semantics.
+**Goal**: Generate next rounds according to WinnersCourt/Mexicano/BeatTheBox rules using selected-court ladder semantics.
 
 **Independent Test**: Create one event per mode, complete a round, advance to next round, and confirm assignment behavior matches contract rules including top/bottom bounds and deterministic outputs.
 
 ### Tests for User Story 1
 
-- [X] T010 [P] [US1] Add unit tests for Americano movement boundaries and seeded overflow handling in `backend/tests/unit/test_scheduling.py`
+- [X] T010 [P] [US1] Add unit tests for WinnersCourt movement boundaries and seeded overflow handling in `backend/tests/unit/test_scheduling.py`
 - [X] T011 [P] [US1] Add unit tests for Mexicano ranking and tie-break ordering in `backend/tests/unit/test_scheduling.py`
 - [X] T012 [P] [US1] Add unit tests for BeatTheBox fixed 3-step quartet cycle in `backend/tests/unit/test_scheduling.py`
 - [X] T013 [P] [US1] Add contract tests for next-round assignment by mode in `backend/tests/contract/test_round_progression_api.py`
-- [X] T014 [P] [US1] Add Americano draw-rejection coverage in `backend/tests/contract/test_results_validation_api.py`
+- [X] T014 [P] [US1] Add WinnersCourt draw-rejection coverage in `backend/tests/contract/test_results_validation_api.py`
 
 ### Implementation for User Story 1
 
 - [X] T015 [US1] Implement mode-specific next-round generation paths in `backend/app/domain/scheduling.py`
 - [X] T016 [US1] Wire mode-specific ordered player inputs and partner-history context in `backend/app/services/round_service.py`
-- [X] T017 [US1] Enforce Americano winner-required behavior during result recording in `backend/app/services/round_service.py`
-- [X] T018 [US1] Preserve existing mode service entry points while delegating to new scheduling behavior in `backend/app/services/americano_service.py`
+- [X] T017 [US1] Enforce WinnersCourt winner-required behavior during result recording in `backend/app/services/round_service.py`
+- [X] T018 [US1] Preserve existing mode service entry points while delegating to new scheduling behavior in `backend/app/services/winners_court_service.py`
 - [X] T019 [US1] Preserve existing mode service entry points while delegating to new scheduling behavior in `backend/app/services/mexicano_service.py`
 - [X] T020 [US1] Preserve existing mode service entry points while delegating to new scheduling behavior in `backend/app/services/beat_the_box_service.py`
 
@@ -163,7 +163,7 @@
 ## Parallel Example: User Story 1
 
 ```bash
-Task: "T010 [US1] Add Americano boundary/overflow tests in backend/tests/unit/test_scheduling.py"
+Task: "T010 [US1] Add WinnersCourt boundary/overflow tests in backend/tests/unit/test_scheduling.py"
 Task: "T011 [US1] Add Mexicano ranking/tie-break tests in backend/tests/unit/test_scheduling.py"
 Task: "T012 [US1] Add BeatTheBox cycle tests in backend/tests/unit/test_scheduling.py"
 Task: "T013 [US1] Add next-round contract tests in backend/tests/contract/test_round_progression_api.py"

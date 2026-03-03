@@ -49,16 +49,16 @@
   - Crown exactly one top-ranked player only.
   - Suppress crowns on any top-score tie.
 
-## Decision: Americano crown policy uses final-round highest-court winning team only
-- **Decision**: For Americano final summaries, crown both players from the winning team in the highest court-number match of the final round.
+## Decision: WinnersCourt crown policy uses final-round highest-court winning team only
+- **Decision**: For WinnersCourt final summaries, crown both players from the winning team in the highest court-number match of the final round.
 - **Rationale**: Matches clarified business rule and aligns winner display with the final decisive court.
 - **Alternatives considered**:
   - Crown standings rank #1/#2 only.
   - Crown winners from all final-round courts.
 
-## Decision: Americano draw handling is not applicable for crown assignment
-- **Decision**: Do not add Americano draw tie-handling logic for crowns.
-- **Rationale**: Clarification confirms Americano result inputs do not accept draws.
+## Decision: WinnersCourt draw handling is not applicable for crown assignment
+- **Decision**: Do not add WinnersCourt draw tie-handling logic for crowns.
+- **Rationale**: Clarification confirms WinnersCourt result inputs do not accept draws.
 - **Alternatives considered**:
   - Add fallback behavior for hypothetical draws.
   - Introduce secondary tie-break hierarchy.

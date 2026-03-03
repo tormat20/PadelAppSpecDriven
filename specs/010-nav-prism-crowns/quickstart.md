@@ -24,7 +24,7 @@
 
 1. Load an in-progress event summary and confirm no crown icons appear.
 2. Load a Mexicano final summary fixture with top-score tie and confirm all tied top-score players show crowns.
-3. Load an Americano final summary fixture and confirm exactly two crown icons on winning team from final-round highest-court match.
+3. Load an WinnersCourt final summary fixture and confirm exactly two crown icons on winning team from final-round highest-court match.
 4. Load a BeatTheBox final summary and confirm no crowns.
 
 ## 5) Automated checks

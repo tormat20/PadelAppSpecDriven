@@ -7,7 +7,7 @@ def test_us2_round_flow(client):
         "/api/v1/events",
         json={
             "eventName": "US2 Flow",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-26",
             "selectedCourts": [1, 2],
             "playerIds": players,
@@ -18,7 +18,7 @@ def test_us2_round_flow(client):
     for match in current["matches"]:
         client.post(
             f"/api/v1/matches/{match['matchId']}/result",
-            json={"mode": "Americano", "winningTeam": 1},
+            json={"mode": "WinnersCourt", "winningTeam": 1},
         )
     advanced = client.post(f"/api/v1/events/{event_id}/next")
     assert advanced.status_code == 200

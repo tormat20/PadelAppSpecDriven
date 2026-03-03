@@ -14,7 +14,7 @@ def test_progress_summary_returns_ranked_rows(client):
         "/api/v1/events",
         json={
             "eventName": "Progress Ranking Contract",
-            "eventType": "Americano",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-27",
             "selectedCourts": [1],
             "playerIds": _seed_players(client, "PRC", 4),
@@ -27,7 +27,7 @@ def test_progress_summary_returns_ranked_rows(client):
     match = current_round.json()["matches"][0]
     submitted = client.post(
         f"/api/v1/matches/{match['matchId']}/result",
-        json={"mode": "Americano", "winningTeam": 1},
+        json={"mode": "WinnersCourt", "winningTeam": 1},
     )
     assert submitted.status_code == 204
 

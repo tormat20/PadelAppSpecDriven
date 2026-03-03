@@ -5,12 +5,12 @@ def _seed_players(client, prefix: str, count: int = 8) -> list[str]:
     ]
 
 
-def test_americano_crowns_follow_highest_court_in_final_round(client):
+def test_winners_court_crowns_follow_highest_court_in_final_round(client):
     created = client.post(
         "/api/v1/events",
         json={
-            "eventName": "Americano Crown Resolution",
-            "eventType": "Americano",
+            "eventName": "WinnersCourt Crown Resolution",
+            "eventType": "WinnersCourt",
             "eventDate": "2026-02-27",
             "selectedCourts": [1, 2],
             "playerIds": _seed_players(client, "ACR", 8),
@@ -35,7 +35,7 @@ def test_americano_crowns_follow_highest_court_in_final_round(client):
 
             result = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "Americano", "winningTeam": winning_team},
+                json={"mode": "WinnersCourt", "winningTeam": winning_team},
             )
             assert result.status_code == 204
 

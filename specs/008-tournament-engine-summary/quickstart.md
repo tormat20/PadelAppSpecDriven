@@ -1,15 +1,15 @@
 # Quickstart: Tournament Engine and Round Summary Overhaul
 
-## 1) Validate Americano movement and boundaries
+## 1) Validate WinnersCourt movement and boundaries
 
-1. Create Americano event with at least two selected courts.
+1. Create WinnersCourt event with at least two selected courts.
 2. Complete all matches in round 1 with winners.
 3. Advance round.
 4. Confirm winners moved one court toward highest selected court.
 5. Confirm losers moved one court toward lowest selected court.
 6. Confirm top and bottom court players do not move beyond boundaries.
 
-## 2) Validate Americano overflow determinism
+## 2) Validate WinnersCourt overflow determinism
 
 1. Use scenario where movement targets overcrowd one court.
 2. Advance round and capture assignments.
@@ -54,7 +54,7 @@ npm run test
 
 ## 7) Validation Notes
 
-- Record Americano seeded overflow behavior using identical-state reruns.
+- Record WinnersCourt seeded overflow behavior using identical-state reruns.
 - Record Mexicano partner anti-repeat outcomes for consecutive rounds.
 - Record BeatTheBox cycle evidence for round steps 1 -> 2 -> 3.
 - Record final summary matrix evidence (`R1..RN`, numeric cells, total sums).
