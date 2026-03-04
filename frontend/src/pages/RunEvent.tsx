@@ -76,8 +76,9 @@ export default function RunEventPage() {
 
   const load = async () => {
     setLoadError("")
-    const [eventRes, roundRes, playersCatalog] = await Promise.all([getEvent(eventId), getCurrentRound(eventId), searchPlayers("")])
-
+    // Sequential fetches to avoid concurrent DuckDB file-lock contention
+    const eventRes = await getEvent(eventId)
+    const playersCatalog = await searchPlayers("")
     const playerNameById = Object.fromEntries(playersCatalog.map((player) => [player.id, player.displayName]))
 
     const typedEvent = eventRes as EventRecord
@@ -91,6 +92,7 @@ export default function RunEventPage() {
       return
     }
 
+    const roundRes = await getCurrentRound(eventId)
     setEventData(typedEvent)
     setRoundData({
       ...roundRes,
@@ -101,7 +103,13 @@ export default function RunEventPage() {
   useEffect(() => {
     if (!eventId) return
     load().catch((error) => {
-      setLoadError(error instanceof Error ? error.message : "Failed to load run view")
+      const msg = error instanceof Error ? error.message : "Failed to load run view"
+      // "Failed to fetch" means the backend is unreachable — give a clearer hint
+      setLoadError(
+        msg === "Failed to fetch"
+          ? "Could not reach the server. Make sure the backend is running and try again."
+          : msg
+      )
     })
   }, [eventId])
 
@@ -150,6 +158,15 @@ export default function RunEventPage() {
       <section className="page-shell" aria-label="Run event page">
         <section className="panel list-stack">
           <p className="warning-text">{loadError}</p>
+          <button
+            className={withInteractiveSurface("button")}
+            onClick={() => load().catch((error) => {
+              const msg = error instanceof Error ? error.message : "Failed to load run view"
+              setLoadError(msg === "Failed to fetch" ? "Could not reach the server. Make sure the backend is running and try again." : msg)
+            })}
+          >
+            Retry
+          </button>
           <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/preview`)}>
             Go to Preview
           </button>

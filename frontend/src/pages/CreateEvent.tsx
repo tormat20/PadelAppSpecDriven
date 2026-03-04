@@ -214,10 +214,15 @@ export default function CreateEventPage() {
   // ─── Start Event (Step 2 action) ─────────────────────────────────────────
 
   const handleStartEvent = async () => {
+    const idToStart = savedEventId || editEventId
+    if (!idToStart) {
+      setStep2Error("Event ID is missing. Please go back and try again.")
+      return
+    }
     try {
-      await startEvent(savedEventId)
+      await startEvent(idToStart)
       clearDraftPlayers()
-      navigate(`/events/${savedEventId}/run`)
+      navigate(`/events/${idToStart}/run`)
     } catch (err) {
       // Surface as step2Error (re-used for Confirm step API errors)
       setStep2Error(err instanceof Error ? err.message : "Failed to start event. Please try again.")
