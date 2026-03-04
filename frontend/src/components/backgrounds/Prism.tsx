@@ -249,6 +249,8 @@ export function Prism(props: PrismProps) {
 
     const started = performance.now()
     let frame = 0
+    let frozen = document.documentElement.dataset.animations === "off"
+
     const animate = (now: number) => {
       program.uniforms.iTime.value = (now - started) * 0.001
 
@@ -258,15 +260,41 @@ export function Prism(props: PrismProps) {
       }
 
       renderer.render({ scene: mesh })
-      if (effectiveTimeScale > 0) {
+      if (effectiveTimeScale > 0 && !frozen) {
         frame = requestAnimationFrame(animate)
       }
     }
 
-    frame = requestAnimationFrame(animate)
+    // Watch for data-animations attribute changes to freeze/unfreeze the loop
+    const animObserver = new MutationObserver(() => {
+      const nowFrozen = document.documentElement.dataset.animations === "off"
+      if (nowFrozen && !frozen) {
+        // Freeze: stop loop
+        frozen = true
+        if (frame) {
+          cancelAnimationFrame(frame)
+          frame = 0
+        }
+      } else if (!nowFrozen && frozen) {
+        // Unfreeze: restart loop
+        frozen = false
+        if (effectiveTimeScale > 0) {
+          frame = requestAnimationFrame(animate)
+        }
+      }
+    })
+    animObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-animations"],
+    })
+
+    if (!frozen) {
+      frame = requestAnimationFrame(animate)
+    }
 
     return () => {
       if (frame) cancelAnimationFrame(frame)
+      animObserver.disconnect()
       resizeObserver.disconnect()
       if (gl.canvas.parentElement === container) {
         container.removeChild(gl.canvas)

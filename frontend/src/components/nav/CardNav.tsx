@@ -33,7 +33,7 @@ const NAV_CARDS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const COLLAPSED_HEIGHT = 60 // px — must match CSS var --card-nav-top-height
+const COLLAPSED_HEIGHT = 60 // px — height of the top bar strip
 
 function prefersReducedMotion(): boolean {
   return (
@@ -47,7 +47,6 @@ function calculateExpandedHeight(navEl: HTMLElement): number {
   if (isMobile) {
     const content = navEl.querySelector<HTMLElement>(".card-nav-content")
     if (content) {
-      // Temporarily make it measurable
       const prev = {
         visibility: content.style.visibility,
         pointerEvents: content.style.pointerEvents,
@@ -58,7 +57,7 @@ function calculateExpandedHeight(navEl: HTMLElement): number {
       content.style.pointerEvents = "auto"
       content.style.position = "static"
       content.style.height = "auto"
-      void content.offsetHeight // force reflow
+      void content.offsetHeight
       const measured = COLLAPSED_HEIGHT + content.scrollHeight + 8
       content.style.visibility = prev.visibility
       content.style.pointerEvents = prev.pointerEvents
@@ -74,21 +73,18 @@ function calculateExpandedHeight(navEl: HTMLElement): number {
 
 interface CardNavProps {
   logo: React.ReactNode
-  themeToggle: React.ReactNode
+  controls: React.ReactNode  // theme toggle + animations toggle
 }
 
-export function CardNav({ logo, themeToggle }: CardNavProps) {
+export function CardNav({ logo, controls }: CardNavProps) {
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
   const cardsRef = useRef<(HTMLButtonElement | null)[]>([])
-  // Store gsap ref lazily so it doesn't affect SSR / test environments
   const tlRef = useRef<GsapTimeline | null>(null)
 
-  // Build (or rebuild) the GSAP timeline
   const buildTimeline = () => {
     if (prefersReducedMotion()) return null
-    // Lazy-import gsap only in browser
     const gsapModule = (globalThis as unknown as { gsap?: GsapInstance }).gsap
     if (!gsapModule || !navRef.current) return null
 
@@ -106,17 +102,13 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
     return tl
   }
 
-  // Initialise timeline after first render (gsap loaded dynamically)
   useLayoutEffect(() => {
     let tl: GsapTimeline | null = null
-
     import("gsap").then(({ gsap }) => {
-      // Attach gsap to globalThis so buildTimeline() can find it
       ;(globalThis as unknown as Record<string, unknown>).gsap = gsap
       tl = buildTimeline()
       tlRef.current = tl
     })
-
     return () => {
       tl?.kill()
       tlRef.current = null
@@ -124,13 +116,11 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Rebuild timeline on resize to recalculate height
   useLayoutEffect(() => {
     const handleResize = () => {
       const current = tlRef.current
       if (!current) return
       if (isOpen) {
-        // Snap height to new value, then rebuild
         if (navRef.current) {
           const h = calculateExpandedHeight(navRef.current)
           const gsapModule = (globalThis as unknown as { gsap?: GsapInstance }).gsap
@@ -138,17 +128,12 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
         }
         current.kill()
         const newTl = buildTimeline()
-        if (newTl) {
-          newTl.progress(1)
-          tlRef.current = newTl
-        }
+        if (newTl) { newTl.progress(1); tlRef.current = newTl }
       } else {
         current.kill()
-        const newTl = buildTimeline()
-        tlRef.current = newTl ?? null
+        tlRef.current = buildTimeline() ?? null
       }
     }
-
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,13 +141,11 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
 
   const toggleMenu = () => {
     const tl = tlRef.current
-
     if (!isOpen) {
       setIsOpen(true)
       if (tl) {
         tl.play(0)
       } else if (navRef.current) {
-        // Reduced motion / gsap not loaded — instant expand
         navRef.current.style.height = `${calculateExpandedHeight(navRef.current)}px`
       }
     } else {
@@ -180,10 +163,8 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
   }
 
   const handleCardClick = (to: string) => {
-    // Close nav first, then navigate
     const tl = tlRef.current
     const doNavigate = () => navigate(to)
-
     if (isOpen && tl) {
       tl.eventCallback("onReverseComplete", () => {
         setIsOpen(false)
@@ -204,12 +185,18 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
 
   return (
     <div className="card-nav-container">
+      {/* ── Logo sidebar — always visible, floats above the bar ── */}
+      <div className="card-nav-logo-sidebar">
+        {logo}
+      </div>
+
+      {/* ── Animated nav panel (sits to the right of the logo) ── */}
       <nav
         ref={navRef}
         className={`card-nav${isOpen ? " card-nav--open" : ""}`}
         aria-label="Primary navigation"
       >
-        {/* ── Top bar ── */}
+        {/* ── Top bar strip ── */}
         <div className="card-nav-top">
           <button
             type="button"
@@ -222,12 +209,10 @@ export function CardNav({ logo, themeToggle }: CardNavProps) {
             <span className="card-nav-hamburger-line" />
           </button>
 
-          <div className="card-nav-logo">{logo}</div>
-
-          <div className="card-nav-end">{themeToggle}</div>
+          <div className="card-nav-end">{controls}</div>
         </div>
 
-        {/* ── Expandable cards ── */}
+        {/* ── Expandable cards (drop down from the bar) ── */}
         <div className="card-nav-content" aria-hidden={!isOpen}>
           {NAV_CARDS.map((card, idx) => (
             <button

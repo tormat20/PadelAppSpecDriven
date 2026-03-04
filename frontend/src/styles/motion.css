@@ -57,3 +57,23 @@
     opacity: 0 !important;
   }
 }
+
+[data-animations="off"] *,
+[data-animations="off"] *::before,
+[data-animations="off"] *::after {
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0ms !important;
+}
+
+[data-animations="off"] .prism-container {
+  opacity: 0.6;
+}
+
+[data-animations="off"] .interactive-surface {
+  --proximity-opacity: 0 !important;
+}
+
+[data-animations="off"] .interactive-surface::before {
+  opacity: 0 !important;
+}

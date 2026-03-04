@@ -1,10 +1,11 @@
-/* ── CardNav container ──────────────────────────────────────────────────────── */
+/* ── CardNav outer container ────────────────────────────────────────────────── */
 
 .card-nav-container {
-  /* Replaces .app-top-nav — full-width sticky bar */
+  /* Full-width sticky strip — backdrop applied here */
   backdrop-filter: blur(6px);
   background: var(--color-nav-bg);
   border-bottom: 1px solid var(--color-nav-border);
+  display: flex;
   left: 0;
   position: sticky;
   right: 0;
@@ -13,25 +14,38 @@
   z-index: var(--z-sticky);
 }
 
-/* ── Nav panel (clips overflow during animation) ────────────────────────────── */
+/* ── Logo sidebar — always visible, overflows above the bar ─────────────────── */
+
+.card-nav-logo-sidebar {
+  /* Sits to the left of the nav panel, overflows above the 60px bar */
+  align-items: flex-end;
+  display: flex;
+  flex-shrink: 0;
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
+  /* Allow the logo (7rem tall) to overflow upward out of the bar */
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Nav panel (fills remaining width, clips during animation) ──────────────── */
 
 .card-nav {
-  height: 60px; /* COLLAPSED_HEIGHT — JS sets this too */
-  margin: 0 auto;
-  max-width: 1120px;
+  flex: 1 1 0;
+  height: 60px; /* COLLAPSED_HEIGHT */
+  min-width: 0;
   overflow: hidden;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-4) 0 var(--space-3);
   will-change: height;
 }
 
-/* ── Top bar ────────────────────────────────────────────────────────────────── */
+/* ── Top bar strip (hamburger left, controls right) ─────────────────────────── */
 
 .card-nav-top {
   align-items: center;
   display: flex;
   height: 60px;
   justify-content: space-between;
-  position: relative;
 }
 
 /* ── Hamburger button ───────────────────────────────────────────────────────── */
@@ -44,12 +58,11 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 6px;
   height: 44px;
   justify-content: center;
   padding: 0 var(--space-2);
-  /* reserve same width as the end slot for visual balance */
-  min-width: 2.4rem;
 }
 
 .card-nav-hamburger:hover .card-nav-hamburger-line {
@@ -76,31 +89,21 @@
   transform: translateY(-4px) rotate(-45deg);
 }
 
-/* ── Logo slot (centred) ────────────────────────────────────────────────────── */
-
-.card-nav-logo {
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  /* let the logo button render at its natural size */
-  display: flex;
-  align-items: center;
-}
-
-/* ── End slot (theme toggle) ────────────────────────────────────────────────── */
+/* ── Controls slot (right side — theme + animations toggles) ────────────────── */
 
 .card-nav-end {
   align-items: center;
   display: flex;
+  gap: var(--space-2);
 }
 
 /* ── Expandable content area ────────────────────────────────────────────────── */
 
 .card-nav-content {
-  /* Hidden by default; GSAP controls visibility via height + opacity on cards */
   bottom: 0;
   display: flex;
+  /* Left-aligned, not stretched. Cards have a fixed max-width. */
+  justify-content: flex-start;
   gap: var(--space-3);
   left: 0;
   padding: 0 0 var(--space-3);
@@ -118,24 +121,18 @@
 
 /* ── Individual nav cards ───────────────────────────────────────────────────── */
 
-/*
- * .menu-card already defines background, border, radius, padding, text colours,
- * hover/focus effects (via .interactive-surface) and the title/copy classes.
- * We only need to add layout overrides here.
- */
-
 .card-nav-card {
-  /* Fill height of the content area */
-  flex: 1 1 0;
+  /* Fixed width so cards stay compact and don't stretch full-width */
+  flex: 0 0 auto;
   height: 100%;
-  min-width: 0;
+  max-width: 220px;
+  min-width: 160px;
   position: relative;
-  /* Override menu-card's default align-items:start so arrow anchors bottom-right */
   align-items: start;
   display: grid;
 }
 
-/* Subtle per-card tint overlaid on top of the shared menu-card gradient */
+/* Subtle per-card tint on top of the shared .menu-card gradient */
 .card-nav-card--create {
   background: linear-gradient(
     160deg,
@@ -160,7 +157,7 @@
   );
 }
 
-/* Up-right arrow anchored to bottom-right corner */
+/* Up-right arrow anchored to bottom-right of each card */
 .card-nav-card-arrow {
   bottom: var(--space-4);
   color: var(--color-ink-muted);
@@ -177,8 +174,12 @@
 /* ── Mobile layout ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
+  .card-nav-logo-sidebar {
+    padding-left: var(--space-3);
+  }
+
   .card-nav {
-    padding: 0 var(--space-3);
+    padding: 0 var(--space-3) 0 var(--space-2);
   }
 
   .card-nav-content {
@@ -190,12 +191,16 @@
   .card-nav-card {
     flex: 0 0 auto;
     height: auto;
+    max-width: 100%;
     min-height: 4.5rem;
+    width: 100%;
   }
 
+  /* Stack toggles vertically on very narrow screens */
   .card-nav-end {
-    /* On mobile the theme toggle can be full-width; cap it */
-    max-width: 10rem;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    justify-content: flex-end;
   }
 }
 
@@ -203,15 +208,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .card-nav {
-    overflow: visible;
     height: auto !important;
+    overflow: visible;
   }
 
   .card-nav-content {
+    display: none;
+    pointer-events: auto;
     position: static;
     visibility: visible;
-    pointer-events: auto;
-    display: none;
   }
 
   .card-nav--open .card-nav-content {

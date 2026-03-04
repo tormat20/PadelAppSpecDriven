@@ -6,6 +6,7 @@ import { Prism } from "../components/backgrounds/Prism"
 import { LogoButton } from "../components/branding/LogoButton"
 import { usePointerProximity } from "../components/interaction/usePointerProximity"
 import { CardNav } from "../components/nav/CardNav"
+import { AnimationsToggle } from "../components/theme/AnimationsToggle"
 import { ThemeToggle, getInitialTheme } from "../components/theme/ThemeToggle"
 
 export function AppShell() {
@@ -56,7 +57,7 @@ export function AppShell() {
       )}
       <CardNav
         logo={<LogoButton />}
-        themeToggle={<ThemeToggle />}
+        controls={<><ThemeToggle /><AnimationsToggle /></>}
       />
       <main className="app-main shell-content">
         <Outlet />

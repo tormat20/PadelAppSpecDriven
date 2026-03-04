@@ -177,8 +177,12 @@ export function Aurora({
     resize()
 
     let animateId = 0
+    let frozen = document.documentElement.dataset.animations === "off"
+
     const update = (t: number) => {
-      animateId = requestAnimationFrame(update)
+      if (!frozen) {
+        animateId = requestAnimationFrame(update)
+      }
       const { speed: spd = 1.0 } = propsRef.current
       program.uniforms.uTime.value = t * 0.001 * spd * 0.1
       program.uniforms.uAmplitude.value = propsRef.current.amplitude ?? 1.0
@@ -190,10 +194,35 @@ export function Aurora({
       })
       renderer.render({ scene: mesh })
     }
-    animateId = requestAnimationFrame(update)
+
+    // Watch for data-animations attribute changes to freeze/unfreeze the loop
+    const animObserver = new MutationObserver(() => {
+      const nowFrozen = document.documentElement.dataset.animations === "off"
+      if (nowFrozen && !frozen) {
+        // Freeze: stop loop
+        frozen = true
+        if (animateId) {
+          cancelAnimationFrame(animateId)
+          animateId = 0
+        }
+      } else if (!nowFrozen && frozen) {
+        // Unfreeze: restart loop
+        frozen = false
+        animateId = requestAnimationFrame(update)
+      }
+    })
+    animObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-animations"],
+    })
+
+    if (!frozen) {
+      animateId = requestAnimationFrame(update)
+    }
 
     return () => {
       cancelAnimationFrame(animateId)
+      animObserver.disconnect()
       window.removeEventListener("resize", resize)
       if (ctn && gl.canvas.parentNode === ctn) {
         ctn.removeChild(gl.canvas)
