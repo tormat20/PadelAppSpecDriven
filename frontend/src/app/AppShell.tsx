@@ -5,9 +5,8 @@ import { Aurora } from "../components/backgrounds/Aurora"
 import { Prism } from "../components/backgrounds/Prism"
 import { LogoButton } from "../components/branding/LogoButton"
 import { usePointerProximity } from "../components/interaction/usePointerProximity"
+import { CardNav } from "../components/nav/CardNav"
 import { ThemeToggle, getInitialTheme } from "../components/theme/ThemeToggle"
-
-export const TOP_NAV_ARIA_LABEL = "Primary placeholder navigation"
 
 export function AppShell() {
   const proximity = usePointerProximity()
@@ -40,12 +39,12 @@ export function AppShell() {
           colorStops={["#f6f5f4", "#1c71d8", "#9a9996"]}
           blend={0.5}
           amplitude={1.0}
-          speed={1}
+          speed={1.2}
         />
       ) : (
         <Prism
           animationType="rotate"
-          timeScale={0.5}
+          timeScale={0.35}
           height={3.5}
           baseWidth={4.7}
           scale={3.6}
@@ -55,12 +54,10 @@ export function AppShell() {
           glow={1}
         />
       )}
-      <nav className="app-top-nav" aria-label={TOP_NAV_ARIA_LABEL}>
-        <div className="shell-content app-top-nav-inner">
-          <LogoButton />
-          <ThemeToggle />
-        </div>
-      </nav>
+      <CardNav
+        logo={<LogoButton />}
+        themeToggle={<ThemeToggle />}
+      />
       <main className="app-main shell-content">
         <Outlet />
       </main>

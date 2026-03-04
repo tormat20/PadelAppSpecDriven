@@ -1,4 +1,3 @@
-import { MagicBentoMenu } from "../components/bento/MagicBentoMenu"
 import type { EventRecord, EventType } from "../lib/types"
 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
@@ -92,9 +91,5 @@ export function getLifecycleStatusLabel(event: Pick<EventRecord, "lifecycleStatu
 }
 
 export default function HomePage() {
-  return (
-    <section className="page-shell">
-      <MagicBentoMenu />
-    </section>
-  )
+  return <section className="page-shell" />
 }
