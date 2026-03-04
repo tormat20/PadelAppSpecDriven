@@ -1034,7 +1034,43 @@
   }
 }
 
-/* ── Theme toggle button ─────────────────────────────────────────────── */
+/* ── Animations toggle — uses same pill structure as ThemeToggle ────────── */
+
+/* Track turns accent when animations are ON (active state) */
+.animations-toggle-track {
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  display: inline-block;
+  flex-shrink: 0;
+  height: 1.05rem;
+  position: relative;
+  transition: background 200ms ease;
+  width: 1.9rem;
+}
+
+/* When animations are OFF, track goes grey (same as theme toggle's "off" state) */
+[data-animations="off"] .animations-toggle-track {
+  background: var(--color-border);
+}
+
+/* Thumb starts at the right (ON) */
+.animations-toggle-thumb {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  height: 0.82rem;
+  left: 0.12rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) translateX(0.85rem);
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 0.82rem;
+}
+
+/* When animations are OFF, thumb slides to the left */
+[data-animations="off"] .animations-toggle-thumb {
+  transform: translateY(-50%) translateX(0);
+}
 .theme-toggle-btn {
   align-items: center;
   background: var(--color-surface);

@@ -98,12 +98,12 @@ export function AnimationsToggle() {
       onClick={toggle}
       type="button"
     >
-      <span className="theme-toggle-track">
-        <span className="theme-toggle-thumb" />
+      <span className="animations-toggle-track">
+        <span className="animations-toggle-thumb" />
       </span>
       <span className="theme-toggle-label">
         {isOn ? PLAY_ICON : PAUSE_ICON}
-        {isOn ? "Motion" : "Paused"}
+        {"Motion"}
       </span>
     </button>
   )

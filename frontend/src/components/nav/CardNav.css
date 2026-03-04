@@ -36,6 +36,7 @@
   min-width: 0;
   overflow: hidden;
   padding: 0 var(--space-4) 0 var(--space-3);
+  position: relative; /* anchor for .card-nav-content absolute positioning */
   will-change: height;
 }
 
@@ -106,7 +107,8 @@
   justify-content: flex-start;
   gap: var(--space-3);
   left: 0;
-  padding: 0 0 var(--space-3);
+  /* Match the nav panel's horizontal padding so cards align with the hamburger */
+  padding: 0 var(--space-4) var(--space-3) var(--space-3);
   pointer-events: none;
   position: absolute;
   right: 0;
