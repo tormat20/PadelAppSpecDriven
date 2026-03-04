@@ -58,12 +58,20 @@
   color: var(--color-ink);
   cursor: pointer;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex-shrink: 0;
-  gap: 6px;
+  gap: 0;
   height: 44px;
   justify-content: center;
   padding: 0 var(--space-2);
+}
+
+/* Stack the two lines on top of each other in a column */
+.card-nav-hamburger-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
 }
 
 .card-nav-hamburger:hover .card-nav-hamburger-line {
@@ -88,6 +96,22 @@
 
 .card-nav-hamburger--open .card-nav-hamburger-line:last-child {
   transform: translateY(-4px) rotate(-45deg);
+}
+
+.card-nav-hamburger-label {
+  color: var(--color-ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-left: var(--space-2);
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.card-nav-hamburger:hover .card-nav-hamburger-label {
+  color: var(--color-ink);
 }
 
 /* ── Controls slot (right side — theme + animations toggles) ────────────────── */

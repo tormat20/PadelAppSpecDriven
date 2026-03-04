@@ -205,8 +205,11 @@ export function CardNav({ logo, controls }: CardNavProps) {
             aria-expanded={isOpen}
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
           >
-            <span className="card-nav-hamburger-line" />
-            <span className="card-nav-hamburger-line" />
+            <span className="card-nav-hamburger-lines">
+              <span className="card-nav-hamburger-line" />
+              <span className="card-nav-hamburger-line" />
+            </span>
+            <span className="card-nav-hamburger-label" aria-hidden="true">Menu</span>
           </button>
 
           <div className="card-nav-end">{controls}</div>
