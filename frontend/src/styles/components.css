@@ -247,7 +247,7 @@
 .today-date-link {
   background: none;
   border: none;
-  color: var(--color-accent-strong);
+  color: var(--color-warning-text);
   cursor: pointer;
   font-size: 0.9rem;
   justify-self: start;
@@ -1124,4 +1124,81 @@
   align-items: center;
   display: inline-flex;
   gap: 0.35rem;
+}
+
+/* ── Section label (Create Event Setup step) ──────────────────────────────── */
+
+.section-label {
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.1rem;
+  text-transform: uppercase;
+}
+
+/* ── Winner Podium (Final Summary) ───────────────────────────────────────── */
+
+.podium-container {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+.podium-slot {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  max-width: 180px;
+}
+
+.podium-players {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: var(--space-2);
+  text-align: center;
+}
+
+.podium-player-name {
+  color: var(--color-ink-strong);
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podium-block {
+  align-items: center;
+  background: linear-gradient(160deg, var(--color-active-gradient-start), var(--color-active-gradient-end));
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.podium-slot--first .podium-block {
+  min-height: 4rem;
+}
+
+.podium-slot--second .podium-block {
+  min-height: 2.8rem;
+  opacity: 0.85;
+}
+
+.podium-slot--third .podium-block {
+  min-height: 2rem;
+  opacity: 0.7;
+}
+
+.podium-place-label {
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
 }

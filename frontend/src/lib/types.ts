@@ -124,6 +124,7 @@ export type ProgressSummaryPlayerRow = {
 export type FinalEventSummary = {
   mode: "final"
   eventId: string
+  eventType: EventType
   orderingMode: string
   orderingVersion: string
   finalStandings: SummaryStanding[]

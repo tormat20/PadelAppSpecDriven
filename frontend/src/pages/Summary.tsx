@@ -13,6 +13,8 @@ import {
   getSummaryColumnsWithRank,
   sortRowsByRank,
 } from "../features/summary/rankOrdering"
+import { scheduleConfettiBursts } from "../features/summary/confetti"
+import { Podium } from "../components/summary/Podium"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { getEventSummary } from "../lib/api"
 import type { EventSummaryResponse } from "../lib/types"
@@ -66,6 +68,16 @@ export default function SummaryPage() {
     if (!eventId) return
     getEventSummary(eventId).then(setSummary).catch((err: Error) => setError(err.message))
   }, [eventId])
+
+  // Confetti: fires once when final summary loads (progressive enhancement)
+  useEffect(() => {
+    if (!summary || summary.mode !== "final") return
+    try {
+      return scheduleConfettiBursts()
+    } catch {
+      // Confetti failure must never break the summary page
+    }
+  }, [summary?.mode])
 
   if (error) return <div className="panel">{error}</div>
   if (!summary) return <div className="panel">Loading summary...</div>
@@ -125,6 +137,10 @@ export default function SummaryPage() {
         <h2 className="page-title">Summary</h2>
         <p className="page-subtitle">{getFinalSummarySubtitle()}</p>
       </header>
+
+      {summary.eventType !== "BeatTheBox" && (
+        <Podium eventType={summary.eventType} playerRows={orderedRows} />
+      )}
 
       <section className="panel list-stack">
         <h3 className="summary-rank">Final Player Stats</h3>

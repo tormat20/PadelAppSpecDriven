@@ -231,8 +231,10 @@ def finish_event(event_id: str) -> FinalSummaryResponse:
             matrix = services["summary_service"].build_final_round_matrix(event_id, summary)
             standings = _build_standings_from_rows(matrix["player_rows"])
             crowned_player_ids = services["summary_service"].crowned_player_ids(event_id, summary)
+            event = services["event_service"].get_event_details(event_id)["event"]
             return FinalSummaryResponse(
                 eventId=event_id,
+                eventType=event.event_type.value,
                 orderingMode=matrix["ordering_mode"],
                 orderingVersion=matrix["ordering_version"],
                 finalStandings=standings,
@@ -261,8 +263,10 @@ def get_event_summary(event_id: str) -> EventSummaryResponse:
                 crowned_player_ids = services["summary_service"].crowned_player_ids(
                     event_id, summary
                 )
+                event = services["event_service"].get_event_details(event_id)["event"]
                 return FinalSummaryResponse(
                     eventId=event_id,
+                    eventType=event.event_type.value,
                     orderingMode=matrix["ordering_mode"],
                     orderingVersion=matrix["ordering_version"],
                     finalStandings=standings,

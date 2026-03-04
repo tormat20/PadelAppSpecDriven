@@ -13,6 +13,7 @@ class StandingItem(BaseModel):
 class FinalSummaryResponse(BaseModel):
     mode: Literal["final"] = "final"
     eventId: str
+    eventType: str = ""
     orderingMode: str = "legacy"
     orderingVersion: str = "v1"
     finalStandings: list[StandingItem]

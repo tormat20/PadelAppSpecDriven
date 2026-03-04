@@ -3,6 +3,7 @@ import type {
   CreateEventPayload,
   EventRecord,
   EventSummaryResponse,
+  EventType,
   FinalEventSummary,
   InProgressEventSummary,
   UpdateEventPayload,
@@ -192,6 +193,7 @@ function normalizeFinalSummaryResponse(payload: any, eventId: string): FinalEven
   return {
     mode: "final",
     eventId: payload.eventId ?? eventId,
+    eventType: (payload.eventType ?? "WinnersCourt") as EventType,
     orderingMode: payload.orderingMode ?? "legacy",
     orderingVersion: payload.orderingVersion ?? "v1",
     finalStandings: payload.finalStandings ?? [],

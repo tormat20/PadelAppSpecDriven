@@ -15,6 +15,7 @@ import {
   isPastSchedule,
   isStrictCreateEventDisabled,
 } from "../features/create-event/validation"
+import { getRosterHints } from "../features/create-event/rosterHints"
 import { createEvent, getEvent, listEvents, searchPlayers, startEvent, updateEvent } from "../lib/api"
 import { getEventModeLabel } from "../lib/eventMode"
 import type { EventRecord, EventType } from "../lib/types"
@@ -247,7 +248,16 @@ export default function CreateEventPage() {
   // getRequiredPlayerCount(courts) is derived from state on every render. (T027)
   const setupPanel = (
     <div className="panel form-grid">
+      <p className="section-label">Choose mode</p>
       <ModeAccordion selected={eventType} onSelect={setEventType} />
+      <p className="section-label">Choose date and time</p>
+      <button
+        className="today-date-link"
+        type="button"
+        onClick={() => setEventDate(getTodayDateISO())}
+      >
+        Today's date
+      </button>
       <div className="event-schedule-row" aria-label="Event schedule">
         <input className="input" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
         <input
@@ -273,13 +283,6 @@ export default function CreateEventPage() {
         </p>
       )}
       <button
-        className="today-date-link"
-        type="button"
-        onClick={() => setEventDate(getTodayDateISO())}
-      >
-        Today's date
-      </button>
-      <button
         className={withInteractiveSurface("button-secondary")}
         type="button"
         onClick={() => navigate("/")}
@@ -304,9 +307,13 @@ export default function CreateEventPage() {
   )
 
   // Step 1 — Roster
+  const rosterHints = getRosterHints(courts, assignedPlayers)
   const rosterPanel = (
     <div className="panel form-grid">
       <CourtSelector selectedCourts={courts} onChange={setCourts} />
+      {rosterHints.showChooseCourts && (
+        <p className="warning-text" aria-live="polite">Choose courts</p>
+      )}
       <p className="muted">
         {assignedPlayers.length} / {requiredPlayers} players assigned
         {courts.length > 0 ? ` (${courts.length} court${courts.length === 1 ? "" : "s"} × 4 required)` : ""}
@@ -316,6 +323,9 @@ export default function CreateEventPage() {
         totalPlayersRequired={requiredPlayers}
         onAssignedPlayersChange={setAssignedPlayers}
       />
+      {rosterHints.showAssignPlayers && (
+        <p className="warning-text" aria-live="polite">Assign players</p>
+      )}
       <div className="form-grid">
         <button
           className={withInteractiveSurface("button-secondary")}
