@@ -1,5 +1,5 @@
 :focus-visible {
-  outline: 3px solid #0c8a8f;
+  outline: 3px solid var(--color-accent);
   outline-offset: 2px;
 }
 

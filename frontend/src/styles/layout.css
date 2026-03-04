@@ -1,5 +1,5 @@
 body {
-  background: #edf2f8;
+  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
 }
@@ -19,8 +19,8 @@ body {
 
 .app-top-nav {
   backdrop-filter: blur(6px);
-  background: rgba(255, 255, 255, 0.22);
-  border-bottom: 1px solid rgba(30, 76, 121, 0.18);
+  background: var(--color-nav-bg);
+  border-bottom: 1px solid var(--color-nav-border);
   left: 0;
   position: sticky;
   right: 0;
@@ -39,7 +39,7 @@ body {
 }
 
 .app-top-nav-placeholder {
-  border: 1px dashed rgba(30, 76, 121, 0.28);
+  border: 1px dashed var(--color-nav-placeholder-border);
   border-radius: var(--radius-pill);
   height: 2.7rem;
   width: min(42vw, 21rem);
