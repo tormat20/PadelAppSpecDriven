@@ -18,8 +18,8 @@ describe("Create Event Stepper — Step 3 (Confirm)", () => {
       expect(getEventModeLabel("Mexicano")).toBe("Mexicano")
     })
 
-    it("shows mode label for BeatTheBox unchanged", () => {
-      expect(getEventModeLabel("BeatTheBox")).toBe("BeatTheBox")
+    it("shows mode label for RankedBox with space", () => {
+      expect(getEventModeLabel("RankedBox")).toBe("Ranked Box")
     })
   })
 

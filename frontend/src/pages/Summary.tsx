@@ -68,7 +68,7 @@ export type PodiumDisplaySlot = {
  *
  * - Mexicano:     1 player per slot (ranks 1, 2, 3)
  * - WinnersCourt: 2 players per slot (ranks 1–2, 3–4, 5–6)
- * - BeatTheBox:   empty array (no podium)
+ * - RankedBox:    empty array (no podium)
  *
  * Returns slots in VISUAL order: [2nd-place, 1st-place, 3rd-place]
  * so the 1st-place slot appears in the centre.
@@ -77,7 +77,7 @@ export function getPodiumSlots(
   eventType: EventType,
   playerRows: ProgressSummaryPlayerRow[],
 ): PodiumDisplaySlot[] {
-  if (eventType === "BeatTheBox") return []
+  if (eventType === "RankedBox") return []
 
   const sorted = [...playerRows].sort((a, b) => {
     const rankDiff = a.rank - b.rank
@@ -210,7 +210,7 @@ export default function SummaryPage() {
   // ── Final summary ────────────────────────────────────────────────────────────
 
   const podiumSlots =
-    summary.eventType !== "BeatTheBox"
+    summary.eventType !== "RankedBox"
       ? getPodiumSlots(summary.eventType, orderedRows)
       : []
 

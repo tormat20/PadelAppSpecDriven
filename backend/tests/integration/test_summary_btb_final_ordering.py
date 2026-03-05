@@ -10,11 +10,11 @@ def test_btb_final_summary_shows_numeric_points_totals_and_rank_order(client):
     created = client.post(
         "/api/v1/events",
         json={
-            "eventName": "BTB Final Ordering",
-            "eventType": "BeatTheBox",
+            "eventName": "RB Final Ordering",
+            "eventType": "RankedBox",
             "eventDate": "2026-02-27",
             "selectedCourts": [1, 2],
-            "playerIds": _seed_players(client, "BTBO", 8),
+            "playerIds": _seed_players(client, "RBO", 8),
         },
     )
     event_id = created.json()["id"]
@@ -31,7 +31,7 @@ def test_btb_final_summary_shows_numeric_points_totals_and_rank_order(client):
             outcome = "Team1Win" if index == 0 else "Team2Win"
             submitted = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "BeatTheBox", "outcome": outcome},
+                json={"mode": "RankedBox", "outcome": outcome},
             )
             assert submitted.status_code == 204
 
@@ -44,7 +44,7 @@ def test_btb_final_summary_shows_numeric_points_totals_and_rank_order(client):
     payload = summary.json()
 
     assert payload["mode"] == "final"
-    assert payload["orderingMode"] == "final-btb-global-court-groups"
+    assert payload["orderingMode"] == "final-rb-global-court-groups"
     assert payload["columns"][-1]["id"] == "total"
 
     totals: list[int] = []

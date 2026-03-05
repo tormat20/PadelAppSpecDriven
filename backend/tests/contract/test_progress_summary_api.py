@@ -15,7 +15,7 @@ def test_in_progress_summary_returns_progress_matrix(client):
         "/api/v1/events",
         json={
             "eventName": "Progress Summary Contract",
-            "eventType": "BeatTheBox",
+            "eventType": "RankedBox",
             "eventDate": "2026-02-26",
             "selectedCourts": [1],
             "playerIds": player_ids,

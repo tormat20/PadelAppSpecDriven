@@ -66,13 +66,13 @@ def generate_next_round(
             ),
         )
 
-    if event_type == EventType.BEAT_THE_BOX:
+    if event_type == EventType.RANKED_BOX:
         if not previous_matches:
             round_plan = generate_round_1(event_type, ordered_player_ids, ordered_courts)
             return RoundPlan(round_number=next_round, matches=round_plan.matches)
         return RoundPlan(
             round_number=next_round,
-            matches=_generate_beat_the_box_matches(previous_matches, next_round),
+            matches=_generate_ranked_box_matches(previous_matches, next_round),
         )
 
     raise ValueError("Unsupported event type")
@@ -199,7 +199,7 @@ def _generate_mexicano_matches(
     return sorted(matches, key=lambda match: match.court_number)
 
 
-def _generate_beat_the_box_matches(
+def _generate_ranked_box_matches(
     previous_matches: list[Match], next_round_number: int
 ) -> list[RoundPlanMatch]:
     cycle_step = ((next_round_number - 1) % 3) + 1

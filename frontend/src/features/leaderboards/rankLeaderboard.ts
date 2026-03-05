@@ -5,7 +5,7 @@ import type { LeaderboardEntry } from "../../lib/types"
  *
  * Primary key:   eventsPlayed DESC
  * Tiebreaker 1:  mexicanoScore DESC
- * Tiebreaker 2:  btbScore DESC
+ * Tiebreaker 2:  rbScore DESC
  *
  * Does not mutate the input array.
  * Returns a new array with `rank` fields populated.
@@ -18,7 +18,7 @@ export function rankLeaderboardEntries(
   const sorted = [...entries].sort((a, b) => {
     if (b.eventsPlayed !== a.eventsPlayed) return b.eventsPlayed - a.eventsPlayed
     if (b.mexicanoScore !== a.mexicanoScore) return b.mexicanoScore - a.mexicanoScore
-    return b.btbScore - a.btbScore
+    return b.rbScore - a.rbScore
   })
 
   const ranked: LeaderboardEntry[] = []
@@ -31,7 +31,7 @@ export function rankLeaderboardEntries(
       if (
         curr.eventsPlayed !== prev.eventsPlayed ||
         curr.mexicanoScore !== prev.mexicanoScore ||
-        curr.btbScore !== prev.btbScore
+        curr.rbScore !== prev.rbScore
       ) {
         // Skip-rank: next rank after ties = i + 1 (1-based)
         currentRank = i + 1

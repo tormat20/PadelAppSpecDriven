@@ -9,6 +9,6 @@ describe("Event mode labels", () => {
 
   it("keeps other mode labels unchanged", () => {
     expect(getEventModeLabel("Mexicano")).toBe("Mexicano")
-    expect(getEventModeLabel("BeatTheBox")).toBe("BeatTheBox")
+    expect(getEventModeLabel("RankedBox")).toBe("Ranked Box")
   })
 })

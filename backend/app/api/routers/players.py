@@ -44,14 +44,14 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             player_id=player_id,
             display_name=format_display_name(player.display_name),
             mexicano_score_total=stats["mexicano_score_total"],
-            btb_score_total=stats["btb_score_total"],
+            rb_score_total=stats["rb_score_total"],
             events_attended=stats["events_attended"],
             wc_matches_played=stats["wc_matches_played"],
             wc_wins=stats["wc_wins"],
             wc_losses=stats["wc_losses"],
-            btb_wins=stats["btb_wins"],
-            btb_losses=stats["btb_losses"],
-            btb_draws=stats["btb_draws"],
+            rb_wins=stats["rb_wins"],
+            rb_losses=stats["rb_losses"],
+            rb_draws=stats["rb_draws"],
         )
 
 

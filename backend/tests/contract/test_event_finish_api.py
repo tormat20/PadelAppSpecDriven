@@ -13,7 +13,7 @@ def test_finish_requires_final_round(client):
         "/api/v1/events",
         json={
             "eventName": "Finish Test",
-            "eventType": "BeatTheBox",
+            "eventType": "RankedBox",
             "eventDate": "2026-02-26",
             "selectedCourts": [1],
             "playerIds": player_ids,

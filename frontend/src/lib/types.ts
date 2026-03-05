@@ -1,4 +1,4 @@
-export type EventType = "WinnersCourt" | "Mexicano" | "BeatTheBox"
+export type EventType = "WinnersCourt" | "Mexicano" | "RankedBox"
 
 export type MatchStatus = "Pending" | "Completed"
 
@@ -152,14 +152,14 @@ export type PlayerStats = {
   playerId: string
   displayName: string
   mexicanoScoreTotal: number
-  btbScoreTotal: number
+  rbScoreTotal: number
   eventsAttended: number
   wcMatchesPlayed: number
   wcWins: number
   wcLosses: number
-  btbWins: number
-  btbLosses: number
-  btbDraws: number
+  rbWins: number
+  rbLosses: number
+  rbDraws: number
 }
 
 // ── Leaderboards ──────────────────────────────────────────────────────────────
@@ -170,11 +170,27 @@ export type LeaderboardEntry = {
   displayName: string
   eventsPlayed: number
   mexicanoScore: number
-  btbScore: number
+  rbScore: number
 }
 
 export type Leaderboard = {
   year: number
   month: number
   entries: LeaderboardEntry[]
+}
+
+// ── Ranked Box Ladder (all-time) ──────────────────────────────────────────────
+
+export type RankedBoxLadderEntry = {
+  rank: number
+  playerId: string
+  displayName: string
+  rbScoreTotal: number
+  rbWins: number
+  rbLosses: number
+  rbDraws: number
+}
+
+export type RankedBoxLadder = {
+  entries: RankedBoxLadderEntry[]
 }

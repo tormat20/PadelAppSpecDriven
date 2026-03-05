@@ -63,7 +63,7 @@ describe("Create Event Stepper — Back navigation (User Story 3)", () => {
     it("mode label updates correctly after changing eventType", () => {
       expect(getEventModeLabel("WinnersCourt")).toBe("Winners Court")
       expect(getEventModeLabel("Mexicano")).toBe("Mexicano")
-      expect(getEventModeLabel("BeatTheBox")).toBe("BeatTheBox")
+      expect(getEventModeLabel("RankedBox")).toBe("Ranked Box")
     })
   })
 

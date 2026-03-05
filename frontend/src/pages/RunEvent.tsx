@@ -85,10 +85,12 @@ export default function RunEventPage() {
     const lifecycleStatus =
       typedEvent.lifecycleStatus ??
       (typedEvent.status === "Finished" ? "finished" : typedEvent.status === "Running" ? "ongoing" : typedEvent.setupStatus === "ready" ? "ready" : "planned")
+    if (lifecycleStatus === "finished") {
+      navigate(`/events/${eventId}/summary`, { replace: true })
+      return
+    }
     if (lifecycleStatus !== "ongoing") {
-      setLoadError("Event is not currently running. Open the event preview to start or resume.")
-      setEventData(typedEvent)
-      setRoundData(null)
+      navigate(`/events/${eventId}/preview`, { replace: true })
       return
     }
 

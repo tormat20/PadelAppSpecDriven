@@ -1342,7 +1342,7 @@
 }
 
 .stats-matches-played,
-.stats-btb-score {
+.stats-rb-score {
   color: var(--color-ink-muted);
   font-size: 0.82rem;
   margin: 0 0 var(--space-1);
@@ -1465,4 +1465,46 @@
 .leaderboard-score--highlight {
   color: var(--color-ink-strong);
   font-weight: 600;
+}
+
+/* ── Leaderboard 3-column side-by-side row ───────────────────────────────────── */
+
+.leaderboard-row {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .leaderboard-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .leaderboard-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leaderboard-show-more {
+  background: none;
+  border: none;
+  color: var(--color-link, #0c8a8f);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: var(--space-2);
+  padding: var(--space-1) 0;
+  text-decoration: underline;
+}
+
+.leaderboard-show-more:hover {
+  color: var(--color-link-hover, #087a7f);
+}
+
+.leaderboard-entry--top {
+  background: rgba(12, 138, 143, 0.06);
+  border-radius: var(--radius-sm, 4px);
 }

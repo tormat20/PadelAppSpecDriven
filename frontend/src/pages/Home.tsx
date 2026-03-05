@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 
 import { rankLeaderboardEntries } from "../features/leaderboards/rankLeaderboard"
-import { getMexicanoOfMonthLeaderboard, getPlayerOfMonthLeaderboard } from "../lib/api"
-import type { EventRecord, EventType, Leaderboard } from "../lib/types"
+import { getMexicanoOfMonthLeaderboard, getPlayerOfMonthLeaderboard, getRankedBoxLadder } from "../lib/api"
+import type { EventRecord, EventType, Leaderboard, RankedBoxLadder } from "../lib/types"
 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
 export type EventSortOption = "default" | "mode" | "date"
 
-const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "BeatTheBox"]
+const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox"]
 
 const FILTER_LABELS: Record<EventSlotFilter, string> = {
   all: "Show all",
@@ -114,7 +114,9 @@ function rankClass(rank: number): string {
   return "leaderboard-rank"
 }
 
-// ── Leaderboard section component ─────────────────────────────────────────────
+const PAGE_SIZE = 10
+
+// ── Monthly leaderboard section ────────────────────────────────────────────────
 
 interface LeaderboardSectionProps {
   title: string
@@ -127,6 +129,9 @@ interface LeaderboardSectionProps {
 function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: LeaderboardSectionProps) {
   const label = board ? monthLabel(board.year, board.month) : ""
   const ranked = board ? rankLeaderboardEntries(board.entries) : []
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? ranked : ranked.slice(0, PAGE_SIZE)
+  const hasMore = ranked.length > PAGE_SIZE
 
   return (
     <section className="panel leaderboard-section">
@@ -142,19 +147,86 @@ function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: Leade
       )}
 
       {!error && ranked.length > 0 && (
-        <ul className="leaderboard-list" role="list">
-          {ranked.map((entry) => (
-            <li key={entry.playerId} className="leaderboard-entry">
-              <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
-                #{entry.rank}
-              </span>
-              <span className="leaderboard-name">{entry.displayName}</span>
-              <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
-                {entry[scoreKey]} {scoreLabel}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="leaderboard-list" role="list">
+            {visible.map((entry) => (
+              <li key={entry.playerId} className="leaderboard-entry">
+                <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
+                  #{entry.rank}
+                </span>
+                <span className="leaderboard-name">{entry.displayName}</span>
+                <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
+                  {entry[scoreKey]} {scoreLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <button
+              className="leaderboard-show-more"
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+            >
+              {showAll ? "Show less" : "Show more..."}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+// ── Ranked Ladder section ─────────────────────────────────────────────────────
+
+interface RankedLadderSectionProps {
+  ladder: RankedBoxLadder | null
+  error: string
+}
+
+function RankedLadderSection({ ladder, error }: RankedLadderSectionProps) {
+  const entries = ladder?.entries ?? []
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? entries : entries.slice(0, PAGE_SIZE)
+  const hasMore = entries.length > PAGE_SIZE
+
+  return (
+    <section className="panel leaderboard-section">
+      <h2 className="leaderboard-heading">Ranked Ladder</h2>
+
+      {error && <p className="leaderboard-error" role="alert">{error}</p>}
+
+      {!error && entries.length === 0 && (
+        <p className="leaderboard-empty">No Ranked Box results yet.</p>
+      )}
+
+      {!error && entries.length > 0 && (
+        <>
+          <ul className="leaderboard-list" role="list">
+            {visible.map((entry) => (
+              <li
+                key={entry.playerId}
+                className={`leaderboard-entry${entry.rank === 1 ? " leaderboard-entry--top" : ""}`}
+              >
+                <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
+                  #{entry.rank}
+                </span>
+                <span className="leaderboard-name">{entry.displayName}</span>
+                <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
+                  {entry.rbScoreTotal} pts
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <button
+              className="leaderboard-show-more"
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+            >
+              {showAll ? "Show less" : "Show more..."}
+            </button>
+          )}
+        </>
       )}
     </section>
   )
@@ -167,6 +239,8 @@ export default function HomePage() {
   const [potmError, setPotmError] = useState("")
   const [mexBoard, setMexBoard] = useState<Leaderboard | null>(null)
   const [mexError, setMexError] = useState("")
+  const [ladder, setLadder] = useState<RankedBoxLadder | null>(null)
+  const [ladderError, setLadderError] = useState("")
 
   useEffect(() => {
     getPlayerOfMonthLeaderboard()
@@ -176,24 +250,34 @@ export default function HomePage() {
     getMexicanoOfMonthLeaderboard()
       .then(setMexBoard)
       .catch(() => setMexError("Could not load leaderboard."))
+
+    getRankedBoxLadder()
+      .then(setLadder)
+      .catch(() => setLadderError("Could not load leaderboard."))
   }, [])
 
   return (
     <section className="page-shell">
-      <LeaderboardSection
-        title="Player of the Month"
-        board={potmBoard}
-        error={potmError}
-        scoreLabel="events"
-        scoreKey="eventsPlayed"
-      />
-      <LeaderboardSection
-        title="Mexicano of the Month"
-        board={mexBoard}
-        error={mexError}
-        scoreLabel="pts"
-        scoreKey="mexicanoScore"
-      />
+      <div className="leaderboard-row">
+        <LeaderboardSection
+          title="Player of the Month"
+          board={potmBoard}
+          error={potmError}
+          scoreLabel="events"
+          scoreKey="eventsPlayed"
+        />
+        <LeaderboardSection
+          title="Mexicano of the Month"
+          board={mexBoard}
+          error={mexError}
+          scoreLabel="pts"
+          scoreKey="mexicanoScore"
+        />
+        <RankedLadderSection
+          ladder={ladder}
+          error={ladderError}
+        />
+      </div>
     </section>
   )
 }

@@ -56,6 +56,6 @@ describe("CreateEvent 24-hour date-time validation", () => {
     expect(getRecommendedEventName({ eventDate: "2026-03-12", modeLabel: "Winners Court", eventTime24h: "" })).toBe(
       "Thursday Winners Court",
     )
-    expect(getRecommendedEventName({ eventDate: "", modeLabel: "BeatTheBox", eventTime24h: "18:00" })).toBe("")
+    expect(getRecommendedEventName({ eventDate: "", modeLabel: "Ranked Box", eventTime24h: "18:00" })).toBe("")
   })
 })

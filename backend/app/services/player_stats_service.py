@@ -90,12 +90,17 @@ class PlayerStatsService:
     def get_player_of_month_leaderboard(self, year: int, month: int) -> list[dict]:
         """Returns player-of-month leaderboard for given year/month with rank assigned."""
         rows = self.player_stats_repo.get_player_of_month(year, month)
-        return _assign_ranks(rows, key=("events_played", "mexicano_score", "btb_score"))
+        return _assign_ranks(rows, key=("events_played", "mexicano_score", "rb_score"))
 
     def get_mexicano_of_month_leaderboard(self, year: int, month: int) -> list[dict]:
         """Returns Mexicano-of-month leaderboard for given year/month with rank assigned."""
         rows = self.player_stats_repo.get_mexicano_of_month(year, month)
         return _assign_ranks(rows, key=("mexicano_score",))
+
+    def get_ranked_box_ladder(self) -> list[dict]:
+        """Returns all-time Ranked Box ladder ordered by rb_score_total DESC, with rank."""
+        rows = self.player_stats_repo.get_ranked_box_ladder()
+        return _assign_ranks(rows, key=("rb_score_total",))
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -133,18 +138,18 @@ class PlayerStatsService:
                     all_time_deltas[pid]["wc_losses_delta"] += 1
 
             elif match.result_type == ResultType.WIN_LOSS_DRAW:
-                # BeatTheBox: win/loss/draw + numeric score
+                # RankedBox: win/loss/draw + numeric score
                 if match.is_draw:
                     numeric = 5
-                    all_time_deltas[pid]["btb_draws_delta"] += 1
+                    all_time_deltas[pid]["rb_draws_delta"] += 1
                 elif match.winner_team == player_team:
                     numeric = 25
-                    all_time_deltas[pid]["btb_wins_delta"] += 1
+                    all_time_deltas[pid]["rb_wins_delta"] += 1
                 else:
                     numeric = -15
-                    all_time_deltas[pid]["btb_losses_delta"] += 1
-                all_time_deltas[pid]["btb_score_delta"] += numeric
-                monthly_deltas[pid]["btb_score_delta"] += numeric
+                    all_time_deltas[pid]["rb_losses_delta"] += 1
+                all_time_deltas[pid]["rb_score_delta"] += numeric
+                monthly_deltas[pid]["rb_score_delta"] += numeric
 
 
 # ── Module-level helpers ───────────────────────────────────────────────────────
@@ -153,14 +158,14 @@ class PlayerStatsService:
 def _zero_all_time_deltas() -> dict:
     return {
         "mexicano_score_delta": 0,
-        "btb_score_delta": 0,
+        "rb_score_delta": 0,
         "events_attended_delta": 0,
         "wc_matches_played_delta": 0,
         "wc_wins_delta": 0,
         "wc_losses_delta": 0,
-        "btb_wins_delta": 0,
-        "btb_losses_delta": 0,
-        "btb_draws_delta": 0,
+        "rb_wins_delta": 0,
+        "rb_losses_delta": 0,
+        "rb_draws_delta": 0,
     }
 
 
@@ -168,7 +173,7 @@ def _zero_monthly_deltas() -> dict:
     return {
         "events_played_delta": 0,
         "mexicano_score_delta": 0,
-        "btb_score_delta": 0,
+        "rb_score_delta": 0,
     }
 
 
@@ -176,14 +181,14 @@ def _zero_all_time_stats(player_id: str) -> dict:
     return {
         "player_id": player_id,
         "mexicano_score_total": 0,
-        "btb_score_total": 0,
+        "rb_score_total": 0,
         "events_attended": 0,
         "wc_matches_played": 0,
         "wc_wins": 0,
         "wc_losses": 0,
-        "btb_wins": 0,
-        "btb_losses": 0,
-        "btb_draws": 0,
+        "rb_wins": 0,
+        "rb_losses": 0,
+        "rb_draws": 0,
     }
 
 

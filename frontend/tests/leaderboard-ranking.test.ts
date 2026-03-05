@@ -7,9 +7,9 @@ function makeEntry(
   playerId: string,
   eventsPlayed: number,
   mexicanoScore: number,
-  btbScore: number,
+  rbScore: number,
 ): Omit<LeaderboardEntry, "rank"> {
-  return { playerId, displayName: playerId, eventsPlayed, mexicanoScore, btbScore }
+  return { playerId, displayName: playerId, eventsPlayed, mexicanoScore, rbScore }
 }
 
 describe("rankLeaderboardEntries", () => {
@@ -39,7 +39,7 @@ describe("rankLeaderboardEntries", () => {
     expect(ranked[1].playerId).toBe("carlos")
   })
 
-  it("tiebreaker 2: same eventsPlayed and mexicanoScore — higher btbScore wins", () => {
+  it("tiebreaker 2: same eventsPlayed and mexicanoScore — higher rbScore wins", () => {
     const entries = [
       makeEntry("dave", 2, 50, 15),
       makeEntry("eve", 2, 50, 30),

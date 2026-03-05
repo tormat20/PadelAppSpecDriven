@@ -4,7 +4,7 @@ from enum import Enum
 class EventType(str, Enum):
     WINNERS_COURT = "WinnersCourt"
     MEXICANO = "Mexicano"
-    BEAT_THE_BOX = "BeatTheBox"
+    RANKED_BOX = "RankedBox"
 
 
 class EventStatus(str, Enum):

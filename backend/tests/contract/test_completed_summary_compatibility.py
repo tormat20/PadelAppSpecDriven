@@ -9,7 +9,7 @@ def _seed_players(client, prefix, count=4):
     return ids
 
 
-def _complete_beat_the_box_event(client, event_id: str):
+def _complete_ranked_box_event(client, event_id: str):
     for round_number in range(1, 4):
         current_round = client.get(f"/api/v1/events/{event_id}/rounds/current")
         assert current_round.status_code == 200
@@ -17,7 +17,7 @@ def _complete_beat_the_box_event(client, event_id: str):
         for match in current_round.json()["matches"]:
             result = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "BeatTheBox", "outcome": "Team1Win"},
+                json={"mode": "RankedBox", "outcome": "Team1Win"},
             )
             assert result.status_code == 204
 
@@ -32,7 +32,7 @@ def test_completed_summary_route_remains_compatible(client):
         "/api/v1/events",
         json={
             "eventName": "Completed Summary Contract",
-            "eventType": "BeatTheBox",
+            "eventType": "RankedBox",
             "eventDate": "2026-02-26",
             "selectedCourts": [1],
             "playerIds": player_ids,
@@ -41,7 +41,7 @@ def test_completed_summary_route_remains_compatible(client):
     event_id = created.json()["id"]
     assert client.post(f"/api/v1/events/{event_id}/start").status_code == 200
 
-    _complete_beat_the_box_event(client, event_id)
+    _complete_ranked_box_event(client, event_id)
 
     finish_response = client.post(f"/api/v1/events/{event_id}/finish")
     assert finish_response.status_code == 200

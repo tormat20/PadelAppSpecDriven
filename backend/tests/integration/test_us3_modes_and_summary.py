@@ -17,7 +17,7 @@ def _make_event(client, event_type: str, prefix: str):
     return event_id
 
 
-def test_mexicano_and_btb_flows(client):
+def test_mexicano_and_rb_flows(client):
     mex_event = _make_event(client, "Mexicano", "MX")
     current = client.get(f"/api/v1/events/{mex_event}/rounds/current").json()
     match = current["matches"][0]
@@ -26,17 +26,17 @@ def test_mexicano_and_btb_flows(client):
         json={"mode": "Mexicano", "team1Score": 17, "team2Score": 7},
     )
 
-    btb_event = _make_event(client, "BeatTheBox", "BTB")
-    current_btb = client.get(f"/api/v1/events/{btb_event}/rounds/current").json()
-    match_btb = current_btb["matches"][0]
+    rb_event = _make_event(client, "RankedBox", "RB")
+    current_rb = client.get(f"/api/v1/events/{rb_event}/rounds/current").json()
+    match_rb = current_rb["matches"][0]
     client.post(
-        f"/api/v1/matches/{match_btb['matchId']}/result",
-        json={"mode": "BeatTheBox", "outcome": "Draw"},
+        f"/api/v1/matches/{match_rb['matchId']}/result",
+        json={"mode": "RankedBox", "outcome": "Draw"},
     )
 
 
-def test_beat_the_box_partner_cycle_progression(client):
-    event_id = _make_event(client, "BeatTheBox", "BTB-C")
+def test_ranked_box_partner_cycle_progression(client):
+    event_id = _make_event(client, "RankedBox", "RB-C")
     round1 = client.get(f"/api/v1/events/{event_id}/rounds/current").json()
     r1_match = round1["matches"][0]
     quartet = sorted(r1_match["team1"] + r1_match["team2"])
@@ -54,7 +54,7 @@ def test_beat_the_box_partner_cycle_progression(client):
     assert (
         client.post(
             f"/api/v1/matches/{match_id(r1_match)}/result",
-            json={"mode": "BeatTheBox", "outcome": "Team1Win"},
+            json={"mode": "RankedBox", "outcome": "Team1Win"},
         ).status_code
         == 204
     )
@@ -67,7 +67,7 @@ def test_beat_the_box_partner_cycle_progression(client):
     assert (
         client.post(
             f"/api/v1/matches/{match_id(r2_match)}/result",
-            json={"mode": "BeatTheBox", "outcome": "Team1Win"},
+            json={"mode": "RankedBox", "outcome": "Team1Win"},
         ).status_code
         == 204
     )

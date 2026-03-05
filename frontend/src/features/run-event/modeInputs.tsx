@@ -3,14 +3,14 @@ import {
   getMexicanoSideScoreOptions,
   getSideRelativeSelectionKey,
   toWinnersCourtPayload,
-  toBeatTheBoxPayload,
+  toRankedBoxPayload,
   toMexicanoPayload,
   type TeamSide,
   type WinnerPayload,
 } from "./resultEntry"
 
 type Props = {
-  mode: "WinnersCourt" | "Mexicano" | "BeatTheBox"
+  mode: "WinnersCourt" | "Mexicano" | "RankedBox"
   selectedSide: TeamSide
   selectedPayload?: WinnerPayload
   onPayload: (payload: WinnerPayload) => void
@@ -33,14 +33,14 @@ export function ModeInputs({ mode, selectedSide, selectedPayload, onPayload }: P
     )
   }
 
-  if (mode === "BeatTheBox") {
+  if (mode === "RankedBox") {
     return (
       <ResultEntry
         label=""
         options={["Win", "Loss", "Draw"]}
         selectedValue={selectedValue}
         layout="triple"
-        onSelect={(selected) => onPayload(toBeatTheBoxPayload(selectedSide, selected as "Win" | "Loss" | "Draw"))}
+        onSelect={(selected) => onPayload(toRankedBoxPayload(selectedSide, selected as "Win" | "Loss" | "Draw"))}
       />
     )
   }

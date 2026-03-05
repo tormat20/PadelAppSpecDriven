@@ -58,9 +58,9 @@ class SummaryOrderingService:
             ranked = self._assign_sequential_rank(ordered)
             return ranked, SummaryOrderingMetadata(ordering_mode="final-winners-court-priority")
 
-        ordered = self._order_btb_final(rows, totals_by_player, courts, global_scores)
+        ordered = self._order_rb_final(rows, totals_by_player, courts, global_scores)
         ranked = self._assign_sequential_rank(ordered)
-        return ranked, SummaryOrderingMetadata(ordering_mode="final-btb-global-court-groups")
+        return ranked, SummaryOrderingMetadata(ordering_mode="final-rb-global-court-groups")
 
     def _order_winners_court_final(
         self, rows: list[dict], rounds: list, matches: list
@@ -100,7 +100,7 @@ class SummaryOrderingService:
         ordered_ids.extend(remaining_ids)
         return [rows_by_id[player_id] for player_id in ordered_ids if player_id in rows_by_id]
 
-    def _order_btb_final(
+    def _order_rb_final(
         self,
         rows: list[dict],
         totals_by_player: dict[str, int],

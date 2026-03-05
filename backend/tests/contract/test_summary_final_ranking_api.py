@@ -38,7 +38,7 @@ def _complete_event(client, event_id: str, mode: str, round_count: int) -> None:
             elif mode == "WinnersCourt":
                 payload = {"mode": "WinnersCourt", "winningTeam": 1}
             else:
-                payload = {"mode": "BeatTheBox", "outcome": "Team1Win"}
+                payload = {"mode": "RankedBox", "outcome": "Team1Win"}
 
             result = client.post(f"/api/v1/matches/{match['matchId']}/result", json=payload)
             assert result.status_code == 204

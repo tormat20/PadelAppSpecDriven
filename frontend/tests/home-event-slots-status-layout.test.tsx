@@ -56,16 +56,16 @@ describe("home event slots status layout", () => {
   it("sorts by date when date ordering is selected", () => {
     const late = buildEvent({ id: "late", eventDate: "2026-04-22", eventTime24h: "20:00" })
     const early = buildEvent({ id: "early", eventDate: "2026-04-21", eventTime24h: "17:00" })
-    const visible = applyEventSlotView([late, early], "all", "date", ["WinnersCourt", "Mexicano", "BeatTheBox"])
+    const visible = applyEventSlotView([late, early], "all", "date", ["WinnersCourt", "Mexicano", "RankedBox"])
     expect(visible.map((event) => event.id)).toEqual(["early", "late"])
   })
 
   it("groups by mode and honors selected mode filters", () => {
     const winnersCourt = buildEvent({ id: "wc", eventType: "WinnersCourt" })
     const mexicano = buildEvent({ id: "mx", eventType: "Mexicano" })
-    const beatTheBox = buildEvent({ id: "btb", eventType: "BeatTheBox" })
+    const beatTheBox = buildEvent({ id: "btb", eventType: "RankedBox" })
 
-    const visible = applyEventSlotView([mexicano, beatTheBox, winnersCourt], "all", "mode", ["Mexicano", "BeatTheBox"])
+    const visible = applyEventSlotView([mexicano, beatTheBox, winnersCourt], "all", "mode", ["Mexicano", "RankedBox"])
     expect(visible.map((event) => event.id)).toEqual(["mx", "btb"])
   })
 })

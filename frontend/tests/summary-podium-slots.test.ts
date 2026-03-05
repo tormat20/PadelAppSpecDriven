@@ -17,13 +17,13 @@ function makeRow(
 }
 
 describe("getPodiumSlots", () => {
-  // ── BeatTheBox ────────────────────────────────────────────────────────────
+  // ── RankedBox ─────────────────────────────────────────────────────────────
 
-  describe("BeatTheBox", () => {
+  describe("RankedBox", () => {
     it("returns empty array regardless of player count", () => {
-      expect(getPodiumSlots("BeatTheBox", [])).toEqual([])
+      expect(getPodiumSlots("RankedBox", [])).toEqual([])
       expect(
-        getPodiumSlots("BeatTheBox", [makeRow(1, "Alice"), makeRow(2, "Bob")]),
+        getPodiumSlots("RankedBox", [makeRow(1, "Alice"), makeRow(2, "Bob")]),
       ).toEqual([])
     })
   })

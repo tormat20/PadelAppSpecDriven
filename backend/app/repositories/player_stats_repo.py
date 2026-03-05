@@ -25,14 +25,14 @@ class PlayerStatsRepository:
             [
                 player_id,
                 deltas.get("mexicano_score_delta", 0),
-                deltas.get("btb_score_delta", 0),
+                deltas.get("rb_score_delta", 0),
                 deltas.get("events_attended_delta", 0),
                 deltas.get("wc_matches_played_delta", 0),
                 deltas.get("wc_wins_delta", 0),
                 deltas.get("wc_losses_delta", 0),
-                deltas.get("btb_wins_delta", 0),
-                deltas.get("btb_losses_delta", 0),
-                deltas.get("btb_draws_delta", 0),
+                deltas.get("rb_wins_delta", 0),
+                deltas.get("rb_losses_delta", 0),
+                deltas.get("rb_draws_delta", 0),
             ],
         )
 
@@ -50,7 +50,7 @@ class PlayerStatsRepository:
                 month,
                 deltas.get("events_played_delta", 0),
                 deltas.get("mexicano_score_delta", 0),
-                deltas.get("btb_score_delta", 0),
+                deltas.get("rb_score_delta", 0),
             ],
         )
 
@@ -66,14 +66,14 @@ class PlayerStatsRepository:
         return {
             "player_id": row[0],
             "mexicano_score_total": row[1],
-            "btb_score_total": row[2],
+            "rb_score_total": row[2],
             "events_attended": row[3],
             "wc_matches_played": row[4],
             "wc_wins": row[5],
             "wc_losses": row[6],
-            "btb_wins": row[7],
-            "btb_losses": row[8],
-            "btb_draws": row[9],
+            "rb_wins": row[7],
+            "rb_losses": row[8],
+            "rb_draws": row[9],
         }
 
     def get_player_of_month(self, year: int, month: int) -> list[dict]:
@@ -87,7 +87,7 @@ class PlayerStatsRepository:
                 "display_name": row[1],
                 "events_played": row[2],
                 "mexicano_score": row[3],
-                "btb_score": row[4],
+                "rb_score": row[4],
             }
             for row in rows
         ]
@@ -103,7 +103,22 @@ class PlayerStatsRepository:
                 "display_name": row[1],
                 "events_played": row[2],
                 "mexicano_score": row[3],
-                "btb_score": row[4],
+                "rb_score": row[4],
+            }
+            for row in rows
+        ]
+
+    def get_ranked_box_ladder(self) -> list[dict]:
+        """Return all-time Ranked Box ladder ordered by rb_score_total DESC."""
+        rows = self.conn.execute(load_sql("player_stats/get_ranked_box_ladder.sql")).fetchall()
+        return [
+            {
+                "player_id": row[0],
+                "display_name": row[1],
+                "rb_score_total": row[2],
+                "rb_wins": row[3],
+                "rb_losses": row[4],
+                "rb_draws": row[5],
             }
             for row in rows
         ]

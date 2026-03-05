@@ -6,7 +6,7 @@ import {
   getSideRelativeSelectionKey,
   isWinnerOptionSelected,
   toWinnersCourtPayload,
-  toBeatTheBoxPayload,
+  toRankedBoxPayload,
   upsertWinnerSelection,
 } from "../src/features/run-event/resultEntry"
 
@@ -18,8 +18,8 @@ describe("ResultEntry winner selected-state persistence", () => {
   })
 
   it("overwrites prior selection for the same match and clears when requested", () => {
-    const state = upsertWinnerSelection({}, "m1", { mode: "BeatTheBox", outcome: "Team1Win" })
-    const updated = upsertWinnerSelection(state, "m1", { mode: "BeatTheBox", outcome: "Draw" })
+    const state = upsertWinnerSelection({}, "m1", { mode: "RankedBox", outcome: "Team1Win" })
+    const updated = upsertWinnerSelection(state, "m1", { mode: "RankedBox", outcome: "Draw" })
     expect(isWinnerOptionSelected(updated, "m1", "Draw")).toBe(true)
 
     const cleared = clearWinnerSelection(updated, "m1")
@@ -30,19 +30,19 @@ describe("ResultEntry winner selected-state persistence", () => {
     expect(toWinnersCourtPayload(2, "Win")).toEqual({ mode: "WinnersCourt", winningTeam: 2 })
     expect(toWinnersCourtPayload(2, "Loss")).toEqual({ mode: "WinnersCourt", winningTeam: 1 })
 
-    expect(toBeatTheBoxPayload(1, "Win")).toEqual({ mode: "BeatTheBox", outcome: "Team1Win" })
-    expect(toBeatTheBoxPayload(1, "Loss")).toEqual({ mode: "BeatTheBox", outcome: "Team2Win" })
+    expect(toRankedBoxPayload(1, "Win")).toEqual({ mode: "RankedBox", outcome: "Team1Win" })
+    expect(toRankedBoxPayload(1, "Loss")).toEqual({ mode: "RankedBox", outcome: "Team2Win" })
   })
 
   it("derives side-relative selection keys from submitted payload", () => {
     expect(getSideRelativeSelectionKey({ mode: "WinnersCourt", winningTeam: 2 }, 2)).toBe("Win")
     expect(getSideRelativeSelectionKey({ mode: "WinnersCourt", winningTeam: 2 }, 1)).toBe("Loss")
-    expect(getSideRelativeSelectionKey({ mode: "BeatTheBox", outcome: "Draw" }, 1)).toBe("Draw")
+    expect(getSideRelativeSelectionKey({ mode: "RankedBox", outcome: "Draw" }, 1)).toBe("Draw")
   })
 
   it("derives mirrored badges for win/loss and draw modes", () => {
     expect(getMirroredBadgePair({ mode: "WinnersCourt", winningTeam: 1 })).toEqual({ team1: "Win", team2: "Loss" })
     expect(getMirroredBadgePair({ mode: "WinnersCourt", winningTeam: 2 })).toEqual({ team1: "Loss", team2: "Win" })
-    expect(getMirroredBadgePair({ mode: "BeatTheBox", outcome: "Draw" })).toEqual({ team1: "Draw", team2: "Draw" })
+    expect(getMirroredBadgePair({ mode: "RankedBox", outcome: "Draw" })).toEqual({ team1: "Draw", team2: "Draw" })
   })
 })

@@ -3,13 +3,13 @@ from uuid import uuid4
 
 from app.core.errors import DomainError
 from app.domain.enums import EventType, RoundStatus
-from app.domain.scoring import winners_court_score, beat_the_box_delta, mexicano_score
+from app.domain.scoring import winners_court_score, ranked_box_delta, mexicano_score
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.rankings_repo import RankingsRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.services.winners_court_service import WinnersCourtService
-from app.services.beat_the_box_service import BeatTheBoxService
+from app.services.ranked_box_service import RankedBoxService
 from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.mexicano_service import MexicanoService
 
@@ -28,7 +28,7 @@ class RoundService:
         self.rankings_repo = rankings_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
-        self.btb_service = BeatTheBoxService()
+        self.rb_service = RankedBoxService()
 
     def get_current_round_view(self, event_id: str) -> dict:
         round_obj = self.rounds_repo.get_current_round(event_id)
@@ -73,11 +73,11 @@ class RoundService:
                 winner_team = 1 if team1_score > team2_score else 2
             else:
                 is_draw = True
-        elif mode == "BeatTheBox":
+        elif mode == "RankedBox":
             outcome = payload.get("outcome")
             if not isinstance(outcome, str):
-                raise ValueError("BeatTheBox requires an outcome")
-            d1, d2 = beat_the_box_delta(str(outcome))
+                raise ValueError("RankedBox requires an outcome")
+            d1, d2 = ranked_box_delta(str(outcome))
             if outcome == "Draw":
                 is_draw = True
             else:
@@ -154,7 +154,7 @@ class RoundService:
                 event_seed=event_seed,
             )
         else:
-            plan = self.btb_service.generate_next_round(
+            plan = self.rb_service.generate_next_round(
                 current_round.round_number,
                 player_ids,
                 courts,

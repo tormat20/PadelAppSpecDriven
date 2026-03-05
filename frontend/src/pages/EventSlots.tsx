@@ -21,7 +21,7 @@ const EVENT_SLOT_SORT_KEY = "home.eventSlots.sort"
 const EVENT_SLOT_MODE_FILTERS_KEY = "home.eventSlots.modeFilters"
 const EVENT_SLOT_COLLAPSED_MODES_KEY = "home.eventSlots.collapsedModes"
 
-const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "BeatTheBox"]
+const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox"]
 
 function isEventSlotFilter(value: string | null): value is EventSlotFilter {
   return value === "all" || value === "planned" || value === "ready" || value === "ongoing" || value === "finished"
@@ -32,7 +32,7 @@ function isEventSortOption(value: string | null): value is EventSortOption {
 }
 
 function isEventType(value: string): value is EventType {
-  return value === "WinnersCourt" || value === "Mexicano" || value === "BeatTheBox"
+  return value === "WinnersCourt" || value === "Mexicano" || value === "RankedBox"
 }
 
 function parseSavedModeFilters(value: string | null): EventType[] {

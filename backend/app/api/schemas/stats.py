@@ -5,14 +5,14 @@ class PlayerStatsResponse(BaseModel):
     player_id: str
     display_name: str
     mexicano_score_total: int
-    btb_score_total: int
+    rb_score_total: int
     events_attended: int
     wc_matches_played: int
     wc_wins: int
     wc_losses: int
-    btb_wins: int
-    btb_losses: int
-    btb_draws: int
+    rb_wins: int
+    rb_losses: int
+    rb_draws: int
 
 
 class LeaderboardEntryResponse(BaseModel):
@@ -21,10 +21,24 @@ class LeaderboardEntryResponse(BaseModel):
     display_name: str
     events_played: int
     mexicano_score: int
-    btb_score: int
+    rb_score: int
 
 
 class LeaderboardResponse(BaseModel):
     year: int
     month: int
     entries: list[LeaderboardEntryResponse]
+
+
+class RankedBoxLadderEntryResponse(BaseModel):
+    rank: int
+    player_id: str
+    display_name: str
+    rb_score_total: int
+    rb_wins: int
+    rb_losses: int
+    rb_draws: int
+
+
+class RankedBoxLadderResponse(BaseModel):
+    entries: list[RankedBoxLadderEntryResponse]

@@ -3,13 +3,13 @@ import { getEventModeLabel } from "../../lib/eventMode"
 
 type Props = {
   selected: string
-  onSelect: (value: "WinnersCourt" | "Mexicano" | "BeatTheBox") => void
+  onSelect: (value: "WinnersCourt" | "Mexicano" | "RankedBox") => void
 }
 
-const modes: Array<{ key: "WinnersCourt" | "Mexicano" | "BeatTheBox"; blurb: string }> = [
+const modes: Array<{ key: "WinnersCourt" | "Mexicano" | "RankedBox"; blurb: string }> = [
   { key: "WinnersCourt", blurb: "Win/loss court movement" },
   { key: "Mexicano", blurb: "24-point score regrouping" },
-  { key: "BeatTheBox", blurb: "3-round box rotations" },
+  { key: "RankedBox", blurb: "3-round box rotations" },
 ]
 
 export function ModeAccordion({ selected, onSelect }: Props) {

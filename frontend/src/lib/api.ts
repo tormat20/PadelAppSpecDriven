@@ -9,6 +9,8 @@ import type {
   Leaderboard,
   LeaderboardEntry,
   PlayerStats,
+  RankedBoxLadder,
+  RankedBoxLadderEntry,
   UpdateEventPayload,
 } from "./types"
 
@@ -214,14 +216,14 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
     playerId: data.player_id,
     displayName: data.display_name,
     mexicanoScoreTotal: data.mexicano_score_total ?? 0,
-    btbScoreTotal: data.btb_score_total ?? 0,
+    rbScoreTotal: data.rb_score_total ?? 0,
     eventsAttended: data.events_attended ?? 0,
     wcMatchesPlayed: data.wc_matches_played ?? 0,
     wcWins: data.wc_wins ?? 0,
     wcLosses: data.wc_losses ?? 0,
-    btbWins: data.btb_wins ?? 0,
-    btbLosses: data.btb_losses ?? 0,
-    btbDraws: data.btb_draws ?? 0,
+    rbWins: data.rb_wins ?? 0,
+    rbLosses: data.rb_losses ?? 0,
+    rbDraws: data.rb_draws ?? 0,
   }
 }
 
@@ -232,7 +234,7 @@ function normalizeLeaderboardEntry(raw: any, rank: number): LeaderboardEntry {
     displayName: raw.display_name,
     eventsPlayed: raw.events_played ?? 0,
     mexicanoScore: raw.mexicano_score ?? 0,
-    btbScore: raw.btb_score ?? 0,
+    rbScore: raw.rb_score ?? 0,
   }
 }
 
@@ -251,6 +253,26 @@ export async function getPlayerOfMonthLeaderboard(): Promise<Leaderboard> {
 export async function getMexicanoOfMonthLeaderboard(): Promise<Leaderboard> {
   const data = await request<any>("/leaderboards/mexicano-of-month")
   return normalizeLeaderboard(data)
+}
+
+function normalizeRankedBoxLadderEntry(raw: any, rank: number): RankedBoxLadderEntry {
+  return {
+    rank: raw.rank ?? rank,
+    playerId: raw.player_id,
+    displayName: raw.display_name,
+    rbScoreTotal: raw.rb_score_total ?? 0,
+    rbWins: raw.rb_wins ?? 0,
+    rbLosses: raw.rb_losses ?? 0,
+    rbDraws: raw.rb_draws ?? 0,
+  }
+}
+
+export async function getRankedBoxLadder(): Promise<RankedBoxLadder> {
+  const data = await request<any>("/leaderboards/ranked-box-ladder")
+  const entries: RankedBoxLadderEntry[] = Array.isArray(data.entries)
+    ? data.entries.map((e: any, i: number) => normalizeRankedBoxLadderEntry(e, i + 1))
+    : []
+  return { entries }
 }
 
 export async function getEventSummary(eventId: string): Promise<EventSummaryResponse> {

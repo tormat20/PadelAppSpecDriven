@@ -15,7 +15,7 @@ def mexicano_score(team1_score: int, team2_score: int) -> tuple[int, int]:
     return team1_score, team2_score
 
 
-def beat_the_box_delta(outcome: str) -> tuple[int, int]:
+def ranked_box_delta(outcome: str) -> tuple[int, int]:
     if outcome == "Team1Win":
         return 25, -15
     if outcome == "Team2Win":

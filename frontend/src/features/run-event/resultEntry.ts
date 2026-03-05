@@ -4,9 +4,9 @@ export type WinnerSelectionMap = Record<string, string>
 
 type WinnersCourtPayload = { mode: "WinnersCourt"; winningTeam: 1 | 2 }
 type MexicanoPayload = { mode: "Mexicano"; team1Score: number; team2Score: number }
-type BeatTheBoxPayload = { mode: "BeatTheBox"; outcome: "Team1Win" | "Team2Win" | "Draw" }
+type RankedBoxPayload = { mode: "RankedBox"; outcome: "Team1Win" | "Team2Win" | "Draw" }
 
-export type WinnerPayload = WinnersCourtPayload | MexicanoPayload | BeatTheBoxPayload
+export type WinnerPayload = WinnersCourtPayload | MexicanoPayload | RankedBoxPayload
 export type TeamSide = 1 | 2
 export type RelativeOutcome = "Win" | "Loss" | "Draw"
 export type TeamBadgePair = { team1: string; team2: string }
@@ -22,16 +22,16 @@ export function toWinnersCourtPayload(selectedSide: TeamSide, outcome: Exclude<R
   return { mode: "WinnersCourt", winningTeam: selectedSide === 1 ? 2 : 1 }
 }
 
-export function toBeatTheBoxPayload(selectedSide: TeamSide, outcome: RelativeOutcome): BeatTheBoxPayload {
+export function toRankedBoxPayload(selectedSide: TeamSide, outcome: RelativeOutcome): RankedBoxPayload {
   if (outcome === "Draw") {
-    return { mode: "BeatTheBox", outcome: "Draw" }
+    return { mode: "RankedBox", outcome: "Draw" }
   }
 
   if (outcome === "Win") {
-    return { mode: "BeatTheBox", outcome: selectedSide === 1 ? "Team1Win" : "Team2Win" }
+    return { mode: "RankedBox", outcome: selectedSide === 1 ? "Team1Win" : "Team2Win" }
   }
 
-  return { mode: "BeatTheBox", outcome: selectedSide === 1 ? "Team2Win" : "Team1Win" }
+  return { mode: "RankedBox", outcome: selectedSide === 1 ? "Team2Win" : "Team1Win" }
 }
 
 export function toMexicanoPayload(selectedSide: TeamSide, selectedSideScore: number): MexicanoPayload {
@@ -53,7 +53,7 @@ export function getSideRelativeSelectionKey(payload: WinnerPayload, selectedSide
     return won ? "Win" : "Loss"
   }
 
-  if (payload.mode === "BeatTheBox") {
+  if (payload.mode === "RankedBox") {
     if (payload.outcome === "Draw") return "Draw"
     const selectedSideWins = (selectedSide === 1 && payload.outcome === "Team1Win") || (selectedSide === 2 && payload.outcome === "Team2Win")
     return selectedSideWins ? "Win" : "Loss"
@@ -70,7 +70,7 @@ export function getMirroredBadgePair(payload: WinnerPayload): TeamBadgePair {
       : { team1: "Loss", team2: "Win" }
   }
 
-  if (payload.mode === "BeatTheBox") {
+  if (payload.mode === "RankedBox") {
     if (payload.outcome === "Draw") return { team1: "Draw", team2: "Draw" }
     return payload.outcome === "Team1Win"
       ? { team1: "Win", team2: "Loss" }
@@ -85,7 +85,7 @@ export function getMirroredBadgePair(payload: WinnerPayload): TeamBadgePair {
 
 export function getWinnerSelectionKey(payload: WinnerPayload): string {
   if (payload.mode === "WinnersCourt") return `team${payload.winningTeam}`
-  if (payload.mode === "BeatTheBox") return payload.outcome
+  if (payload.mode === "RankedBox") return payload.outcome
   return `${payload.team1Score}-${payload.team2Score}`
 }
 

@@ -27,7 +27,7 @@ def _play_round(client, event_id: str, mode: str, round_number: int, total_round
         else:
             result = client.post(
                 f"/api/v1/matches/{match['matchId']}/result",
-                json={"mode": "BeatTheBox", "outcome": "Team1Win"},
+                json={"mode": "RankedBox", "outcome": "Team1Win"},
             )
         assert result.status_code == 204
 
@@ -50,7 +50,7 @@ def _create_and_complete_event(client, event_type: str, prefix: str, player_coun
     event_id = created.json()["id"]
     assert client.post(f"/api/v1/events/{event_id}/start").status_code == 200
 
-    total_rounds = 3 if event_type == "BeatTheBox" else 6
+    total_rounds = 3 if event_type == "RankedBox" else 6
     for round_number in range(1, total_rounds + 1):
         _play_round(client, event_id, event_type, round_number, total_rounds)
     return event_id
@@ -59,7 +59,7 @@ def _create_and_complete_event(client, event_type: str, prefix: str, player_coun
 def test_final_summary_includes_crowned_player_ids_for_modes(client):
     mexicano_event = _create_and_complete_event(client, "Mexicano", "MXC", 4)
     winners_court_event = _create_and_complete_event(client, "WinnersCourt", "AMC", 8)
-    btb_event = _create_and_complete_event(client, "BeatTheBox", "BTC", 4)
+    rb_event = _create_and_complete_event(client, "RankedBox", "RBC", 4)
 
     mexicano_summary = client.get(f"/api/v1/events/{mexicano_event}/summary")
     assert mexicano_summary.status_code == 200
@@ -75,11 +75,11 @@ def test_final_summary_includes_crowned_player_ids_for_modes(client):
     assert "crownedPlayerIds" in winners_court_payload
     assert len(winners_court_payload["crownedPlayerIds"]) == 2
 
-    btb_summary = client.get(f"/api/v1/events/{btb_event}/summary")
-    assert btb_summary.status_code == 200
-    btb_payload = btb_summary.json()
-    assert btb_payload["mode"] == "final"
-    assert btb_payload["crownedPlayerIds"] == []
+    rb_summary = client.get(f"/api/v1/events/{rb_event}/summary")
+    assert rb_summary.status_code == 200
+    rb_payload = rb_summary.json()
+    assert rb_payload["mode"] == "final"
+    assert rb_payload["crownedPlayerIds"] == []
 
 
 def test_progress_summary_does_not_render_crowns(client):

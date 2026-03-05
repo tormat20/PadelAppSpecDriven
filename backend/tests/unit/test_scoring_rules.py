@@ -1,6 +1,8 @@
 import pytest
 
-from app.domain.scoring import winners_court_score, beat_the_box_delta, mexicano_score
+import pytest
+
+from app.domain.scoring import winners_court_score, ranked_box_delta, mexicano_score
 
 
 def test_winners_court_score_accepts_valid_winner():
@@ -14,7 +16,7 @@ def test_mexicano_score_requires_total_24():
         mexicano_score(10, 10)
 
 
-def test_beat_the_box_delta_values():
-    assert beat_the_box_delta("Team1Win") == (25, -15)
-    assert beat_the_box_delta("Team2Win") == (-15, 25)
-    assert beat_the_box_delta("Draw") == (5, 5)
+def test_ranked_box_delta_values():
+    assert ranked_box_delta("Team1Win") == (25, -15)
+    assert ranked_box_delta("Team2Win") == (-15, 25)
+    assert ranked_box_delta("Draw") == (5, 5)

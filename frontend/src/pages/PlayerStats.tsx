@@ -135,7 +135,7 @@ export default function PlayerStatsPage() {
             <div className="stats-cards-row">
               <StatCard label="Events Attended" value={stats.eventsAttended} />
               <StatCard label="Mexicano Total" value={stats.mexicanoScoreTotal} />
-              <StatCard label="Beat the Box Total" value={stats.btbScoreTotal} />
+              <StatCard label="Ranked Box Total" value={stats.rbScoreTotal} />
             </div>
           </section>
 
@@ -162,27 +162,27 @@ export default function PlayerStatsPage() {
             </div>
           </section>
 
-          {/* ── Beat the Box ── */}
+          {/* ── Ranked Box ── */}
           <section className="panel">
-            <h2 className="stats-section-heading">Beat the Box</h2>
+            <h2 className="stats-section-heading">Ranked Box</h2>
             <div className="stats-chart-row">
               <div className="stats-doughnut-wrapper">
                 <Doughnut
-                  title="Beat the Box win/loss/draw split"
+                  title="Ranked Box win/loss/draw split"
                   segments={[
-                    { label: "Wins", value: stats.btbWins, color: "#0c8a8f" },
-                    { label: "Losses", value: stats.btbLosses, color: "#ef4444" },
-                    { label: "Draws", value: stats.btbDraws, color: "#f59e0b" },
+                    { label: "Wins", value: stats.rbWins, color: "#0c8a8f" },
+                    { label: "Losses", value: stats.rbLosses, color: "#ef4444" },
+                    { label: "Draws", value: stats.rbDraws, color: "#f59e0b" },
                   ]}
                 />
               </div>
               <div className="stats-chart-details">
-                <p className="stats-btb-score">
-                  {formatStatValue(stats.btbScoreTotal, "pts total")}
+                <p className="stats-rb-score">
+                  {formatStatValue(stats.rbScoreTotal, "pts total")}
                 </p>
-                <LegendRow color="#0c8a8f" label="Wins (+25)" value={stats.btbWins} />
-                <LegendRow color="#ef4444" label="Losses (−15)" value={stats.btbLosses} />
-                <LegendRow color="#f59e0b" label="Draws (+5)" value={stats.btbDraws} />
+                <LegendRow color="#0c8a8f" label="Wins (+25)" value={stats.rbWins} />
+                <LegendRow color="#ef4444" label="Losses (−15)" value={stats.rbLosses} />
+                <LegendRow color="#f59e0b" label="Draws (+5)" value={stats.rbDraws} />
               </div>
             </div>
           </section>

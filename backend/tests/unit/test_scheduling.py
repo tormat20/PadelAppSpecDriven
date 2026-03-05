@@ -88,7 +88,7 @@ def test_generate_next_round_for_winners_court_respects_movement_and_bounds():
     assert set(by_court[2].team1 + by_court[2].team2) == {"p1", "p2", "p7", "p8"}
 
 
-def test_generate_next_round_for_beat_the_box_uses_fixed_cycle():
+def test_generate_next_round_for_ranked_box_uses_fixed_cycle():
     previous_matches = [
         Match(
             id="m1",
@@ -109,7 +109,7 @@ def test_generate_next_round_for_beat_the_box_uses_fixed_cycle():
     ]
 
     round2 = generate_next_round(
-        EventType.BEAT_THE_BOX,
+        EventType.RANKED_BOX,
         1,
         ["A", "B", "C", "D"],
         [4],
@@ -119,7 +119,7 @@ def test_generate_next_round_for_beat_the_box_uses_fixed_cycle():
     assert set(round2.matches[0].team2) == {"B", "D"}
 
     round3 = generate_next_round(
-        EventType.BEAT_THE_BOX,
+        EventType.RANKED_BOX,
         2,
         ["A", "B", "C", "D"],
         [4],

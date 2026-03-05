@@ -7,7 +7,7 @@ from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.services.winners_court_service import WinnersCourtService
-from app.services.beat_the_box_service import BeatTheBoxService
+from app.services.ranked_box_service import RankedBoxService
 from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.mexicano_service import MexicanoService
 
@@ -24,7 +24,7 @@ class EventService:
         self.matches_repo = matches_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
-        self.btb_service = BeatTheBoxService()
+        self.rb_service = RankedBoxService()
 
     @staticmethod
     def _required_player_count(courts: list[int]) -> int:
@@ -87,8 +87,8 @@ class EventService:
             selected_courts = []
             player_ids = []
 
-        round_count = 3 if event_type == EventType.BEAT_THE_BOX else 6
-        round_duration = 30 if event_type == EventType.BEAT_THE_BOX else 15
+        round_count = 3 if event_type == EventType.RANKED_BOX else 6
+        round_duration = 30 if event_type == EventType.RANKED_BOX else 15
         missing_requirements = self.evaluate_setup(event_type, selected_courts, player_ids)
 
         if action == "create_event" and missing_requirements:
@@ -255,7 +255,7 @@ class EventService:
         elif event.event_type == EventType.MEXICANO:
             plan = self.mexicano_service.generate_round_1(player_ids, courts)
         else:
-            plan = self.btb_service.generate_round_1(player_ids, courts)
+            plan = self.rb_service.generate_round_1(player_ids, courts)
 
         round_id = str(uuid4())
         self.rounds_repo.create_round(round_id, event_id, plan.round_number, RoundStatus.RUNNING)
