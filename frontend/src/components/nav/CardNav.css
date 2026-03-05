@@ -183,6 +183,14 @@
   );
 }
 
+.card-nav-card--search {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-menu-card-bg-start) 82%, #d97706 18%),
+    color-mix(in srgb, var(--color-menu-card-bg-end) 78%, #b45309 22%)
+  );
+}
+
 /* Up-right arrow anchored to bottom-right of each card */
 .card-nav-card-arrow {
   bottom: var(--space-4);

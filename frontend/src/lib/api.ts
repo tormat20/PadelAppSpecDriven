@@ -6,6 +6,9 @@ import type {
   EventType,
   FinalEventSummary,
   InProgressEventSummary,
+  Leaderboard,
+  LeaderboardEntry,
+  PlayerStats,
   UpdateEventPayload,
 } from "./types"
 
@@ -203,6 +206,51 @@ function normalizeFinalSummaryResponse(payload: any, eventId: string): FinalEven
     columns: payload.columns ?? [],
     playerRows: rows,
   }
+}
+
+export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
+  const data = await request<any>(`/players/${playerId}/stats`)
+  return {
+    playerId: data.player_id,
+    displayName: data.display_name,
+    mexicanoScoreTotal: data.mexicano_score_total ?? 0,
+    btbScoreTotal: data.btb_score_total ?? 0,
+    eventsAttended: data.events_attended ?? 0,
+    wcMatchesPlayed: data.wc_matches_played ?? 0,
+    wcWins: data.wc_wins ?? 0,
+    wcLosses: data.wc_losses ?? 0,
+    btbWins: data.btb_wins ?? 0,
+    btbLosses: data.btb_losses ?? 0,
+    btbDraws: data.btb_draws ?? 0,
+  }
+}
+
+function normalizeLeaderboardEntry(raw: any, rank: number): LeaderboardEntry {
+  return {
+    rank: raw.rank ?? rank,
+    playerId: raw.player_id,
+    displayName: raw.display_name,
+    eventsPlayed: raw.events_played ?? 0,
+    mexicanoScore: raw.mexicano_score ?? 0,
+    btbScore: raw.btb_score ?? 0,
+  }
+}
+
+function normalizeLeaderboard(data: any): Leaderboard {
+  const entries: LeaderboardEntry[] = Array.isArray(data.entries)
+    ? data.entries.map((e: any, i: number) => normalizeLeaderboardEntry(e, i + 1))
+    : []
+  return { year: data.year, month: data.month, entries }
+}
+
+export async function getPlayerOfMonthLeaderboard(): Promise<Leaderboard> {
+  const data = await request<any>("/leaderboards/player-of-month")
+  return normalizeLeaderboard(data)
+}
+
+export async function getMexicanoOfMonthLeaderboard(): Promise<Leaderboard> {
+  const data = await request<any>("/leaderboards/mexicano-of-month")
+  return normalizeLeaderboard(data)
 }
 
 export async function getEventSummary(eventId: string): Promise<EventSummaryResponse> {

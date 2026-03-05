@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from app.core.errors import DomainError
 from app.domain.enums import EventStatus, EventType, MatchStatus, ResultType
 from app.repositories.events_repo import EventsRepository
@@ -9,6 +13,9 @@ from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.summary_ordering import SummaryOrderingService
 from app.services.round_service import RoundService
 
+if TYPE_CHECKING:
+    from app.services.player_stats_service import PlayerStatsService
+
 
 class SummaryService:
     def __init__(
@@ -18,12 +25,14 @@ class SummaryService:
         matches_repo: MatchesRepository,
         players_repo: PlayersRepository,
         round_service: RoundService,
+        player_stats_service: PlayerStatsService | None = None,
     ):
         self.events_repo = events_repo
         self.rounds_repo = rounds_repo
         self.matches_repo = matches_repo
         self.players_repo = players_repo
         self.round_service = round_service
+        self.player_stats_service = player_stats_service
         self.summary_ordering = SummaryOrderingService()
 
     def is_final_summary_available(self, event_id: str) -> bool:
@@ -55,6 +64,8 @@ class SummaryService:
 
         summary = self.round_service.summarize(event_id)
         self.events_repo.set_status(event_id, EventStatus.FINISHED, event.current_round_number)
+        if self.player_stats_service is not None:
+            self.player_stats_service.apply_event_stats(event_id)
         return summary
 
     def get_final_summary(self, event_id: str) -> dict:

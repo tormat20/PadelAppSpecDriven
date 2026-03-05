@@ -145,3 +145,36 @@ export type InProgressEventSummary = {
 }
 
 export type EventSummaryResponse = FinalEventSummary | InProgressEventSummary
+
+// ── Player stats ──────────────────────────────────────────────────────────────
+
+export type PlayerStats = {
+  playerId: string
+  displayName: string
+  mexicanoScoreTotal: number
+  btbScoreTotal: number
+  eventsAttended: number
+  wcMatchesPlayed: number
+  wcWins: number
+  wcLosses: number
+  btbWins: number
+  btbLosses: number
+  btbDraws: number
+}
+
+// ── Leaderboards ──────────────────────────────────────────────────────────────
+
+export type LeaderboardEntry = {
+  rank: number
+  playerId: string
+  displayName: string
+  eventsPlayed: number
+  mexicanoScore: number
+  btbScore: number
+}
+
+export type Leaderboard = {
+  year: number
+  month: number
+  entries: LeaderboardEntry[]
+}

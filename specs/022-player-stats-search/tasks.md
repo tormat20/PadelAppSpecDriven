@@ -15,15 +15,15 @@
 
 **⚠️ CRITICAL**: The `apply_event_stats` write hook (T007/T008) must be complete before leaderboard data can be verified end-to-end.
 
-- [ ] T001 Create DB migration `backend/app/db/migrations/005_player_stats.sql` with `player_stats`, `monthly_player_stats`, and `player_stats_event_log` tables
-- [ ] T002 [P] Create SQL directory `backend/app/repositories/sql/player_stats/` and add `is_event_applied.sql` and `mark_event_applied.sql`
-- [ ] T003 [P] Add `upsert_player_stats.sql` and `upsert_monthly_player_stats.sql` to `backend/app/repositories/sql/player_stats/`
-- [ ] T004 [P] Add `get_player_stats.sql`, `get_player_of_month.sql`, and `get_mexicano_of_month.sql` to `backend/app/repositories/sql/player_stats/`
-- [ ] T005 Create `backend/app/repositories/player_stats_repo.py` implementing `PlayerStatsRepository` (depends on T002, T003, T004)
-- [ ] T006 Create `backend/app/services/player_stats_service.py` implementing `PlayerStatsService` with `apply_event_stats`, `get_player_stats`, `get_player_of_month_leaderboard`, `get_mexicano_of_month_leaderboard` (depends on T005)
-- [ ] T007 Wire `PlayerStatsRepository` and `PlayerStatsService` into `backend/app/api/deps.py` inside `services_scope()` (depends on T006)
-- [ ] T008 Inject `PlayerStatsService` into `SummaryService` and call `apply_event_stats(event_id)` after `set_status` in `backend/app/services/summary_service.py` (depends on T007)
-- [ ] T009 Create `backend/app/api/schemas/stats.py` with `PlayerStatsResponse`, `LeaderboardEntryResponse`, `LeaderboardResponse` (can run in parallel with T005–T008)
+- [X] T001 Create DB migration `backend/app/db/migrations/005_player_stats.sql` with `player_stats`, `monthly_player_stats`, and `player_stats_event_log` tables
+- [X] T002 [P] Create SQL directory `backend/app/repositories/sql/player_stats/` and add `is_event_applied.sql` and `mark_event_applied.sql`
+- [X] T003 [P] Add `upsert_player_stats.sql` and `upsert_monthly_player_stats.sql` to `backend/app/repositories/sql/player_stats/`
+- [X] T004 [P] Add `get_player_stats.sql`, `get_player_of_month.sql`, and `get_mexicano_of_month.sql` to `backend/app/repositories/sql/player_stats/`
+- [X] T005 Create `backend/app/repositories/player_stats_repo.py` implementing `PlayerStatsRepository` (depends on T002, T003, T004)
+- [X] T006 Create `backend/app/services/player_stats_service.py` implementing `PlayerStatsService` with `apply_event_stats`, `get_player_stats`, `get_player_of_month_leaderboard`, `get_mexicano_of_month_leaderboard` (depends on T005)
+- [X] T007 Wire `PlayerStatsRepository` and `PlayerStatsService` into `backend/app/api/deps.py` inside `services_scope()` (depends on T006)
+- [X] T008 Inject `PlayerStatsService` into `SummaryService` and call `apply_event_stats(event_id)` after `set_status` in `backend/app/services/summary_service.py` (depends on T007)
+- [X] T009 Create `backend/app/api/schemas/stats.py` with `PlayerStatsResponse`, `LeaderboardEntryResponse`, `LeaderboardResponse` (can run in parallel with T005–T008)
 
 **Checkpoint**: Migration runs, stats tables created, stats are written idempotently at event finalization — foundational write path complete.
 
@@ -37,12 +37,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] Add `PlayerStats`, `LeaderboardEntry`, `Leaderboard` types to `frontend/src/lib/types.ts`
-- [ ] T011 [P] [US1] Add `getPlayerStats`, `getPlayerOfMonthLeaderboard`, `getMexicanoOfMonthLeaderboard` API functions to `frontend/src/lib/api.ts`
-- [ ] T012 [P] [US1] Add 4th nav card entry (`"Search Player"`, route `/players/search`, CSS class `card-nav-card--search`) to `NAV_CARDS` in `frontend/src/components/nav/CardNav.tsx`
-- [ ] T013 [P] [US1] Add `.card-nav-card--search` colour class to `frontend/src/styles/components.css`
-- [ ] T014 [US1] Create `frontend/src/pages/SearchPlayer.tsx` — text input, real-time case-insensitive substring filter via `searchPlayers()` + client-side filter, player list, empty state, tap navigates to `/players/:id/stats` (depends on T010, T011)
-- [ ] T015 [US1] Add routes `/players/search` (→ `SearchPlayer`) and `/players/:playerId/stats` (→ `PlayerStats`) to `frontend/src/app/routes.tsx` (depends on T014; `PlayerStats` can be a stub page initially)
+- [X] T010 [P] [US1] Add `PlayerStats`, `LeaderboardEntry`, `Leaderboard` types to `frontend/src/lib/types.ts`
+- [X] T011 [P] [US1] Add `getPlayerStats`, `getPlayerOfMonthLeaderboard`, `getMexicanoOfMonthLeaderboard` API functions to `frontend/src/lib/api.ts`
+- [X] T012 [P] [US1] Add 4th nav card entry (`"Search Player"`, route `/players/search`, CSS class `card-nav-card--search`) to `NAV_CARDS` in `frontend/src/components/nav/CardNav.tsx`
+- [X] T013 [P] [US1] Add `.card-nav-card--search` colour class to `frontend/src/styles/components.css`
+- [X] T014 [US1] Create `frontend/src/pages/SearchPlayer.tsx` — text input, real-time case-insensitive substring filter via `searchPlayers()` + client-side filter, player list, empty state, tap navigates to `/players/:id/stats` (depends on T010, T011)
+- [X] T015 [US1] Add routes `/players/search` (→ `SearchPlayer`) and `/players/:playerId/stats` (→ `PlayerStats`) to `frontend/src/app/routes.tsx` (depends on T014; `PlayerStats` can be a stub page initially)
 
 **Checkpoint**: User Story 1 is fully functional — search page is reachable from nav, filtering works, routing to stats page works.
 
@@ -56,16 +56,16 @@
 
 ### Tests for User Story 2 (pure helper unit tests)
 
-- [ ] T016 [P] [US2] Create `frontend/tests/player-stats-chart-data.test.ts` — unit tests for `buildDoughnutSegments()`: normal split, 100%/0%, all-zeros fallback, verify no division-by-zero
-- [ ] T017 [P] [US2] Create `frontend/tests/player-stats-format.test.ts` — unit tests for `formatStatValue()`: integer, zero, label trimming
+- [X] T016 [P] [US2] Create `frontend/tests/player-stats-chart-data.test.ts` — unit tests for `buildDoughnutSegments()`: normal split, 100%/0%, all-zeros fallback, verify no division-by-zero
+- [X] T017 [P] [US2] Create `frontend/tests/player-stats-format.test.ts` — unit tests for `formatStatValue()`: integer, zero, label trimming
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add `GET /{player_id}/stats` endpoint to `backend/app/api/routers/players.py`, returning `PlayerStatsResponse`; 404 if player not found (depends on T009, T006)
-- [ ] T019 [P] [US2] Create `frontend/src/features/player-stats/chartData.ts` implementing `buildDoughnutSegments()` with SVG arc math + 100%/0% two-arc workaround (depends on T016 test writing)
-- [ ] T020 [P] [US2] Create `frontend/src/features/player-stats/formatStats.ts` implementing `formatStatValue()` (depends on T017 test writing)
-- [ ] T021 [US2] Create `frontend/src/pages/PlayerStats.tsx` — fetches `getPlayerStats(playerId)`, renders all-time stat cards, WinnersCourt doughnut, Beat the Box doughnut, graceful zero state, error state with retry (depends on T010, T011, T019, T020)
-- [ ] T022 [US2] Add leaderboard + stats page styles to `frontend/src/styles/components.css` — stat card layout, doughnut chart container, empty/error state classes
+- [X] T018 [US2] Add `GET /{player_id}/stats` endpoint to `backend/app/api/routers/players.py`, returning `PlayerStatsResponse`; 404 if player not found (depends on T009, T006)
+- [X] T019 [P] [US2] Create `frontend/src/features/player-stats/chartData.ts` implementing `buildDoughnutSegments()` with SVG arc math + 100%/0% two-arc workaround (depends on T016 test writing)
+- [X] T020 [P] [US2] Create `frontend/src/features/player-stats/formatStats.ts` implementing `formatStatValue()` (depends on T017 test writing)
+- [X] T021 [US2] Create `frontend/src/pages/PlayerStats.tsx` — fetches `getPlayerStats(playerId)`, renders all-time stat cards, WinnersCourt doughnut, Beat the Box doughnut, graceful zero state, error state with retry (depends on T010, T011, T019, T020)
+- [X] T022 [US2] Add leaderboard + stats page styles to `frontend/src/styles/components.css` — stat card layout, doughnut chart container, empty/error state classes
 
 **Checkpoint**: User Stories 1 and 2 are independently functional — full search → stats flow works end-to-end.
 
@@ -79,14 +79,14 @@
 
 ### Tests for User Story 3 (pure helper unit tests)
 
-- [ ] T023 [P] [US3] Create `frontend/tests/leaderboard-ranking.test.ts` — unit tests for `rankLeaderboardEntries()`: primary sort, tiebreaker 1 (Mexicano), tiebreaker 2 (BtB), dense/skip ranking, empty list
+- [X] T023 [P] [US3] Create `frontend/tests/leaderboard-ranking.test.ts` — unit tests for `rankLeaderboardEntries()`: primary sort, tiebreaker 1 (Mexicano), tiebreaker 2 (BtB), dense/skip ranking, empty list
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Create `backend/app/api/routers/leaderboards.py` with `GET /leaderboards/player-of-month` endpoint returning `LeaderboardResponse` (depends on T009, T006, Foundational Phase complete)
-- [ ] T025 [US3] Register the leaderboards router in `backend/app/main.py` (depends on T024)
-- [ ] T026 [P] [US3] Create `frontend/src/features/leaderboards/rankLeaderboard.ts` implementing `rankLeaderboardEntries()` — sorts by `eventsPlayed` DESC → `mexicanoScore` DESC → `btbScore` DESC, assigns `rank` with dense-rank semantics (depends on T023 test writing)
-- [ ] T027 [US3] Add Player of the Month leaderboard section to `frontend/src/pages/Home.tsx` — calls `getPlayerOfMonthLeaderboard()`, renders ranked rows (rank + displayName + eventsPlayed), empty state, error state (depends on T010, T011, T026)
+- [X] T024 [US3] Create `backend/app/api/routers/leaderboards.py` with `GET /leaderboards/player-of-month` endpoint returning `LeaderboardResponse` (depends on T009, T006, Foundational Phase complete)
+- [X] T025 [US3] Register the leaderboards router in `backend/app/main.py` (depends on T024)
+- [X] T026 [P] [US3] Create `frontend/src/features/leaderboards/rankLeaderboard.ts` implementing `rankLeaderboardEntries()` — sorts by `eventsPlayed` DESC → `mexicanoScore` DESC → `btbScore` DESC, assigns `rank` with dense-rank semantics (depends on T023 test writing)
+- [X] T027 [US3] Add Player of the Month leaderboard section to `frontend/src/pages/Home.tsx` — calls `getPlayerOfMonthLeaderboard()`, renders ranked rows (rank + displayName + eventsPlayed), empty state, error state (depends on T010, T011, T026)
 
 **Checkpoint**: Player of the Month leaderboard is visible on the home page and reflects current-month finalized events.
 
@@ -100,8 +100,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T028 [US4] Add `GET /leaderboards/mexicano-of-month` endpoint to `backend/app/api/routers/leaderboards.py` (depends on T024, T009, T006)
-- [ ] T029 [US4] Add Mexicano Player of the Month leaderboard section to `frontend/src/pages/Home.tsx` — calls `getMexicanoOfMonthLeaderboard()`, renders ranked rows (rank + displayName + mexicanoScore), empty state (depends on T010, T011, T026, T027)
+- [X] T028 [US4] Add `GET /leaderboards/mexicano-of-month` endpoint to `backend/app/api/routers/leaderboards.py` (depends on T024, T009, T006)
+- [X] T029 [US4] Add Mexicano Player of the Month leaderboard section to `frontend/src/pages/Home.tsx` — calls `getMexicanoOfMonthLeaderboard()`, renders ranked rows (rank + displayName + mexicanoScore), empty state (depends on T010, T011, T026, T027)
 
 **Checkpoint**: Both monthly leaderboards render independently on the home page. All four user stories are complete and testable.
 
@@ -111,10 +111,10 @@
 
 **Purpose**: Final validation and edge-case hardening across all stories.
 
-- [ ] T030 [P] Verify all Vitest tests pass: `npm test` in `frontend/` — `player-stats-chart-data.test.ts`, `player-stats-format.test.ts`, `leaderboard-ranking.test.ts`
-- [ ] T031 [P] Run `npm run lint` in `frontend/` and resolve any TypeScript errors
-- [ ] T032 Run quickstart.md smoke tests end-to-end: create event → finish event → verify stats written → verify search → verify stats page → verify leaderboards
-- [ ] T033 Verify idempotency: call `finish_event` twice for the same event ID → confirm stats counters are not double-counted
+- [X] T030 [P] Verify all Vitest tests pass: `npm test` in `frontend/` — `player-stats-chart-data.test.ts`, `player-stats-format.test.ts`, `leaderboard-ranking.test.ts`
+- [X] T031 [P] Run `npm run lint` in `frontend/` and resolve any TypeScript errors
+- [X] T032 Run quickstart.md smoke tests end-to-end: create event → finish event → verify stats written → verify search → verify stats page → verify leaderboards
+- [X] T033 Verify idempotency: call `finish_event` twice for the same event ID → confirm stats counters are not double-counted
 
 ---
 

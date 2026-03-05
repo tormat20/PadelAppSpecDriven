@@ -3,11 +3,13 @@ from contextlib import contextmanager
 from app.db.connection import get_connection
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
+from app.repositories.player_stats_repo import PlayerStatsRepository
 from app.repositories.players_repo import PlayersRepository
 from app.repositories.rankings_repo import RankingsRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.services.event_service import EventService
 from app.services.player_service import PlayerService
+from app.services.player_stats_service import PlayerStatsService
 from app.services.round_service import RoundService
 from app.services.summary_service import SummaryService
 
@@ -20,16 +22,25 @@ def services_scope():
         rounds_repo = RoundsRepository(conn)
         matches_repo = MatchesRepository(conn)
         rankings_repo = RankingsRepository(conn)
+        player_stats_repo = PlayerStatsRepository(conn)
 
         player_service = PlayerService(players_repo)
         event_service = EventService(events_repo, rounds_repo, matches_repo)
         round_service = RoundService(events_repo, rounds_repo, matches_repo, rankings_repo)
+        player_stats_service = PlayerStatsService(
+            events_repo,
+            rounds_repo,
+            matches_repo,
+            players_repo,
+            player_stats_repo,
+        )
         summary_service = SummaryService(
             events_repo,
             rounds_repo,
             matches_repo,
             players_repo,
             round_service,
+            player_stats_service,
         )
 
         yield {
@@ -37,6 +48,7 @@ def services_scope():
             "event_service": event_service,
             "round_service": round_service,
             "summary_service": summary_service,
+            "player_stats_service": player_stats_service,
             "events_repo": events_repo,
             "players_repo": players_repo,
         }

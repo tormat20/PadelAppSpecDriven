@@ -1,4 +1,8 @@
-import type { EventRecord, EventType } from "../lib/types"
+import { useEffect, useState } from "react"
+
+import { rankLeaderboardEntries } from "../features/leaderboards/rankLeaderboard"
+import { getMexicanoOfMonthLeaderboard, getPlayerOfMonthLeaderboard } from "../lib/api"
+import type { EventRecord, EventType, Leaderboard } from "../lib/types"
 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
 export type EventSortOption = "default" | "mode" | "date"
@@ -90,6 +94,106 @@ export function getLifecycleStatusLabel(event: Pick<EventRecord, "lifecycleStatu
   return "Planned"
 }
 
+// ── Month label helper ─────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+]
+
+function monthLabel(year: number, month: number): string {
+  return `${MONTH_NAMES[month - 1] ?? ""} ${year}`
+}
+
+// ── Rank badge colour ──────────────────────────────────────────────────────────
+
+function rankClass(rank: number): string {
+  if (rank === 1) return "leaderboard-rank leaderboard-rank--gold"
+  if (rank === 2) return "leaderboard-rank leaderboard-rank--silver"
+  if (rank === 3) return "leaderboard-rank leaderboard-rank--bronze"
+  return "leaderboard-rank"
+}
+
+// ── Leaderboard section component ─────────────────────────────────────────────
+
+interface LeaderboardSectionProps {
+  title: string
+  board: Leaderboard | null
+  error: string
+  scoreLabel: string
+  scoreKey: "eventsPlayed" | "mexicanoScore"
+}
+
+function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: LeaderboardSectionProps) {
+  const label = board ? monthLabel(board.year, board.month) : ""
+  const ranked = board ? rankLeaderboardEntries(board.entries) : []
+
+  return (
+    <section className="panel leaderboard-section">
+      <h2 className="leaderboard-heading">
+        {title}
+        {label && <span className="leaderboard-month">{label}</span>}
+      </h2>
+
+      {error && <p className="leaderboard-error" role="alert">{error}</p>}
+
+      {!error && ranked.length === 0 && (
+        <p className="leaderboard-empty">No results yet this month.</p>
+      )}
+
+      {!error && ranked.length > 0 && (
+        <ul className="leaderboard-list" role="list">
+          {ranked.map((entry) => (
+            <li key={entry.playerId} className="leaderboard-entry">
+              <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
+                #{entry.rank}
+              </span>
+              <span className="leaderboard-name">{entry.displayName}</span>
+              <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
+                {entry[scoreKey]} {scoreLabel}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ── Default export ─────────────────────────────────────────────────────────────
+
 export default function HomePage() {
-  return <section className="page-shell" />
+  const [potmBoard, setPotmBoard] = useState<Leaderboard | null>(null)
+  const [potmError, setPotmError] = useState("")
+  const [mexBoard, setMexBoard] = useState<Leaderboard | null>(null)
+  const [mexError, setMexError] = useState("")
+
+  useEffect(() => {
+    getPlayerOfMonthLeaderboard()
+      .then(setPotmBoard)
+      .catch(() => setPotmError("Could not load leaderboard."))
+
+    getMexicanoOfMonthLeaderboard()
+      .then(setMexBoard)
+      .catch(() => setMexError("Could not load leaderboard."))
+  }, [])
+
+  return (
+    <section className="page-shell">
+      <LeaderboardSection
+        title="Player of the Month"
+        board={potmBoard}
+        error={potmError}
+        scoreLabel="events"
+        scoreKey="eventsPlayed"
+      />
+      <LeaderboardSection
+        title="Mexicano of the Month"
+        board={mexBoard}
+        error={mexError}
+        scoreLabel="pts"
+        scoreKey="mexicanoScore"
+      />
+    </section>
+  )
 }

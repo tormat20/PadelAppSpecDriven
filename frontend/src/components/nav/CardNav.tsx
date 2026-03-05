@@ -29,6 +29,12 @@ const NAV_CARDS = [
     to: "/players/register",
     colorClass: "card-nav-card--register",
   },
+  {
+    title: "Search Player",
+    subtitle: "Find a player and view their stats",
+    to: "/players/search",
+    colorClass: "card-nav-card--search",
+  },
 ] as const
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
