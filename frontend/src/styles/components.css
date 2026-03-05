@@ -1144,61 +1144,76 @@
   display: flex;
   gap: var(--space-3);
   justify-content: center;
-  padding-bottom: 0;
+  padding-bottom: var(--space-3);
 }
 
 .podium-slot {
   align-items: center;
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: var(--space-2);
   max-width: 180px;
-}
-
-.podium-players {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  margin-bottom: var(--space-2);
+  padding: var(--space-3) var(--space-2);
   text-align: center;
+  transition: transform 0.2s ease;
 }
 
-.podium-player-name {
+.podium-slot[data-rank="1"] {
+  background: linear-gradient(160deg, var(--color-active-gradient-start), var(--color-active-gradient-end));
+  border-color: var(--color-accent);
+  transform: translateY(-1.2rem);
+}
+
+.podium-slot[data-rank="2"] {
+  opacity: 0.85;
+}
+
+.podium-slot[data-rank="3"] {
+  opacity: 0.7;
+}
+
+.podium-rank-badge {
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-muted);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.5rem;
+}
+
+.podium-slot[data-rank="1"] .podium-rank-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.podium-name {
   color: var(--color-ink-strong);
   font-size: 0.88rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.podium-block {
-  align-items: center;
-  background: linear-gradient(160deg, var(--color-active-gradient-start), var(--color-active-gradient-end));
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  display: flex;
-  justify-content: center;
   width: 100%;
 }
 
-.podium-slot--first .podium-block {
-  min-height: 4rem;
-}
-
-.podium-slot--second .podium-block {
-  min-height: 2.8rem;
-  opacity: 0.85;
-}
-
-.podium-slot--third .podium-block {
-  min-height: 2rem;
-  opacity: 0.7;
-}
-
-.podium-place-label {
+.podium-slot[data-rank="1"] .podium-name {
   color: #fff;
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 0.3rem 0.6rem;
+}
+
+.podium-score {
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+}
+
+.podium-slot[data-rank="1"] .podium-score {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.podium-crown {
+  line-height: 1;
 }

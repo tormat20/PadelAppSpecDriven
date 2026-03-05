@@ -14,10 +14,9 @@ import {
   sortRowsByRank,
 } from "../features/summary/rankOrdering"
 import { scheduleConfettiBursts } from "../features/summary/confetti"
-import { Podium } from "../components/summary/Podium"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { getEventSummary } from "../lib/api"
-import type { EventSummaryResponse } from "../lib/types"
+import type { EventSummaryResponse, EventType, ProgressSummaryPlayerRow } from "../lib/types"
 
 export function getProgressCellDisplay(value: string | null | undefined): string {
   return value && value.trim() ? value : "-"
@@ -52,11 +51,88 @@ export function sortFinalRowsByScore<T extends { displayName: string; cells: { c
   })
 }
 
+// ── Podium helpers ────────────────────────────────────────────────────────────
+
+export const PODIUM_RANK_LABEL = ["1ST", "2ND", "3RD"] as const
+
+export type PodiumDisplaySlot = {
+  /** 0 = 1st place, 1 = 2nd place, 2 = 3rd place */
+  rank: 0 | 1 | 2
+  playerIds: string[]
+  playerNames: string[]
+  score: number
+}
+
+/**
+ * Builds up to 3 podium display slots from ranked player rows.
+ *
+ * - Mexicano:     1 player per slot (ranks 1, 2, 3)
+ * - WinnersCourt: 2 players per slot (ranks 1–2, 3–4, 5–6)
+ * - BeatTheBox:   empty array (no podium)
+ *
+ * Returns slots in VISUAL order: [2nd-place, 1st-place, 3rd-place]
+ * so the 1st-place slot appears in the centre.
+ */
+export function getPodiumSlots(
+  eventType: EventType,
+  playerRows: ProgressSummaryPlayerRow[],
+): PodiumDisplaySlot[] {
+  if (eventType === "BeatTheBox") return []
+
+  const sorted = [...playerRows].sort((a, b) => {
+    const rankDiff = a.rank - b.rank
+    if (rankDiff !== 0) return rankDiff
+    return a.displayName.localeCompare(b.displayName)
+  })
+
+  type SlotSpec = { rank: 0 | 1 | 2; minRank: number; maxRank: number }
+
+  const specs: SlotSpec[] =
+    eventType === "Mexicano"
+      ? [
+          { rank: 0, minRank: 1, maxRank: 1 },
+          { rank: 1, minRank: 2, maxRank: 2 },
+          { rank: 2, minRank: 3, maxRank: 3 },
+        ]
+      : [
+          // WinnersCourt
+          { rank: 0, minRank: 1, maxRank: 2 },
+          { rank: 1, minRank: 3, maxRank: 4 },
+          { rank: 2, minRank: 5, maxRank: 6 },
+        ]
+
+  const filled: PodiumDisplaySlot[] = []
+
+  for (const { rank, minRank, maxRank } of specs) {
+    const rows = sorted.filter((r) => r.rank >= minRank && r.rank <= maxRank)
+    if (rows.length === 0) continue
+    filled.push({
+      rank,
+      playerIds: rows.map((r) => r.playerId),
+      playerNames: rows.map((r) => r.displayName),
+      score: getFinalRowTotal(rows[0].cells),
+    })
+  }
+
+  if (filled.length === 0) return []
+
+  // Reorder for visual display: 2nd left · 1st centre · 3rd right
+  const slot1 = filled.find((s) => s.rank === 0)
+  const slot2 = filled.find((s) => s.rank === 1)
+  const slot3 = filled.find((s) => s.rank === 2)
+
+  return [slot2, slot1, slot3].filter((s): s is PodiumDisplaySlot => s !== undefined)
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function CrownIcon() {
   const [failed, setFailed] = useState(false)
   if (failed) return <span className="summary-crown-fallback" aria-label={CROWN_ICON_ALT}>*</span>
   return <img className="summary-crown-icon" src={CROWN_ICON_SRC} alt={CROWN_ICON_ALT} onError={() => setFailed(true)} />
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SummaryPage() {
   const navigate = useNavigate()
@@ -131,6 +207,13 @@ export default function SummaryPage() {
     )
   }
 
+  // ── Final summary ────────────────────────────────────────────────────────────
+
+  const podiumSlots =
+    summary.eventType !== "BeatTheBox"
+      ? getPodiumSlots(summary.eventType, orderedRows)
+      : []
+
   return (
     <section className="page-shell" aria-label="Summary page">
       <header className="page-header panel">
@@ -138,8 +221,29 @@ export default function SummaryPage() {
         <p className="page-subtitle">{getFinalSummarySubtitle()}</p>
       </header>
 
-      {summary.eventType !== "BeatTheBox" && (
-        <Podium eventType={summary.eventType} playerRows={orderedRows} />
+      {podiumSlots.length > 0 && (
+        <section className="podium-container panel" aria-label="Winner podium">
+          {podiumSlots.map((slot) => {
+            const crowned =
+              showCrown && slot.playerIds.some((id) => isPlayerCrowned(crownedPlayers, id))
+            return (
+              <div key={slot.rank} className="podium-slot" data-rank={slot.rank + 1}>
+                {crowned && (
+                  <div className="podium-crown">
+                    <CrownIcon />
+                  </div>
+                )}
+                <div className="podium-rank-badge" data-rank={slot.rank + 1}>
+                  {PODIUM_RANK_LABEL[slot.rank]}
+                </div>
+                {slot.playerNames.map((name) => (
+                  <div key={name} className="podium-name">{name}</div>
+                ))}
+                <div className="podium-score">{slot.score} pts</div>
+              </div>
+            )
+          })}
+        </section>
       )}
 
       <section className="panel list-stack">
