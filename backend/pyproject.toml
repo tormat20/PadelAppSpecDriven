@@ -8,6 +8,8 @@ dependencies = [
   "duckdb>=1.1.0",
   "pydantic>=2.9.0",
   "pydantic-settings>=2.5.0",
+  "pyjwt>=2.9.0",
+  "bcrypt>=4.3.0",
 ]
 
 [dependency-groups]

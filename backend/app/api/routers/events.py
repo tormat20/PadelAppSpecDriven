@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
 from typing import Literal
 
-from app.api.deps import services_scope
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.api.deps import TokenData, require_admin, services_scope
 from app.core.errors import DomainError
 from app.api.schemas.events import (
     CreateEventRequest,
@@ -86,7 +87,9 @@ def list_events() -> list[EventResponse]:
 
 
 @router.post("", response_model=EventResponse, status_code=201)
-def create_event(payload: CreateEventRequest) -> EventResponse:
+def create_event(
+    payload: CreateEventRequest, _: TokenData = Depends(require_admin)
+) -> EventResponse:
     with services_scope() as services:
         try:
             event = services["event_service"].create_event(
@@ -133,7 +136,9 @@ def get_event(event_id: str) -> EventResponse:
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
-def update_event(event_id: str, payload: UpdateEventSetupRequest) -> EventResponse:
+def update_event(
+    event_id: str, payload: UpdateEventSetupRequest, _: TokenData = Depends(require_admin)
+) -> EventResponse:
     with services_scope() as services:
         try:
             details = services["event_service"].update_event_setup(
@@ -172,7 +177,7 @@ def update_event(event_id: str, payload: UpdateEventSetupRequest) -> EventRespon
 
 
 @router.post("/{event_id}/start")
-def start_event(event_id: str):
+def start_event(event_id: str, _: TokenData = Depends(require_admin)):
     with services_scope() as services:
         try:
             return services["event_service"].start_event(event_id)
@@ -183,7 +188,7 @@ def start_event(event_id: str):
 
 
 @router.post("/{event_id}/restart", response_model=EventResponse)
-def restart_event(event_id: str) -> EventResponse:
+def restart_event(event_id: str, _: TokenData = Depends(require_admin)) -> EventResponse:
     with services_scope() as services:
         try:
             details = services["event_service"].restart_event(event_id)
@@ -202,7 +207,7 @@ def restart_event(event_id: str) -> EventResponse:
 
 
 @router.delete("/{event_id}", status_code=204)
-def delete_event(event_id: str) -> None:
+def delete_event(event_id: str, _: TokenData = Depends(require_admin)) -> None:
     with services_scope() as services:
         try:
             services["event_service"].delete_event(event_id)
@@ -213,7 +218,7 @@ def delete_event(event_id: str) -> None:
 
 
 @router.post("/{event_id}/next")
-def next_event_round(event_id: str):
+def next_event_round(event_id: str, _: TokenData = Depends(require_admin)):
     with services_scope() as services:
         try:
             return services["round_service"].next_round(event_id)
@@ -224,7 +229,7 @@ def next_event_round(event_id: str):
 
 
 @router.post("/{event_id}/finish", response_model=EventSummaryResponse)
-def finish_event(event_id: str) -> FinalSummaryResponse:
+def finish_event(event_id: str, _: TokenData = Depends(require_admin)) -> FinalSummaryResponse:
     with services_scope() as services:
         try:
             summary = services["summary_service"].finish_event(event_id)

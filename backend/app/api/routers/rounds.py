@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.deps import services_scope
+from app.api.deps import TokenData, require_admin, services_scope
 from app.api.schemas.rounds import MatchView, RecordResultRequest, RoundView
 from app.core.errors import DomainError
 
@@ -8,7 +8,7 @@ router = APIRouter(tags=["rounds"])
 
 
 @router.get("/events/{event_id}/rounds/current", response_model=RoundView)
-def current_round(event_id: str) -> RoundView:
+def current_round(event_id: str, _: TokenData = Depends(require_admin)) -> RoundView:
     with services_scope() as services:
         try:
             view = services["round_service"].get_current_round_view(event_id)
@@ -33,7 +33,9 @@ def current_round(event_id: str) -> RoundView:
 
 
 @router.post("/matches/{match_id}/result", status_code=204)
-def submit_result(match_id: str, payload: RecordResultRequest) -> None:
+def submit_result(
+    match_id: str, payload: RecordResultRequest, _: TokenData = Depends(require_admin)
+) -> None:
     with services_scope() as services:
         try:
             services["round_service"].record_result(match_id, payload.mode, payload.model_dump())

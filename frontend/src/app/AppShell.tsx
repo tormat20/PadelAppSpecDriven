@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Outlet } from "react-router-dom"
+import { useNavigate, Outlet } from "react-router-dom"
 
 import { Aurora } from "../components/backgrounds/Aurora"
 import { Prism } from "../components/backgrounds/Prism"
@@ -8,9 +8,12 @@ import { usePointerProximity } from "../components/interaction/usePointerProximi
 import { CardNav } from "../components/nav/CardNav"
 import { AnimationsToggle } from "../components/theme/AnimationsToggle"
 import { ThemeToggle, getInitialTheme } from "../components/theme/ThemeToggle"
+import { useAuth } from "../contexts/AuthContext"
 
 export function AppShell() {
   const proximity = usePointerProximity()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window === "undefined") return false
@@ -28,6 +31,11 @@ export function AppShell() {
     })
     return () => observer.disconnect()
   }, [])
+
+  function handleLogout() {
+    logout()
+    navigate("/login", { replace: true })
+  }
 
   return (
     <div
@@ -57,7 +65,22 @@ export function AppShell() {
       )}
       <CardNav
         logo={<LogoButton />}
-        controls={<><ThemeToggle /><AnimationsToggle /></>}
+        controls={
+          <>
+            <ThemeToggle />
+            <AnimationsToggle />
+            {user ? (
+              <button
+                type="button"
+                className="auth-nav-logout"
+                onClick={handleLogout}
+                title={`Signed in as ${user.email}`}
+              >
+                Sign out
+              </button>
+            ) : null}
+          </>
+        }
       />
       <main className="app-main shell-content">
         <Outlet />

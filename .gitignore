@@ -16,6 +16,9 @@ build/
 *.log
 .env
 .env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 .DS_Store
 Thumbs.db
 .vscode/

@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import services_scope
+from app.api.deps import TokenData, require_admin, services_scope
 from app.api.schemas.players import CreatePlayerRequest, PlayerResponse
 from app.api.schemas.stats import PlayerStatsResponse
 from app.services.name_format import format_display_name
@@ -23,7 +23,9 @@ def list_players(query: str | None = Query(default=None)) -> list[PlayerResponse
 
 
 @router.post("", response_model=PlayerResponse, status_code=201)
-def create_player(payload: CreatePlayerRequest) -> PlayerResponse:
+def create_player(
+    payload: CreatePlayerRequest, _: TokenData = Depends(require_admin)
+) -> PlayerResponse:
     with services_scope() as services:
         player = services["player_service"].create_player(payload.displayName)
         return PlayerResponse(

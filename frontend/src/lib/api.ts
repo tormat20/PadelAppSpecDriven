@@ -14,7 +14,50 @@ import type {
   UpdateEventPayload,
 } from "./types"
 
-const API_BASE = "http://127.0.0.1:8000/api/v1"
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000") + "/api/v1"
+
+// ---------------------------------------------------------------------------
+// Auth token helpers — stored in localStorage under key "auth_token"
+// ---------------------------------------------------------------------------
+
+const TOKEN_KEY = "auth_token"
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function removeStoredToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// ---------------------------------------------------------------------------
+// Auth API
+// ---------------------------------------------------------------------------
+
+export type AuthTokenResponse = { access_token: string }
+export type MeResponse = { id: string; email: string; role: string }
+
+export async function loginUser(email: string, password: string): Promise<AuthTokenResponse> {
+  return request<AuthTokenResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  })
+}
+
+export async function registerUser(email: string, password: string): Promise<AuthTokenResponse> {
+  return request<AuthTokenResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  })
+}
+
+export async function getMe(): Promise<MeResponse> {
+  return request<MeResponse>("/auth/me")
+}
 
 const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
   EVENT_NOT_FOUND: "Event could not be found. Refresh and try again.",
@@ -56,10 +99,21 @@ function getFriendlyMessage(detail: ErrorDetail, fallback: string): string {
 export type PlayerApiRecord = { id: string; displayName: string }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken()
+  const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...authHeader, ...(init?.headers ?? {}) },
     ...init,
   })
+
+  if (response.status === 401) {
+    // Clear stored token and fire event so AuthProvider can react
+    removeStoredToken()
+    window.dispatchEvent(new Event("auth:logout"))
+    throw new ApiError("Session expired. Please log in again.", 401)
+  }
+
   if (!response.ok) {
     let detail: ErrorDetail = {}
     try {

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routers.auth import router as auth_router
 from app.api.routers.events import router as events_router
 from app.api.routers.health import router as health_router
 from app.api.routers.leaderboards import router as leaderboards_router
@@ -14,7 +15,7 @@ app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +28,7 @@ def on_startup() -> None:
 
 
 app.include_router(health_router)
+app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(players_router, prefix=settings.api_prefix)
 app.include_router(events_router, prefix=settings.api_prefix)
 app.include_router(rounds_router, prefix=settings.api_prefix)

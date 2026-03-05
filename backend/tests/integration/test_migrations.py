@@ -16,4 +16,7 @@ def test_migrations_apply_once(tmp_path):
         "002_planned_event_slots.sql",
         "003_foreign_keys_cascade.sql",
         "004_rename_americano_to_winners_court.sql",
+        "005_player_stats.sql",
+        "006_rename_beat_the_box_to_ranked_box.sql",
+        "007_users.sql",
     ]
