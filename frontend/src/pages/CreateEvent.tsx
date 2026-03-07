@@ -9,7 +9,7 @@ import { useToast } from "../components/toast/ToastProvider"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { clearDraftPlayers, loadDraftPlayers, saveDraftPlayers } from "../features/create-event/draftPlayers"
 import {
-  getRecommendedEventName,
+  buildEventName,
   getRequiredPlayerCount,
   getTodayDateISO,
   isCreateEventDisabled,
@@ -157,35 +157,16 @@ export default function CreateEventPage() {
     }
   }, [editEventId, isEditMode, navigate])
 
-  // T013: Auto-name for new events AND edit-mode (planned/ready).
-  // Guard order:
-  //   1. If user manually edited the name → preserve it.
-  //   2. If event is ongoing/finished → do not overwrite the persisted name.
+  // T013 / T012: Single merged auto-name effect.
+  // Rebuilds the event name from all 4 slots whenever any relevant input changes.
+  // Guards: manual edit, or ongoing/finished event (do not overwrite persisted name).
+  // Always sets a non-empty name (even just "Mexicano") — no empty-string guard.
   useEffect(() => {
     if (manuallyEditedName.current === true) return
     if (lifecycleStatus === "ongoing" || lifecycleStatus === "finished") return
-    const recommendedName = getRecommendedEventName({
-      eventDate,
-      modeLabel: getEventModeLabel(eventType),
-      eventTime24h,
-    })
-    if (recommendedName) {
-      setEventName(recommendedName)
-    }
-  }, [eventDate, eventType, eventTime24h, lifecycleStatus])
-
-  // T012: Auto-append / remove " (Teams)" suffix when Team Mexicano is toggled.
-  // Only fires if the user has NOT manually edited the name.
-  useEffect(() => {
-    if (manuallyEditedName.current === true) return
-    if (eventType !== "Mexicano") return
-    if (isTeamMexicano && eventName.includes("Mexicano") && !eventName.endsWith(" (Teams)")) {
-      setEventName((prev) => prev + " (Teams)")
-    } else if (!isTeamMexicano && eventName.endsWith(" (Teams)")) {
-      setEventName((prev) => prev.slice(0, -7))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTeamMexicano, eventType])
+    const name = buildEventName({ eventDate, eventType, isTeamMexicano, eventTime24h })
+    setEventName(name)
+  }, [eventDate, eventType, isTeamMexicano, eventTime24h, lifecycleStatus])
 
   // ─── Derived warnings ──────────────────────────────────────────────────────
 
@@ -238,6 +219,7 @@ export default function CreateEventPage() {
         }
         setSavedEventId(event.id)
         setExpectedVersion(event.version)
+        toast.success("Event slot created")
         setDirection(1)
         setCurrentStep(1)
       } catch (err) {
@@ -459,26 +441,16 @@ export default function CreateEventPage() {
   const setupPanel = (
     <div className="panel form-grid">
       <p className="section-label">Choose mode</p>
-      <ModeAccordion selected={eventType} onSelect={(type) => {
-        setEventType(type)
-        // Clear Team Mexicano when switching away from Mexicano
-        if (type !== "Mexicano") setIsTeamMexicano(false)
-      }} />
-      {eventType === "Mexicano" && (
-        <div className="team-mexicano-toggle-row">
-          <span className="section-label" style={{ margin: 0 }}>Team Mexicano</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isTeamMexicano}
-            className={`toggle-switch${isTeamMexicano ? " toggle-switch--on" : ""}`}
-            onClick={() => setIsTeamMexicano((v) => !v)}
-            aria-label="Team Mexicano mode"
-          >
-            <span className="toggle-switch__thumb" />
-          </button>
-        </div>
-      )}
+      <ModeAccordion
+        selected={eventType}
+        isTeamMexicano={isTeamMexicano}
+        onTeamMexicanoChange={setIsTeamMexicano}
+        onSelect={(type) => {
+          setEventType(type)
+          // Clear Team Mexicano when switching away from Mexicano
+          if (type !== "Mexicano") setIsTeamMexicano(false)
+        }}
+      />
       <p className="section-label">Choose date and time</p>
       <button
         className="today-date-link"

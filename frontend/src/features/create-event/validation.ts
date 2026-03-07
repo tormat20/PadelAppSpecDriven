@@ -1,3 +1,6 @@
+import type { EventType } from "../../lib/types"
+import { getEventModeLabel } from "../../lib/eventMode"
+
 const TIME_24H_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 const DATE_ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -70,6 +73,40 @@ export function getRecommendedEventName(input: { eventDate: string; modeLabel: s
   }
 
   return `${weekday} ${modeLabel}`
+}
+
+/**
+ * Builds the auto-generated event name from 4 optional slots:
+ *   [<Weekday> ]<ModeLabel>[ (Teams)][ - HH:mm]
+ *
+ * Unlike getRecommendedEventName(), this always returns at least the mode label —
+ * so picking a mode before entering a date still produces a useful name.
+ */
+export function buildEventName(input: {
+  eventDate: string
+  eventType: EventType
+  isTeamMexicano: boolean
+  eventTime24h: string
+}): string {
+  let name = getEventModeLabel(input.eventType)
+
+  const date = normalizeEventDate(input.eventDate)
+  const dateMatch = DATE_ISO_PATTERN.exec(date)
+  if (dateMatch) {
+    const weekday = WEEKDAY_NAMES[new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])).getDay()]
+    name = `${weekday} ${name}`
+  }
+
+  if (input.eventType === "Mexicano" && input.isTeamMexicano) {
+    name += " (Teams)"
+  }
+
+  const time = normalizeEventTime24h(input.eventTime24h)
+  if (isValidEventTime24h(time)) {
+    name += ` - ${time}`
+  }
+
+  return name
 }
 
 export function isCreateEventDisabled(input: {

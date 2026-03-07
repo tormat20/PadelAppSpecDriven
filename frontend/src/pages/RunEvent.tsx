@@ -285,6 +285,11 @@ export default function RunEventPage() {
         onClose={() => setShowSubstituteModal(false)}
         onSubstituted={() => {
           setShowSubstituteModal(false)
+          setCompleted({})
+          setSubmittedPayloads({})
+          setSelectedTeamGroupings({})
+          setHoveredTeamGroupings({})
+          setModalContext(null)
           void load()
         }}
       />

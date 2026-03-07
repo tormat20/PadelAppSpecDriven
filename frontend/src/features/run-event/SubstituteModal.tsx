@@ -18,7 +18,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
   const [substituteQuery, setSubstituteQuery] = useState("")
   const [substituteResults, setSubstituteResults] = useState<Player[]>([])
   const [selectedSubstitute, setSelectedSubstitute] = useState<Player | null>(null)
-  const [isCreatingNew, setIsCreatingNew] = useState(false)
+  const [isStandIn, setIsStandIn] = useState(false)
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -30,7 +30,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
       setSubstituteQuery("")
       setSubstituteResults([])
       setSelectedSubstitute(null)
-      setIsCreatingNew(false)
+      setIsStandIn(false)
       setError("")
       setIsSubmitting(false)
     }
@@ -46,12 +46,13 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
     searchTimeout.current = setTimeout(async () => {
       try {
         const results = await searchPlayers(substituteQuery.trim())
-        setSubstituteResults(results)
+        const currentIds = new Set(currentPlayers.map((p) => p.id))
+        setSubstituteResults(results.filter((p) => !currentIds.has(p.id)))
       } catch {
         setSubstituteResults([])
       }
     }, 250)
-  }, [substituteQuery])
+  }, [substituteQuery, currentPlayers])
 
   const handleConfirm = async () => {
     if (!departingPlayerId) {
@@ -65,7 +66,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
     setError("")
     setIsSubmitting(true)
     try {
-      if (isCreatingNew) {
+      if (isStandIn) {
         // createOrReusePlayer handles dedup against the catalog
         const catalog = await searchPlayers("")
         const { player } = await createOrReusePlayer(selectedSubstitute.displayName, catalog)
@@ -151,7 +152,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
                 onClick={() => {
                   setSelectedSubstitute(null)
                   setSubstituteQuery("")
-                  setIsCreatingNew(false)
+                  setIsStandIn(false)
                 }}
               >
                 Change
@@ -181,7 +182,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
                         onClick={() => {
                           setSelectedSubstitute(player)
                           setSubstituteQuery(player.displayName)
-                          setIsCreatingNew(false)
+                          setIsStandIn(false)
                         }}
                       >
                         {player.displayName}
@@ -197,10 +198,10 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
                   style={{ marginTop: "0.4rem", width: "100%" }}
                   onClick={() => {
                     setSelectedSubstitute({ id: "", displayName: substituteQuery.trim() })
-                    setIsCreatingNew(true)
+                    setIsStandIn(true)
                   }}
                 >
-                  Create new player "{substituteQuery.trim()}"
+                  Add "{substituteQuery.trim()}" as a stand-in
                 </button>
               )}
             </>
