@@ -22,4 +22,5 @@ def test_migrations_apply_once(tmp_path):
         "008_team_mexicano.sql",
         "009_substitutions.sql",
         "010_fix_corrupt_event_status.sql",
+        "011_remove_event_fk_from_event_teams_and_substitutions.sql",
     ]
