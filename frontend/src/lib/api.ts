@@ -68,6 +68,11 @@ const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
   EVENT_NOT_AT_FINAL_ROUND: "Finish is available only after the final round is complete.",
   EVENT_RESTART_NOT_ALLOWED: "Only ongoing or finished events can be restarted.",
   EVENT_FINAL_ROUND_REACHED: "Final round reached. Finish the event to see summary.",
+  EVENT_MODE_CHANGE_BLOCKED: "Event mode cannot be changed after the event has started.",
+  EVENT_NOT_TEAM_MEXICANO: "This event is not a Team Mexicano event.",
+  PLAYER_NOT_IN_EVENT: "The selected player is not part of this event.",
+  SUBSTITUTE_NOT_FOUND: "The substitute player could not be found.",
+  SUBSTITUTE_ALREADY_IN_EVENT: "The substitute player is already in this event.",
   ROUND_NOT_FOUND: "No active round found. Start or resume the event first.",
   ROUND_PENDING_RESULTS: "Submit all match results before moving to the next round.",
 }
@@ -327,6 +332,48 @@ export async function getRankedBoxLadder(): Promise<RankedBoxLadder> {
     ? data.entries.map((e: any, i: number) => normalizeRankedBoxLadderEntry(e, i + 1))
     : []
   return { entries }
+}
+
+// ---------------------------------------------------------------------------
+// Team Mexicano — Teams API
+// ---------------------------------------------------------------------------
+
+export type TeamPair = { player1Id: string; player2Id: string }
+export type TeamRecord = { id: string; eventId: string; player1Id: string; player2Id: string }
+export type TeamsResponse = { teams: TeamRecord[] }
+
+export async function getEventTeams(eventId: string): Promise<TeamsResponse> {
+  return request<TeamsResponse>(`/events/${eventId}/teams`)
+}
+
+export async function setEventTeams(eventId: string, teams: TeamPair[]): Promise<TeamsResponse> {
+  return request<TeamsResponse>(`/events/${eventId}/teams`, {
+    method: "POST",
+    body: JSON.stringify({ teams }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Substitution API
+// ---------------------------------------------------------------------------
+
+export type SubstitutePlayerPayload = { departingPlayerId: string; substitutePlayerId: string }
+export type SubstitutePlayerResponse = {
+  substitutionId: string
+  eventId: string
+  departingPlayerId: string
+  substitutePlayerId: string
+  effectiveFromRound: number
+}
+
+export async function substitutePlayer(
+  eventId: string,
+  payload: SubstitutePlayerPayload,
+): Promise<SubstitutePlayerResponse> {
+  return request<SubstitutePlayerResponse>(`/events/${eventId}/substitute`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function getEventSummary(eventId: string): Promise<EventSummaryResponse> {

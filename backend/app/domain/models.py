@@ -31,6 +31,7 @@ class Event:
     event_time: str | None
     setup_status: SetupStatus
     version: int
+    is_team_mexicano: bool = False
 
 
 @dataclass(slots=True)
@@ -71,3 +72,20 @@ class RoundPlanMatch:
 class RoundPlan:
     round_number: int
     matches: list[RoundPlanMatch]
+
+
+@dataclass(slots=True)
+class EventTeam:
+    id: str
+    event_id: str
+    player1_id: str
+    player2_id: str
+
+
+@dataclass(slots=True)
+class EventSubstitution:
+    id: str
+    event_id: str
+    departing_player_id: str
+    substitute_player_id: str
+    effective_from_round: int

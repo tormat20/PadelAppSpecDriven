@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router-dom"
 
 import { ProtectedRoute } from "../components/auth/ProtectedRoute"
 import { AppShell } from "./AppShell"
+import AccountSettingsPage from "../pages/AccountSettings"
 import CreateEventPage from "../pages/CreateEvent"
 import CreateAccountPage from "../pages/CreateAccount"
 import EventSlotsPage from "../pages/EventSlots"
@@ -40,6 +41,7 @@ export const appRoutes: RouteObject[] = [
           { path: "events/:eventId/summary", element: <SummaryPage /> },
           { path: "events/run", element: <RunEventPage /> },
           { path: "players/register", element: <RegisterPlayerPage /> },
+          { path: "account-settings", element: <AccountSettingsPage /> },
         ],
       },
     ],

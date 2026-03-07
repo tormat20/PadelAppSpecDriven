@@ -158,3 +158,11 @@ button.stepper-circle:focus-visible {
 .stepper-panel {
   width: 100%;
 }
+
+/* Visual divider between primary action and secondary nav buttons */
+.stepper-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0.25rem 0;
+  width: 100%;
+}

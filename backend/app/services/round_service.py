@@ -4,6 +4,7 @@ from uuid import uuid4
 from app.core.errors import DomainError
 from app.domain.enums import EventType, RoundStatus
 from app.domain.scoring import winners_court_score, ranked_box_delta, mexicano_score
+from app.repositories.event_teams_repo import EventTeamsRepository
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.rankings_repo import RankingsRepository
@@ -21,11 +22,13 @@ class RoundService:
         rounds_repo: RoundsRepository,
         matches_repo: MatchesRepository,
         rankings_repo: RankingsRepository,
+        event_teams_repo: EventTeamsRepository | None = None,
     ):
         self.events_repo = events_repo
         self.rounds_repo = rounds_repo
         self.matches_repo = matches_repo
         self.rankings_repo = rankings_repo
+        self.event_teams_repo = event_teams_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
         self.rb_service = RankedBoxService()
@@ -120,7 +123,10 @@ class RoundService:
             )
 
         self.rounds_repo.set_status(current_round.id, RoundStatus.COMPLETED)
-        if current_round.round_number >= event.round_count:
+        if (
+            current_round.round_number >= event.round_count
+            and event.event_type != EventType.MEXICANO
+        ):
             raise DomainError(
                 "EVENT_FINAL_ROUND_REACHED",
                 "Final round reached. Finish the event to view summary.",
@@ -143,16 +149,29 @@ class RoundService:
                 event_seed=event_seed,
             )
         elif event.event_type == EventType.MEXICANO:
-            ordered_players, totals = self._rank_players_for_mexicano(event_id, player_ids)
-            self._upsert_event_scores(event_id, ordered_players, totals)
-            plan = self.mexicano_service.generate_next_round(
-                current_round.round_number,
-                ordered_players,
-                courts,
-                previous_matches=current_matches,
-                partner_history=partner_history,
-                event_seed=event_seed,
-            )
+            if event.is_team_mexicano and self.event_teams_repo:
+                fixed_teams_objs = self.event_teams_repo.list_by_event(event_id)
+                fixed_teams = [(t.player1_id, t.player2_id) for t in fixed_teams_objs]
+                totals = self._calculate_player_totals(event_id, player_ids)
+                self._upsert_event_scores(event_id, list(totals.keys()), totals)
+                plan = self.mexicano_service.generate_next_round_team_mexicano(
+                    current_round.round_number,
+                    fixed_teams,
+                    courts,
+                    previous_scores=totals,
+                    event_seed=event_seed,
+                )
+            else:
+                ordered_players, totals = self._rank_players_for_mexicano(event_id, player_ids)
+                self._upsert_event_scores(event_id, ordered_players, totals)
+                plan = self.mexicano_service.generate_next_round(
+                    current_round.round_number,
+                    ordered_players,
+                    courts,
+                    previous_matches=current_matches,
+                    partner_history=partner_history,
+                    event_seed=event_seed,
+                )
         else:
             plan = self.rb_service.generate_next_round(
                 current_round.round_number,

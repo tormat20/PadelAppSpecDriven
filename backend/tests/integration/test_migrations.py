@@ -19,4 +19,6 @@ def test_migrations_apply_once(tmp_path):
         "005_player_stats.sql",
         "006_rename_beat_the_box_to_ranked_box.sql",
         "007_users.sql",
+        "008_team_mexicano.sql",
+        "009_substitutions.sql",
     ]

@@ -14,21 +14,66 @@ class SummaryOrderingMetadata:
     ordering_version: str = ORDERING_VERSION
 
 
+def _compute_mexicano_tiebreakers(
+    matches: list,
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Return (wins_by_player, best_match_by_player) from completed Mexicano matches.
+
+    A win is defined as: the player's team scored more than 12 points in the match.
+    Best match is the highest single-match score a player recorded.
+    """
+    wins_by_player: dict[str, int] = {}
+    best_match_by_player: dict[str, int] = {}
+
+    for match in matches:
+        t1_score = match.team1_score or 0
+        t2_score = match.team2_score or 0
+
+        team1_ids = [match.team1_player1_id, match.team1_player2_id]
+        team2_ids = [match.team2_player1_id, match.team2_player2_id]
+
+        for pid in team1_ids:
+            wins_by_player[pid] = wins_by_player.get(pid, 0) + (1 if t1_score > 12 else 0)
+            best_match_by_player[pid] = max(best_match_by_player.get(pid, 0), t1_score)
+
+        for pid in team2_ids:
+            wins_by_player[pid] = wins_by_player.get(pid, 0) + (1 if t2_score > 12 else 0)
+            best_match_by_player[pid] = max(best_match_by_player.get(pid, 0), t2_score)
+
+    return wins_by_player, best_match_by_player
+
+
 class SummaryOrderingService:
     def order_progress_rows(
         self,
         rows: list[dict],
         totals_by_player: dict[str, int],
+        matches: list | None = None,
+        event_type: EventType | None = None,
     ) -> tuple[list[dict], SummaryOrderingMetadata]:
-        ordered = sorted(
-            rows,
-            key=lambda row: (
-                -totals_by_player.get(row["playerId"], 0),
-                row["displayName"].lower(),
-                row["playerId"],
-            ),
-        )
-        ranked = self._assign_competition_rank(ordered, totals_by_player)
+        if event_type == EventType.MEXICANO and matches:
+            wins, best = _compute_mexicano_tiebreakers(matches)
+            ordered = sorted(
+                rows,
+                key=lambda row: (
+                    -totals_by_player.get(row["playerId"], 0),
+                    -wins.get(row["playerId"], 0),
+                    -best.get(row["playerId"], 0),
+                    row["displayName"].lower(),
+                    row["playerId"],
+                ),
+            )
+            ranked = self._assign_competition_rank_mexicano(ordered, totals_by_player, wins, best)
+        else:
+            ordered = sorted(
+                rows,
+                key=lambda row: (
+                    -totals_by_player.get(row["playerId"], 0),
+                    row["displayName"].lower(),
+                    row["playerId"],
+                ),
+            )
+            ranked = self._assign_competition_rank(ordered, totals_by_player)
         return ranked, SummaryOrderingMetadata(ordering_mode="progress-score-desc")
 
     def order_final_rows(
@@ -42,15 +87,18 @@ class SummaryOrderingService:
         global_scores: dict[str, int],
     ) -> tuple[list[dict], SummaryOrderingMetadata]:
         if event_type == EventType.MEXICANO:
+            wins, best = _compute_mexicano_tiebreakers(matches)
             ordered = sorted(
                 rows,
                 key=lambda row: (
                     -totals_by_player.get(row["playerId"], 0),
+                    -wins.get(row["playerId"], 0),
+                    -best.get(row["playerId"], 0),
                     row["displayName"].lower(),
                     row["playerId"],
                 ),
             )
-            ranked = self._assign_competition_rank(ordered, totals_by_player)
+            ranked = self._assign_competition_rank_mexicano(ordered, totals_by_player, wins, best)
             return ranked, SummaryOrderingMetadata(ordering_mode="final-mexicano-total-desc")
 
         if event_type == EventType.WINNERS_COURT:
@@ -167,6 +215,41 @@ class SummaryOrderingService:
                 current_rank = index
                 previous_rank = current_rank
                 previous_total = total
+            else:
+                current_rank = previous_rank
+
+            ranked_row = dict(row)
+            ranked_row["rank"] = current_rank
+            ranked.append(ranked_row)
+
+        return ranked
+
+    def _assign_competition_rank_mexicano(
+        self,
+        rows: list[dict],
+        totals_by_player: dict[str, int],
+        wins_by_player: dict[str, int],
+        best_match_by_player: dict[str, int],
+    ) -> list[dict]:
+        """Assign competition rank for Mexicano using total → wins → best match as tiebreakers.
+
+        Players with identical values on all three keys share the same rank.
+        """
+        ranked: list[dict] = []
+        previous_key: tuple | None = None
+        previous_rank = 0
+
+        for index, row in enumerate(rows, start=1):
+            pid = row["playerId"]
+            key = (
+                -totals_by_player.get(pid, 0),
+                -wins_by_player.get(pid, 0),
+                -best_match_by_player.get(pid, 0),
+            )
+            if previous_key is None or key != previous_key:
+                current_rank = index
+                previous_rank = current_rank
+                previous_key = key
             else:
                 current_rank = previous_rank
 

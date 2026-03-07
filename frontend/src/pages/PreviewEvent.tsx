@@ -33,6 +33,7 @@ export default function PreviewEventPage() {
   const { eventId = "" } = useParams()
   const [eventData, setEventData] = useState<EventRecord | null>(null)
   const [startError, setStartError] = useState("")
+  const [popupBlocked, setPopupBlocked] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteError, setDeleteError] = useState("")
 
@@ -43,9 +44,14 @@ export default function PreviewEventPage() {
 
   const onStart = async () => {
     setStartError("")
+    setPopupBlocked(false)
     try {
       await startEvent(eventId)
-      navigate(`/events/${eventId}/run`)
+      const win = window.open(`/events/${eventId}/run`, "_blank")
+      if (win === null) {
+        setPopupBlocked(true)
+        navigate(`/events/${eventId}/run`)
+      }
     } catch (error) {
       setStartError(error instanceof Error ? error.message : "Failed to start event")
     }
@@ -118,6 +124,16 @@ export default function PreviewEventPage() {
           {primaryAction.label}
         </button>
         {showStartHelp && <p className="warning-text">Add players and courts to start event</p>}
+        {eventData.isTeamMexicano && eventData.missingRequirements.includes("team_mexicano_odd_players") && (
+          <p className="warning-text">
+            Team Mexicano requires an even number of players. Add or remove a player before starting.
+          </p>
+        )}
+        {popupBlocked && (
+          <p className="warning-text">
+            Popup blocked — opening in the current tab instead. Allow popups for this site to open the event in a new window.
+          </p>
+        )}
         <button className={withInteractiveSurface("button-secondary")} onClick={onEdit}>
           Edit Event
         </button>

@@ -60,35 +60,43 @@ export function CourtGrid({
         <article key={match.matchId} className="match-card court-card" data-has-image={showCourtImage}>
           {showCourtImage ? <img src={COURT_IMAGE_SRC} alt="" aria-hidden="true" className="court-card-image" /> : null}
           <h3 className="match-title">Court {match.courtNumber}</h3>
-          <button
+          <div
+            role="group"
             className={withInteractiveSurface("team-grouping team-grouping-left")}
-            type="button"
             data-selected={selectedTeamByMatch[match.matchId] === 1}
             data-hovered={hoveredTeamByMatch[match.matchId] === 1}
             onMouseEnter={() => onTeamGroupHover?.(match.matchId, 1)}
             onMouseLeave={() => onTeamGroupHover?.(match.matchId, null)}
             onClick={() => onTeamGroupClick?.(match.matchId, 1)}
           >
-            <span>{getTeamNames(match).team1.join(" + ")}</span>
+            <div className="team-grouping-names">
+              {getTeamNames(match).team1.map((name) => (
+                <span key={name} className="team-player-name">{name}</span>
+              ))}
+            </div>
             {resultBadgeByMatch[match.matchId]?.team1 ? (
               <span className="team-result-badge">{resultBadgeByMatch[match.matchId].team1}</span>
             ) : null}
-          </button>
+          </div>
           <p className="tag" style={{ width: "fit-content" }}>VS</p>
-          <button
+          <div
+            role="group"
             className={withInteractiveSurface("team-grouping team-grouping-right")}
-            type="button"
             data-selected={selectedTeamByMatch[match.matchId] === 2}
             data-hovered={hoveredTeamByMatch[match.matchId] === 2}
             onMouseEnter={() => onTeamGroupHover?.(match.matchId, 2)}
             onMouseLeave={() => onTeamGroupHover?.(match.matchId, null)}
             onClick={() => onTeamGroupClick?.(match.matchId, 2)}
           >
-            <span>{getTeamNames(match).team2.join(" + ")}</span>
+            <div className="team-grouping-names">
+              {getTeamNames(match).team2.map((name) => (
+                <span key={name} className="team-player-name">{name}</span>
+              ))}
+            </div>
             {resultBadgeByMatch[match.matchId]?.team2 ? (
               <span className="team-result-badge">{resultBadgeByMatch[match.matchId].team2}</span>
             ) : null}
-          </button>
+          </div>
           {renderMatchFooter ? renderMatchFooter(match.matchId) : null}
         </article>
       ))}

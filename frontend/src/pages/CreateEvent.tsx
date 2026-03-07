@@ -16,15 +16,15 @@ import {
   isStrictCreateEventDisabled,
 } from "../features/create-event/validation"
 import { getRosterHints } from "../features/create-event/rosterHints"
-import { createEvent, getEvent, listEvents, searchPlayers, startEvent, updateEvent } from "../lib/api"
+import { createEvent, getEvent, listEvents, searchPlayers, setEventTeams, startEvent, updateEvent } from "../lib/api"
 import { getEventModeLabel } from "../lib/eventMode"
-import type { EventRecord, EventType } from "../lib/types"
+import type { EventRecord, EventTeam, EventType } from "../lib/types"
 
 // ─── Step-start helper (T009, T022) ────────────────────────────────────────
 // Derives which step to open at when editing an existing event.
 //   undefined / null / "planned"  → Step 0 (Setup)
 //   "planned"                     → Step 1 (Roster) — slot is saved, roster not yet complete
-//   "ready"                       → Step 2 (Confirm) — slot + roster are both done
+//   "ready"                       → Step 2 (Confirm) for normal, Step 3 (Confirm) for Team Mexicano
 // "ongoing" / "finished" are redirected before this is called.
 export function getStartStep(lifecycleStatus: EventRecord["lifecycleStatus"]): 0 | 1 | 2 {
   if (lifecycleStatus === "ready") return 2
@@ -32,7 +32,8 @@ export function getStartStep(lifecycleStatus: EventRecord["lifecycleStatus"]): 0
   return 0
 }
 
-const STEPPER_STEPS = [{ label: "Setup" }, { label: "Roster" }, { label: "Confirm" }]
+const STEPPER_STEPS_BASE = [{ label: "Setup" }, { label: "Roster" }, { label: "Confirm" }]
+const STEPPER_STEPS_TEAM_MEX = [{ label: "Setup" }, { label: "Roster" }, { label: "Teams" }, { label: "Confirm" }]
 
 export default function CreateEventPage() {
   const navigate = useNavigate()
@@ -41,24 +42,38 @@ export default function CreateEventPage() {
   const isEditMode = editEventId.length > 0
 
   // ─── Stepper navigation state (T009) ──────────────────────────────────────
-  const [currentStep, setCurrentStep] = useState<0 | 1 | 2>(0)
+  const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0)
   const [direction, setDirection] = useState<1 | -1>(1)
   const [savedEventId, setSavedEventId] = useState("")
   const [step1Error, setStep1Error] = useState("")
   const [step2Error, setStep2Error] = useState("")
+  const [step3Error, setStep3Error] = useState("")
 
   // ─── Form field state ──────────────────────────────────────────────────────
   const [eventName, setEventName] = useState("")
   const [eventDate, setEventDate] = useState("")
   const [eventTime24h, setEventTime24h] = useState("")
   const [eventType, setEventType] = useState<EventType>("WinnersCourt")
+  const [isTeamMexicano, setIsTeamMexicano] = useState(false)
   const [courts, setCourts] = useState<number[]>([])
   const [assignedPlayers, setAssignedPlayers] = useState(loadDraftPlayers)
   const [events, setEvents] = useState<EventRecord[]>([])
   const [expectedVersion, setExpectedVersion] = useState(1)
 
+  // ─── Team assignment state (Assign Teams step) ────────────────────────────
+  // teamPairs: array of [player1Id, player2Id] pairs
+  const [teamPairs, setTeamPairs] = useState<[string, string][]>([])
+  const [teamsError, setTeamsError] = useState("")
+  const [pendingPick, setPendingPick] = useState<string | null>(null)
+
   const playerIds = useMemo(() => assignedPlayers.map((player) => player.id), [assignedPlayers])
   const requiredPlayers = getRequiredPlayerCount(courts)
+
+  // Whether Team Mexicano is effectively active (only relevant for Mexicano mode)
+  const teamMexicanoActive = eventType === "Mexicano" && isTeamMexicano
+
+  // Stepper steps depend on whether Team Mexicano is active
+  const stepperSteps = teamMexicanoActive ? STEPPER_STEPS_TEAM_MEX : STEPPER_STEPS_BASE
 
   // ─── Side effects ──────────────────────────────────────────────────────────
 
@@ -92,6 +107,7 @@ export default function CreateEventPage() {
         setEventDate(event.eventDate)
         setEventTime24h(event.eventTime24h ?? "")
         setEventType(event.eventType)
+        setIsTeamMexicano(event.isTeamMexicano ?? false)
         setCourts(event.selectedCourts)
         setExpectedVersion(event.version)
         setSavedEventId(editEventId)
@@ -157,6 +173,7 @@ export default function CreateEventPage() {
             eventTime24h,
             selectedCourts: [],
             playerIds: [],
+            isTeamMexicano: teamMexicanoActive,
           })
         } else {
           // Create new slot
@@ -168,6 +185,7 @@ export default function CreateEventPage() {
             createAction: "create_event_slot",
             selectedCourts: [],
             playerIds: [],
+            isTeamMexicano: teamMexicanoActive,
           })
         }
         setSavedEventId(event.id)
@@ -187,31 +205,55 @@ export default function CreateEventPage() {
           expectedVersion,
           selectedCourts: courts,
           playerIds,
+          isTeamMexicano: teamMexicanoActive,
         })
         setExpectedVersion(event.version)
         setDirection(1)
-        setCurrentStep(2)
+        // When Team Mexicano is active, go to Assign Teams step (2); otherwise go to Confirm (2)
+        setCurrentStep(teamMexicanoActive ? 2 : 2)
       } catch (err) {
         setStep2Error(err instanceof Error ? err.message : "Failed to save roster. Please try again.")
       }
+      return
     }
-    // Step 2 has no "Next" — it has "Start Event"
+
+    if (currentStep === 2 && teamMexicanoActive) {
+      // Assign Teams step — save team pairs
+      setTeamsError("")
+      if (teamPairs.length === 0 && assignedPlayers.length > 0) {
+        setTeamsError("Assign all players into teams before continuing.")
+        return
+      }
+      try {
+        await setEventTeams(
+          savedEventId,
+          teamPairs.map(([player1Id, player2Id]) => ({ player1Id, player2Id })),
+        )
+        setDirection(1)
+        setCurrentStep(3)
+      } catch (err) {
+        setTeamsError(err instanceof Error ? err.message : "Failed to save teams. Please try again.")
+      }
+    }
+    // Step 2 (non-Team Mexicano) and Step 3 have no "Next" — they have "Start Event"
   }
 
   // Back-navigation (T011, T026): sets direction and decrements step.
   // No state is reset — form values remain intact for re-entry. (T026)
   const handlePrevious = () => {
     setDirection(-1)
-    setCurrentStep((prev) => (prev > 0 ? ((prev - 1) as 0 | 1 | 2) : prev))
+    setCurrentStep((prev) => (prev > 0 ? ((prev - 1) as 0 | 1 | 2 | 3) : prev))
   }
 
   // Clicking a completed step in the indicator bar (T011)
   const handleStepClick = (index: number) => {
     setDirection(-1)
-    setCurrentStep(index as 0 | 1 | 2)
+    setCurrentStep(index as 0 | 1 | 2 | 3)
   }
 
-  // ─── Start Event (Step 2 action) ─────────────────────────────────────────
+  // ─── Start Event (Confirm step action) ──────────────────────────────────
+  // Opens the run page in a new window (same as PreviewEvent).
+  // Falls back to same-tab navigation if the popup is blocked.
 
   const handleStartEvent = async () => {
     const idToStart = savedEventId || editEventId
@@ -222,10 +264,19 @@ export default function CreateEventPage() {
     try {
       await startEvent(idToStart)
       clearDraftPlayers()
-      navigate(`/events/${idToStart}/run`)
+      const win = window.open(`/events/${idToStart}/run`, "_blank")
+      if (win === null) {
+        // Popup blocked — fall back to same-tab navigation
+        navigate(`/events/${idToStart}/run`)
+      }
     } catch (err) {
-      // Surface as step2Error (re-used for Confirm step API errors)
-      setStep2Error(err instanceof Error ? err.message : "Failed to start event. Please try again.")
+      const msg = err instanceof Error ? err.message : "Failed to start event. Please try again."
+      // Surface on the correct error slot: step3Error for Team Mexicano, step2Error otherwise
+      if (teamMexicanoActive) {
+        setStep3Error(msg)
+      } else {
+        setStep2Error(msg)
+      }
     }
   }
 
@@ -235,6 +286,9 @@ export default function CreateEventPage() {
 
   // Step 1 Next is always enabled — roster save is always allowed (planned or ready)
   const step1NextDisabled = false
+
+  // Step 2 (Assign Teams) Next: disabled until all players are paired (even count required)
+  const step2NextDisabled = teamMexicanoActive && (assignedPlayers.length === 0 || teamPairs.length * 2 !== assignedPlayers.length)
 
   const step2StartDisabled = isStrictCreateEventDisabled({ eventName, eventDate, eventTime24h, courts, playerIds })
 
@@ -254,7 +308,26 @@ export default function CreateEventPage() {
   const setupPanel = (
     <div className="panel form-grid">
       <p className="section-label">Choose mode</p>
-      <ModeAccordion selected={eventType} onSelect={setEventType} />
+      <ModeAccordion selected={eventType} onSelect={(type) => {
+        setEventType(type)
+        // Clear Team Mexicano when switching away from Mexicano
+        if (type !== "Mexicano") setIsTeamMexicano(false)
+      }} />
+      {eventType === "Mexicano" && (
+        <div className="team-mexicano-toggle-row">
+          <span className="section-label" style={{ margin: 0 }}>Team Mexicano</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isTeamMexicano}
+            className={`toggle-switch${isTeamMexicano ? " toggle-switch--on" : ""}`}
+            onClick={() => setIsTeamMexicano((v) => !v)}
+            aria-label="Team Mexicano mode"
+          >
+            <span className="toggle-switch__thumb" />
+          </button>
+        </div>
+      )}
       <p className="section-label">Choose date and time</p>
       <button
         className="today-date-link"
@@ -288,20 +361,21 @@ export default function CreateEventPage() {
         </p>
       )}
       <button
-        className={withInteractiveSurface("button-secondary")}
-        type="button"
-        onClick={() => navigate("/")}
-        aria-label="Main menu"
-      >
-        Main Menu
-      </button>
-      <button
         className={withInteractiveSurface("button")}
         type="button"
         onClick={handleNext}
         disabled={step0NextDisabled}
       >
         Next
+      </button>
+      <hr className="stepper-divider" />
+      <button
+        className={withInteractiveSurface("button-secondary")}
+        type="button"
+        onClick={() => navigate("/")}
+        aria-label="Main menu"
+      >
+        Main Menu
       </button>
       {step1Error && (
         <p className="warning-text" aria-live="polite">
@@ -333,20 +407,21 @@ export default function CreateEventPage() {
       )}
       <div className="form-grid">
         <button
-          className={withInteractiveSurface("button-secondary")}
-          type="button"
-          onClick={() => navigate("/")}
-          aria-label="Main menu"
-        >
-          Main Menu
-        </button>
-        <button
           className={withInteractiveSurface("button")}
           type="button"
           onClick={handleNext}
           disabled={step1NextDisabled}
         >
           Next
+        </button>
+        <hr className="stepper-divider" />
+        <button
+          className={withInteractiveSurface("button-secondary")}
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="Main menu"
+        >
+          Main Menu
         </button>
         <button
           className={withInteractiveSurface("button-secondary")}
@@ -364,7 +439,103 @@ export default function CreateEventPage() {
     </div>
   )
 
-  // Step 2 — Confirm
+  // Step 2 — Assign Teams (Team Mexicano only)
+  // Players are displayed as a list; user clicks pairs to group them into fixed teams.
+  const pairedPlayerIds = new Set(teamPairs.flat())
+  const unpairedPlayers = assignedPlayers.filter((p) => !pairedPlayerIds.has(p.id))
+  const playerById = Object.fromEntries(assignedPlayers.map((p) => [p.id, p.displayName]))
+
+  const handleTeamPlayerClick = (playerId: string) => {
+    if (pendingPick === null) {
+      setPendingPick(playerId)
+    } else if (pendingPick === playerId) {
+      setPendingPick(null)
+    } else {
+      setTeamPairs((prev) => [...prev, [pendingPick, playerId]])
+      setPendingPick(null)
+      setTeamsError("")
+    }
+  }
+
+  const removeTeamPair = (index: number) => {
+    setTeamPairs((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const assignTeamsPanel = (
+    <div className="panel form-grid">
+      <p className="section-label">Assign fixed teams</p>
+      <p className="muted">Click two players to pair them as a team. All players must be paired.</p>
+
+      {teamPairs.length > 0 && (
+        <ul className="summary-list" aria-label="Assigned teams">
+          {teamPairs.map(([p1, p2], idx) => (
+            <li key={idx} className="summary-row">
+              <span>{playerById[p1] ?? p1} + {playerById[p2] ?? p2}</span>
+              <button
+                type="button"
+                className={withInteractiveSurface("button-secondary")}
+                style={{ padding: "0.25rem 0.6rem", minHeight: "unset", fontSize: "0.8rem" }}
+                onClick={() => removeTeamPair(idx)}
+                aria-label={`Remove team ${idx + 1}`}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {unpairedPlayers.length > 0 && (
+        <>
+          <p className="muted">Unpaired players ({unpairedPlayers.length}):</p>
+          <div className="form-grid" style={{ gap: "0.5rem" }}>
+            {unpairedPlayers.map((player) => (
+              <button
+                key={player.id}
+                type="button"
+                className={withInteractiveSurface(pendingPick === player.id ? "button" : "button-secondary")}
+                onClick={() => handleTeamPlayerClick(player.id)}
+                aria-pressed={pendingPick === player.id}
+              >
+                {player.displayName}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {teamsError && (
+        <p className="warning-text" aria-live="polite">{teamsError}</p>
+      )}
+
+      <div className="form-grid">
+        <button
+          className={withInteractiveSurface("button")}
+          type="button"
+          onClick={handleNext}
+          disabled={step2NextDisabled}
+        >
+          Next
+        </button>
+        <hr className="stepper-divider" />
+        <button
+          className={withInteractiveSurface("button-secondary")}
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="Main menu"
+        >
+          Main Menu
+        </button>
+        <button
+          className={withInteractiveSurface("button-secondary")}
+          type="button"
+          onClick={handlePrevious}
+        >
+          Previous
+        </button>
+      </div>
+    </div>
+  )
   const confirmPanel = (
     <div className="panel form-grid">
       <ul className="summary-list" aria-label="Event summary">
@@ -374,7 +545,7 @@ export default function CreateEventPage() {
         </li>
         <li className="summary-row">
           <span className="muted">Mode</span>
-          <span>{getEventModeLabel(eventType)}</span>
+          <span>{getEventModeLabel(eventType)}{teamMexicanoActive ? " (Team Mexicano)" : ""}</span>
         </li>
         <li className="summary-row">
           <span className="muted">Date</span>
@@ -392,6 +563,12 @@ export default function CreateEventPage() {
           <span className="muted">Players</span>
           <span>{assignedPlayers.length}</span>
         </li>
+        {teamMexicanoActive && (
+          <li className="summary-row">
+            <span className="muted">Teams</span>
+            <span>{teamPairs.length}</span>
+          </li>
+        )}
       </ul>
       {step2StartDisabled && missingForStart && (
         <p className="warning-text" aria-live="polite">
@@ -399,6 +576,15 @@ export default function CreateEventPage() {
         </p>
       )}
       <div className="form-grid">
+        <button
+          className={withInteractiveSurface("button")}
+          type="button"
+          onClick={handleStartEvent}
+          disabled={step2StartDisabled}
+        >
+          Start Event
+        </button>
+        <hr className="stepper-divider" />
         <button
           className={withInteractiveSurface("button-secondary")}
           type="button"
@@ -408,14 +594,6 @@ export default function CreateEventPage() {
           Main Menu
         </button>
         <button
-          className={withInteractiveSurface("button")}
-          type="button"
-          onClick={handleStartEvent}
-          disabled={step2StartDisabled}
-        >
-          Start Event
-        </button>
-        <button
           className={withInteractiveSurface("button-secondary")}
           type="button"
           onClick={handlePrevious}
@@ -423,9 +601,9 @@ export default function CreateEventPage() {
           Previous
         </button>
       </div>
-      {step2Error && (
+      {(teamMexicanoActive ? step3Error : step2Error) && (
         <p className="warning-text" aria-live="polite">
-          {step2Error}
+          {teamMexicanoActive ? step3Error : step2Error}
         </p>
       )}
     </div>
@@ -443,14 +621,16 @@ export default function CreateEventPage() {
       </header>
 
       <Stepper
-        steps={STEPPER_STEPS}
+        steps={stepperSteps}
         currentStep={currentStep}
         direction={direction}
         onStepClick={handleStepClick}
       >
         {currentStep === 0 && setupPanel}
         {currentStep === 1 && rosterPanel}
-        {currentStep === 2 && confirmPanel}
+        {currentStep === 2 && teamMexicanoActive && assignTeamsPanel}
+        {currentStep === 2 && !teamMexicanoActive && confirmPanel}
+        {currentStep === 3 && confirmPanel}
       </Stepper>
     </section>
   )

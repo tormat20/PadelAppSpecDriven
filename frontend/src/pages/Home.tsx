@@ -1,8 +1,22 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { rankLeaderboardEntries } from "../features/leaderboards/rankLeaderboard"
 import { getMexicanoOfMonthLeaderboard, getPlayerOfMonthLeaderboard, getRankedBoxLadder } from "../lib/api"
 import type { EventRecord, EventType, Leaderboard, RankedBoxLadder } from "../lib/types"
+
+// ── Fetch helpers ──────────────────────────────────────────────────────────────
+
+const RETRY_DELAY_MS = 150
+
+async function fetchWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    if (retries <= 0) throw err
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    return fetchWithRetry(fn, retries - 1)
+  }
+}
 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
 export type EventSortOption = "default" | "mode" | "date"
@@ -124,9 +138,10 @@ interface LeaderboardSectionProps {
   error: string
   scoreLabel: string
   scoreKey: "eventsPlayed" | "mexicanoScore"
+  onRetry: () => void
 }
 
-function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: LeaderboardSectionProps) {
+function LeaderboardSection({ title, board, error, scoreLabel, scoreKey, onRetry }: LeaderboardSectionProps) {
   const label = board ? monthLabel(board.year, board.month) : ""
   const ranked = board ? rankLeaderboardEntries(board.entries) : []
   const [showAll, setShowAll] = useState(false)
@@ -140,7 +155,14 @@ function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: Leade
         {label && <span className="leaderboard-month">{label}</span>}
       </h2>
 
-      {error && <p className="leaderboard-error" role="alert">{error}</p>}
+      {error && (
+        <div className="leaderboard-error-row">
+          <p className="leaderboard-error" role="alert">{error}</p>
+          <button className="leaderboard-retry-btn" type="button" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {!error && ranked.length === 0 && (
         <p className="leaderboard-empty">No results yet this month.</p>
@@ -181,9 +203,10 @@ function LeaderboardSection({ title, board, error, scoreLabel, scoreKey }: Leade
 interface RankedLadderSectionProps {
   ladder: RankedBoxLadder | null
   error: string
+  onRetry: () => void
 }
 
-function RankedLadderSection({ ladder, error }: RankedLadderSectionProps) {
+function RankedLadderSection({ ladder, error, onRetry }: RankedLadderSectionProps) {
   const entries = ladder?.entries ?? []
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? entries : entries.slice(0, PAGE_SIZE)
@@ -193,7 +216,14 @@ function RankedLadderSection({ ladder, error }: RankedLadderSectionProps) {
     <section className="panel leaderboard-section">
       <h2 className="leaderboard-heading">Ranked Ladder</h2>
 
-      {error && <p className="leaderboard-error" role="alert">{error}</p>}
+      {error && (
+        <div className="leaderboard-error-row">
+          <p className="leaderboard-error" role="alert">{error}</p>
+          <button className="leaderboard-retry-btn" type="button" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {!error && entries.length === 0 && (
         <p className="leaderboard-empty">No Ranked Box results yet.</p>
@@ -234,6 +264,8 @@ function RankedLadderSection({ ladder, error }: RankedLadderSectionProps) {
 
 // ── Default export ─────────────────────────────────────────────────────────────
 
+const STAGGER_MS = 60
+
 export default function HomePage() {
   const [potmBoard, setPotmBoard] = useState<Leaderboard | null>(null)
   const [potmError, setPotmError] = useState("")
@@ -242,19 +274,36 @@ export default function HomePage() {
   const [ladder, setLadder] = useState<RankedBoxLadder | null>(null)
   const [ladderError, setLadderError] = useState("")
 
-  useEffect(() => {
-    getPlayerOfMonthLeaderboard()
+  const fetchPotm = useCallback(() => {
+    setPotmError("")
+    fetchWithRetry(getPlayerOfMonthLeaderboard)
       .then(setPotmBoard)
       .catch(() => setPotmError("Could not load leaderboard."))
+  }, [])
 
-    getMexicanoOfMonthLeaderboard()
+  const fetchMex = useCallback(() => {
+    setMexError("")
+    fetchWithRetry(getMexicanoOfMonthLeaderboard)
       .then(setMexBoard)
       .catch(() => setMexError("Could not load leaderboard."))
+  }, [])
 
-    getRankedBoxLadder()
+  const fetchLadder = useCallback(() => {
+    setLadderError("")
+    fetchWithRetry(getRankedBoxLadder)
       .then(setLadder)
       .catch(() => setLadderError("Could not load leaderboard."))
   }, [])
+
+  useEffect(() => {
+    fetchPotm()
+    const t1 = setTimeout(fetchMex, STAGGER_MS)
+    const t2 = setTimeout(fetchLadder, STAGGER_MS * 2)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [fetchPotm, fetchMex, fetchLadder])
 
   return (
     <section className="page-shell">
@@ -265,6 +314,7 @@ export default function HomePage() {
           error={potmError}
           scoreLabel="events"
           scoreKey="eventsPlayed"
+          onRetry={fetchPotm}
         />
         <LeaderboardSection
           title="Mexicano of the Month"
@@ -272,10 +322,12 @@ export default function HomePage() {
           error={mexError}
           scoreLabel="pts"
           scoreKey="mexicanoScore"
+          onRetry={fetchMex}
         />
         <RankedLadderSection
           ladder={ladder}
           error={ladderError}
+          onRetry={fetchLadder}
         />
       </div>
     </section>

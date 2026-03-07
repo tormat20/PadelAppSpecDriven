@@ -1,41 +1,17 @@
-import { useEffect, useState } from "react"
-import { useNavigate, Outlet } from "react-router-dom"
+import { Outlet } from "react-router-dom"
 
 import { Aurora } from "../components/backgrounds/Aurora"
 import { Prism } from "../components/backgrounds/Prism"
 import { LogoButton } from "../components/branding/LogoButton"
 import { usePointerProximity } from "../components/interaction/usePointerProximity"
 import { CardNav } from "../components/nav/CardNav"
-import { AnimationsToggle } from "../components/theme/AnimationsToggle"
-import { ThemeToggle, getInitialTheme } from "../components/theme/ThemeToggle"
-import { useAuth } from "../contexts/AuthContext"
+import { UserMenu } from "../components/nav/UserMenu"
+import { ThemeAnimationToggle } from "../components/theme/ThemeAnimationToggle"
+import { useIsDark } from "../hooks/useIsDark"
 
 export function AppShell() {
   const proximity = usePointerProximity()
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    return getInitialTheme(window.localStorage) === "dark"
-  })
-
-  // Keep isDark in sync with data-theme attribute mutations (driven by ThemeToggle)
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.dataset.theme === "dark")
-    })
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    })
-    return () => observer.disconnect()
-  }, [])
-
-  function handleLogout() {
-    logout()
-    navigate("/login", { replace: true })
-  }
+  const isDark = useIsDark()
 
   return (
     <div
@@ -67,18 +43,8 @@ export function AppShell() {
         logo={<LogoButton />}
         controls={
           <>
-            <ThemeToggle />
-            <AnimationsToggle />
-            {user ? (
-              <button
-                type="button"
-                className="auth-nav-logout"
-                onClick={handleLogout}
-                title={`Signed in as ${user.email}`}
-              >
-                Sign out
-              </button>
-            ) : null}
+            <ThemeAnimationToggle />
+            <UserMenu />
           </>
         }
       />

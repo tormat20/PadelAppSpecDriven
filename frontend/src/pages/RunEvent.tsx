@@ -8,6 +8,7 @@ import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
 import { getMirroredBadgePair } from "../features/run-event/resultEntry"
+import { SubstituteModal } from "../features/run-event/SubstituteModal"
 import { finishEvent, getCurrentRound, getEvent, searchPlayers, submitResult } from "../lib/api"
 import type { EventRecord, RunEventTeamBadgeView } from "../lib/types"
 
@@ -73,6 +74,8 @@ export default function RunEventPage() {
   const [selectedTeamGroupings, setSelectedTeamGroupings] = useState<Record<string, 1 | 2>>({})
   const [hoveredTeamGroupings, setHoveredTeamGroupings] = useState<Record<string, 1 | 2>>({})
   const [modalContext, setModalContext] = useState<{ matchId: string; selectedSide: TeamSide } | null>(null)
+  const [showSubstituteModal, setShowSubstituteModal] = useState(false)
+  const [assignedPlayers, setAssignedPlayers] = useState<{ id: string; displayName: string }[]>([])
 
   const load = async () => {
     setLoadError("")
@@ -96,6 +99,10 @@ export default function RunEventPage() {
 
     const roundRes = await getCurrentRound(eventId)
     setEventData(typedEvent)
+    // Build assigned players from event playerIds matched to catalog
+    const players = (typedEvent.playerIds ?? [])
+      .map((id: string) => ({ id, displayName: playerNameById[id] ?? id }))
+    setAssignedPlayers(players)
     setRoundData({
       ...roundRes,
       matches: mapMatchPlayersToDisplayNames(roundRes.matches, playerNameById),
@@ -116,9 +123,10 @@ export default function RunEventPage() {
   }, [eventId])
 
   const isComplete = useMemo(() => canAdvanceRound(roundData, completed), [completed, roundData])
+  const isMexicano = eventData?.eventType === "Mexicano"
   const isFinalRound = useMemo(
-    () => Number(eventData?.totalRounds ?? 0) > 0 && roundData?.roundNumber >= Number(eventData.totalRounds),
-    [eventData, roundData],
+    () => !isMexicano && Number(eventData?.totalRounds ?? 0) > 0 && roundData?.roundNumber >= Number(eventData.totalRounds),
+    [eventData, roundData, isMexicano],
   )
 
   const badgeByMatch = useMemo(() => mapSubmittedPayloadsToBadges(submittedPayloads), [submittedPayloads])
@@ -179,7 +187,9 @@ export default function RunEventPage() {
 
   if (!eventData || !roundData) return <div className="panel">Loading run view...</div>
 
-  const roundStepperProps = getRoundStepperProps(Number(eventData.totalRounds ?? 0), roundData.roundNumber)
+  // For Mexicano: stepper is hidden (pass totalRounds=0 so getRoundStepperProps returns null)
+  const stepperTotalRounds = isMexicano ? 0 : Number(eventData.totalRounds ?? 0)
+  const roundStepperProps = getRoundStepperProps(stepperTotalRounds, roundData.roundNumber)
 
   return (
     <section className="page-shell" aria-label="Run event page">
@@ -231,13 +241,53 @@ export default function RunEventPage() {
       />
 
       <section className="panel grid-columns-2">
-        <button className={withInteractiveSurface("button")} onClick={() => void onAdvanceClick()} disabled={!isComplete}>
-          {isFinalRound ? RUN_PAGE_ACTIONS[1] : RUN_PAGE_ACTIONS[0]}
-        </button>
-        <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/summary`)}>
-          {RUN_PAGE_ACTIONS[2]}
-        </button>
+        {isMexicano ? (
+          <>
+            <button className={withInteractiveSurface("button")} onClick={() => void next()} disabled={!isComplete}>
+              {RUN_PAGE_ACTIONS[0]}
+            </button>
+            <button
+              className={withInteractiveSurface("button-secondary")}
+              onClick={async () => { await finishEvent(eventId); navigate(`/events/${eventId}/summary`) }}
+              disabled={!isComplete}
+            >
+              {RUN_PAGE_ACTIONS[1]}
+            </button>
+          </>
+        ) : (
+          <>
+            <button className={withInteractiveSurface("button")} onClick={() => void onAdvanceClick()} disabled={!isComplete}>
+              {isFinalRound ? RUN_PAGE_ACTIONS[1] : RUN_PAGE_ACTIONS[0]}
+            </button>
+            <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/summary`)}>
+              {RUN_PAGE_ACTIONS[2]}
+            </button>
+          </>
+        )}
       </section>
+
+      {eventData?.lifecycleStatus === "ongoing" && (
+        <section className="panel">
+          <button
+            className={withInteractiveSurface("button-secondary")}
+            type="button"
+            onClick={() => setShowSubstituteModal(true)}
+          >
+            Substitute Player
+          </button>
+        </section>
+      )}
+
+      <SubstituteModal
+        isOpen={showSubstituteModal}
+        eventId={eventId}
+        currentPlayers={assignedPlayers}
+        onClose={() => setShowSubstituteModal(false)}
+        onSubstituted={() => {
+          setShowSubstituteModal(false)
+          void load()
+        }}
+      />
     </section>
   )
 }

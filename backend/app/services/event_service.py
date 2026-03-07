@@ -4,8 +4,10 @@ from app.core.errors import DomainError
 from app.domain.enums import EventStatus, EventType, RoundStatus, SetupStatus
 from app.domain.models import Event
 from app.repositories.events_repo import EventsRepository
+from app.repositories.event_teams_repo import EventTeamsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.rounds_repo import RoundsRepository
+from app.repositories.substitutions_repo import SubstitutionsRepository
 from app.services.winners_court_service import WinnersCourtService
 from app.services.ranked_box_service import RankedBoxService
 from app.services.event_lifecycle import derive_lifecycle_status
@@ -18,10 +20,14 @@ class EventService:
         events_repo: EventsRepository,
         rounds_repo: RoundsRepository,
         matches_repo: MatchesRepository,
+        event_teams_repo: EventTeamsRepository | None = None,
+        substitutions_repo: SubstitutionsRepository | None = None,
     ):
         self.events_repo = events_repo
         self.rounds_repo = rounds_repo
         self.matches_repo = matches_repo
+        self.event_teams_repo = event_teams_repo
+        self.substitutions_repo = substitutions_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
         self.rb_service = RankedBoxService()
@@ -31,7 +37,11 @@ class EventService:
         return len(courts) * 4
 
     def evaluate_setup(
-        self, event_type: EventType, courts: list[int], player_ids: list[str]
+        self,
+        event_type: EventType,
+        courts: list[int],
+        player_ids: list[str],
+        is_team_mexicano: bool = False,
     ) -> list[str]:
         missing: list[str] = []
         if not courts:
@@ -41,6 +51,9 @@ class EventService:
         required_count = self._required_player_count(courts)
         if len(player_ids) != required_count:
             missing.append(f"players_exact_{required_count}_required")
+
+        if is_team_mexicano and len(player_ids) % 2 != 0:
+            missing.append("team_mexicano_odd_players")
 
         return missing
 
@@ -78,6 +91,7 @@ class EventService:
         create_action: str,
         selected_courts: list[int],
         player_ids: list[str],
+        is_team_mexicano: bool = False,
     ):
         action = create_action or "auto"
         if action == "auto":
@@ -89,7 +103,9 @@ class EventService:
 
         round_count = 3 if event_type == EventType.RANKED_BOX else 6
         round_duration = 30 if event_type == EventType.RANKED_BOX else 15
-        missing_requirements = self.evaluate_setup(event_type, selected_courts, player_ids)
+        missing_requirements = self.evaluate_setup(
+            event_type, selected_courts, player_ids, is_team_mexicano
+        )
 
         if action == "create_event" and missing_requirements:
             joined = ", ".join(missing_requirements)
@@ -110,6 +126,7 @@ class EventService:
             event_time24h,
             setup_status,
             1,
+            is_team_mexicano,
         )
         for idx, player_id in enumerate(player_ids):
             self.events_repo.add_player(str(uuid4()), event_id, player_id, idx + 1)
@@ -124,7 +141,9 @@ class EventService:
 
         player_ids = self.events_repo.list_player_ids(event_id)
         courts = self.events_repo.list_courts(event_id)
-        missing_requirements = self.evaluate_setup(event.event_type, courts, player_ids)
+        missing_requirements = self.evaluate_setup(
+            event.event_type, courts, player_ids, event.is_team_mexicano
+        )
         warnings = self._get_warnings(event, exclude_event_id=event.id)
 
         return {
@@ -142,7 +161,9 @@ class EventService:
         for event in events:
             player_ids = self.events_repo.list_player_ids(event.id)
             courts = self.events_repo.list_courts(event.id)
-            missing_requirements = self.evaluate_setup(event.event_type, courts, player_ids)
+            missing_requirements = self.evaluate_setup(
+                event.event_type, courts, player_ids, event.is_team_mexicano
+            )
             output.append(
                 {
                     "event": event,
@@ -165,6 +186,7 @@ class EventService:
         event_time24h: str | None,
         selected_courts: list[int] | None,
         player_ids: list[str] | None,
+        is_team_mexicano: bool | None = None,
     ) -> dict:
         current = self.events_repo.get(event_id)
         if not current:
@@ -172,10 +194,23 @@ class EventService:
         if current.version != expected_version:
             raise ValueError(f"conflict:{current.version}")
 
+        # T037: Block event_type changes on ongoing/finished events
+        if event_type is not None and event_type != current.event_type:
+            lifecycle = derive_lifecycle_status(current)
+            if lifecycle in ("ongoing", "finished"):
+                raise DomainError(
+                    "EVENT_MODE_CHANGE_BLOCKED",
+                    "Event mode cannot be changed after the event has started.",
+                    status_code=409,
+                )
+
         next_name = event_name or current.event_name
         next_type = event_type or current.event_type
         next_date = event_date or current.event_date
         next_time = event_time24h if event_time24h is not None else current.event_time
+        next_is_team_mexicano = (
+            is_team_mexicano if is_team_mexicano is not None else current.is_team_mexicano
+        )
         next_player_ids = (
             player_ids if player_ids is not None else self.events_repo.list_player_ids(event_id)
         )
@@ -185,7 +220,21 @@ class EventService:
             else self.events_repo.list_courts(event_id)
         )
 
-        missing_requirements = self.evaluate_setup(next_type, next_courts, next_player_ids)
+        # T038: Clean up orphaned team assignments when mode changes away from Team Mexicano
+        team_mexicano_turned_off = (
+            current.is_team_mexicano is True and next_is_team_mexicano is False
+        )
+        event_type_changed_away_from_mexicano = (
+            current.event_type == EventType.MEXICANO and next_type != EventType.MEXICANO
+        )
+        if (
+            team_mexicano_turned_off or event_type_changed_away_from_mexicano
+        ) and self.event_teams_repo:
+            self.event_teams_repo.delete_by_event(event_id)
+
+        missing_requirements = self.evaluate_setup(
+            next_type, next_courts, next_player_ids, next_is_team_mexicano
+        )
         next_setup_status = SetupStatus.READY if not missing_requirements else SetupStatus.PLANNED
 
         self.events_repo.update_setup(
@@ -195,6 +244,7 @@ class EventService:
             event_date=next_date,
             event_time=next_time,
             setup_status=next_setup_status,
+            is_team_mexicano=next_is_team_mexicano,
         )
 
         if selected_courts is not None:
@@ -253,7 +303,12 @@ class EventService:
         if event.event_type == EventType.WINNERS_COURT:
             plan = self.winners_court_service.generate_round_1(player_ids, courts)
         elif event.event_type == EventType.MEXICANO:
-            plan = self.mexicano_service.generate_round_1(player_ids, courts)
+            if event.is_team_mexicano and self.event_teams_repo:
+                fixed_teams_objs = self.event_teams_repo.list_by_event(event_id)
+                fixed_teams = [(t.player1_id, t.player2_id) for t in fixed_teams_objs]
+                plan = self.mexicano_service.generate_round_1_team_mexicano(fixed_teams, courts)
+            else:
+                plan = self.mexicano_service.generate_round_1(player_ids, courts)
         else:
             plan = self.rb_service.generate_round_1(player_ids, courts)
 
@@ -300,3 +355,118 @@ class EventService:
         deleted = self.events_repo.delete_event(event_id)
         if not deleted:
             raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+
+    def set_event_teams(self, event_id: str, team_pairs: list[tuple[str, str]]) -> list:
+        """Replace all team assignments for a Team Mexicano event."""
+        event = self.events_repo.get(event_id)
+        if not event:
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+        if not event.is_team_mexicano or event.event_type != EventType.MEXICANO:
+            raise DomainError(
+                "EVENT_NOT_TEAM_MEXICANO",
+                "This event is not a Team Mexicano event.",
+                status_code=409,
+            )
+        lifecycle = derive_lifecycle_status(event)
+        if lifecycle in ("ongoing", "finished"):
+            raise DomainError(
+                "EVENT_ALREADY_STARTED",
+                "Team assignments cannot be changed after the event has started.",
+                status_code=409,
+            )
+
+        if self.event_teams_repo is None:
+            raise RuntimeError("EventTeamsRepository not wired")
+
+        event_player_ids = set(self.events_repo.list_player_ids(event_id))
+        seen_players: set[str] = set()
+        for p1, p2 in team_pairs:
+            if p1 not in event_player_ids or p2 not in event_player_ids:
+                raise DomainError(
+                    "PLAYER_NOT_IN_EVENT",
+                    "One or more players are not assigned to this event.",
+                    status_code=422,
+                )
+            if p1 in seen_players or p2 in seen_players:
+                raise DomainError(
+                    "PLAYER_NOT_IN_EVENT",
+                    "A player appears in more than one team pair.",
+                    status_code=422,
+                )
+            seen_players.add(p1)
+            seen_players.add(p2)
+
+        self.event_teams_repo.delete_by_event(event_id)
+        teams = []
+        for p1, p2 in team_pairs:
+            team = self.event_teams_repo.create(str(uuid4()), event_id, p1, p2)
+            teams.append(team)
+        return teams
+
+    def get_event_teams(self, event_id: str) -> list:
+        """Return the team assignments for a Team Mexicano event."""
+        event = self.events_repo.get(event_id)
+        if not event:
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+        if self.event_teams_repo is None:
+            raise RuntimeError("EventTeamsRepository not wired")
+        return self.event_teams_repo.list_by_event(event_id)
+
+    def substitute_player(
+        self, event_id: str, departing_player_id: str, substitute_player_id: str
+    ) -> dict:
+        """Replace a player in an ongoing event; takes effect from the next round."""
+        from app.repositories.players_repo import PlayersRepository
+
+        event = self.events_repo.get(event_id)
+        if not event:
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+
+        lifecycle = derive_lifecycle_status(event)
+        if lifecycle != "ongoing":
+            raise DomainError(
+                "EVENT_NOT_ONGOING",
+                "Player substitution is only allowed while the event is running.",
+                status_code=409,
+            )
+
+        event_player_ids = self.events_repo.list_player_ids(event_id)
+        if departing_player_id not in event_player_ids:
+            raise DomainError(
+                "PLAYER_NOT_IN_EVENT",
+                "The departing player is not assigned to this event.",
+                status_code=404,
+            )
+        if substitute_player_id in event_player_ids:
+            raise DomainError(
+                "SUBSTITUTE_ALREADY_IN_EVENT",
+                "The substitute player is already in this event.",
+                status_code=409,
+            )
+
+        if self.substitutions_repo is None:
+            raise RuntimeError("SubstitutionsRepository not wired")
+
+        self.events_repo.replace_players(
+            event_id,
+            [
+                substitute_player_id if pid == departing_player_id else pid
+                for pid in event_player_ids
+            ],
+        )
+
+        current_round_number = event.current_round_number or 0
+        sub = self.substitutions_repo.create(
+            str(uuid4()),
+            event_id,
+            departing_player_id,
+            substitute_player_id,
+            current_round_number + 1,
+        )
+        return {
+            "substitutionId": sub.id,
+            "eventId": sub.event_id,
+            "departingPlayerId": sub.departing_player_id,
+            "substitutePlayerId": sub.substitute_player_id,
+            "effectiveFromRound": sub.effective_from_round,
+        }

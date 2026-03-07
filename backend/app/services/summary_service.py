@@ -168,12 +168,16 @@ class SummaryService:
 
         totals_by_player: dict[str, int] = {player_id: 0 for player_id in player_ids}
         player_rows = []
+        all_matches: list = []
         for player_id in player_ids:
             player = self.players_repo.get(player_id)
             display_name = format_display_name(player.display_name) if player else player_id
             cells = []
+
             for round_obj in rounds:
                 matches = self.matches_repo.list_by_round(round_obj.id)
+                if player_id == player_ids[0]:
+                    all_matches.extend(matches)
                 value = "-"
                 for match in matches:
                     if player_id in {
@@ -202,6 +206,8 @@ class SummaryService:
         ordered_rows, ordering_metadata = self.summary_ordering.order_progress_rows(
             player_rows,
             totals_by_player,
+            matches=all_matches,
+            event_type=event.event_type,
         )
 
         return {

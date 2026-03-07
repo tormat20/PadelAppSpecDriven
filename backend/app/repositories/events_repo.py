@@ -22,6 +22,7 @@ class EventsRepository:
         event_time: str | None,
         setup_status: SetupStatus,
         version: int,
+        is_team_mexicano: bool = False,
     ) -> Event:
         self.conn.execute(
             load_sql("events/create.sql"),
@@ -37,6 +38,7 @@ class EventsRepository:
                 event_time,
                 setup_status.value,
                 version,
+                is_team_mexicano,
             ],
         )
         event = self.get(event_id)
@@ -60,6 +62,7 @@ class EventsRepository:
             event_time=row[8],
             setup_status=SetupStatus(row[9]),
             version=row[10],
+            is_team_mexicano=bool(row[11]),
         )
 
     def list_all(self) -> list[Event]:
@@ -77,6 +80,7 @@ class EventsRepository:
                 event_time=row[8],
                 setup_status=SetupStatus(row[9]),
                 version=row[10],
+                is_team_mexicano=bool(row[11]),
             )
             for row in rows
         ]
@@ -144,6 +148,7 @@ class EventsRepository:
         event_date: date,
         event_time: str | None,
         setup_status: SetupStatus,
+        is_team_mexicano: bool = False,
     ) -> None:
         self.conn.execute(
             load_sql("events/update_setup.sql"),
@@ -153,6 +158,7 @@ class EventsRepository:
                 event_date.isoformat(),
                 event_time,
                 setup_status.value,
+                is_team_mexicano,
                 event_id,
             ],
         )

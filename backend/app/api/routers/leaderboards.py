@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
-from app.api.deps import services_scope
+from app.api.deps import read_services_scope
 from app.api.schemas.stats import (
     LeaderboardEntryResponse,
     LeaderboardResponse,
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 def get_player_of_month() -> LeaderboardResponse:
     now_utc = datetime.now(timezone.utc)
     year, month = now_utc.year, now_utc.month
-    with services_scope() as services:
+    with read_services_scope() as services:
         rows = services["player_stats_service"].get_player_of_month_leaderboard(year, month)
     return LeaderboardResponse(
         year=year,
@@ -40,7 +40,7 @@ def get_player_of_month() -> LeaderboardResponse:
 def get_mexicano_of_month() -> LeaderboardResponse:
     now_utc = datetime.now(timezone.utc)
     year, month = now_utc.year, now_utc.month
-    with services_scope() as services:
+    with read_services_scope() as services:
         rows = services["player_stats_service"].get_mexicano_of_month_leaderboard(year, month)
     return LeaderboardResponse(
         year=year,
@@ -61,7 +61,7 @@ def get_mexicano_of_month() -> LeaderboardResponse:
 
 @router.get("/ranked-box-ladder", response_model=RankedBoxLadderResponse)
 def get_ranked_box_ladder() -> RankedBoxLadderResponse:
-    with services_scope() as services:
+    with read_services_scope() as services:
         rows = services["player_stats_service"].get_ranked_box_ladder()
     return RankedBoxLadderResponse(
         entries=[

@@ -6,14 +6,16 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
-from app.db.connection import get_connection
+from app.db.connection import get_connection, get_read_connection
 from app.domain.auth import decode_token
+from app.repositories.event_teams_repo import EventTeamsRepository
 from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.player_stats_repo import PlayerStatsRepository
 from app.repositories.players_repo import PlayersRepository
 from app.repositories.rankings_repo import RankingsRepository
 from app.repositories.rounds_repo import RoundsRepository
+from app.repositories.substitutions_repo import SubstitutionsRepository
 from app.repositories.users_repo import UsersRepository
 from app.services.auth_service import AuthService
 from app.services.event_service import EventService
@@ -33,10 +35,24 @@ def services_scope():
         rankings_repo = RankingsRepository(conn)
         player_stats_repo = PlayerStatsRepository(conn)
         users_repo = UsersRepository(conn)
+        event_teams_repo = EventTeamsRepository(conn)
+        substitutions_repo = SubstitutionsRepository(conn)
 
         player_service = PlayerService(players_repo)
-        event_service = EventService(events_repo, rounds_repo, matches_repo)
-        round_service = RoundService(events_repo, rounds_repo, matches_repo, rankings_repo)
+        event_service = EventService(
+            events_repo,
+            rounds_repo,
+            matches_repo,
+            event_teams_repo=event_teams_repo,
+            substitutions_repo=substitutions_repo,
+        )
+        round_service = RoundService(
+            events_repo,
+            rounds_repo,
+            matches_repo,
+            rankings_repo,
+            event_teams_repo=event_teams_repo,
+        )
         player_stats_service = PlayerStatsService(
             events_repo,
             rounds_repo,
@@ -62,8 +78,42 @@ def services_scope():
             "player_stats_service": player_stats_service,
             "events_repo": events_repo,
             "players_repo": players_repo,
+            "event_teams_repo": event_teams_repo,
+            "substitutions_repo": substitutions_repo,
             "users_repo": users_repo,
             "auth_service": auth_service,
+        }
+
+
+@contextmanager
+def read_services_scope():
+    """Read-only variant of services_scope.
+
+    Uses a DuckDB read-only connection so that multiple concurrent requests
+    (e.g. the three leaderboard fetches that fire on Home page load) do not
+    contend for the write lock.  Only use this for GET endpoints that perform
+    no writes.
+    """
+    with get_read_connection() as conn:
+        players_repo = PlayersRepository(conn)
+        events_repo = EventsRepository(conn)
+        rounds_repo = RoundsRepository(conn)
+        matches_repo = MatchesRepository(conn)
+        rankings_repo = RankingsRepository(conn)
+        player_stats_repo = PlayerStatsRepository(conn)
+
+        round_service = RoundService(events_repo, rounds_repo, matches_repo, rankings_repo)
+        player_stats_service = PlayerStatsService(
+            events_repo,
+            rounds_repo,
+            matches_repo,
+            players_repo,
+            player_stats_repo,
+        )
+
+        yield {
+            "player_stats_service": player_stats_service,
+            "round_service": round_service,
         }
 
 

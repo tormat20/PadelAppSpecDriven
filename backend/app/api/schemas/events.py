@@ -14,6 +14,7 @@ class CreateEventRequest(BaseModel):
     createAction: Literal["create_event", "create_event_slot", "auto"] = Field(default="auto")
     selectedCourts: list[int] = Field(default_factory=list)
     playerIds: list[str] = Field(default_factory=list)
+    isTeamMexicano: bool | None = None
 
 
 class UpdateEventSetupRequest(BaseModel):
@@ -24,6 +25,7 @@ class UpdateEventSetupRequest(BaseModel):
     eventTime24h: str | None = Field(default=None, min_length=5, max_length=5)
     selectedCourts: list[int] | None = None
     playerIds: list[str] | None = None
+    isTeamMexicano: bool | None = None
 
 
 class PlanningWarningsResponse(BaseModel):
@@ -48,3 +50,16 @@ class EventResponse(BaseModel):
     playerIds: list[str]
     currentRoundNumber: int | None
     totalRounds: int
+    isTeamMexicano: bool
+
+
+class SubstitutePlayerRequest(BaseModel):
+    departingPlayerId: str
+    substitutePlayerId: str
+
+
+class SubstitutePlayerResponse(BaseModel):
+    eventId: str
+    departingPlayerId: str
+    substitutePlayerId: str
+    effectiveFromRound: int

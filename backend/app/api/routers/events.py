@@ -8,8 +8,10 @@ from app.api.schemas.events import (
     CreateEventRequest,
     EventResponse,
     PlanningWarningsResponse,
+    SubstitutePlayerRequest,
     UpdateEventSetupRequest,
 )
+from app.api.schemas.teams import SetTeamsRequest, TeamResponse, TeamsResponse
 from app.api.schemas.summary import (
     EventSummaryResponse,
     FinalSummaryResponse,
@@ -66,6 +68,7 @@ def _to_event_response(
         playerIds=player_ids,
         currentRoundNumber=event.current_round_number,
         totalRounds=event.round_count,
+        isTeamMexicano=event.is_team_mexicano,
     )
 
 
@@ -100,6 +103,7 @@ def create_event(
                 payload.createAction,
                 payload.selectedCourts,
                 payload.playerIds,
+                payload.isTeamMexicano or False,
             )
             details = services["event_service"].get_event_details(event.id)
             return _to_event_response(
@@ -150,6 +154,7 @@ def update_event(
                 event_time24h=payload.eventTime24h,
                 selected_courts=payload.selectedCourts,
                 player_ids=payload.playerIds,
+                is_team_mexicano=payload.isTeamMexicano,
             )
             return _to_event_response(
                 details["event"],
@@ -291,6 +296,68 @@ def get_event_summary(event_id: str) -> EventSummaryResponse:
                 orderingVersion=progress["ordering_version"],
                 columns=progress["columns"],
                 playerRows=progress["player_rows"],
+            )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/{event_id}/teams", response_model=TeamsResponse)
+def get_event_teams(event_id: str) -> TeamsResponse:
+    with services_scope() as services:
+        try:
+            teams = services["event_service"].get_event_teams(event_id)
+            return TeamsResponse(
+                teams=[
+                    TeamResponse(
+                        id=t.id,
+                        eventId=t.event_id,
+                        player1Id=t.player1_id,
+                        player2Id=t.player2_id,
+                    )
+                    for t in teams
+                ]
+            )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+
+
+@router.post("/{event_id}/teams", response_model=TeamsResponse)
+def set_event_teams(
+    event_id: str, payload: SetTeamsRequest, _: TokenData = Depends(require_admin)
+) -> TeamsResponse:
+    with services_scope() as services:
+        try:
+            teams = services["event_service"].set_event_teams(
+                event_id,
+                [(pair.player1Id, pair.player2Id) for pair in payload.teams],
+            )
+            return TeamsResponse(
+                teams=[
+                    TeamResponse(
+                        id=t.id,
+                        eventId=t.event_id,
+                        player1Id=t.player1_id,
+                        player2Id=t.player2_id,
+                    )
+                    for t in teams
+                ]
+            )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+
+
+@router.post("/{event_id}/substitute")
+def substitute_player(
+    event_id: str, payload: SubstitutePlayerRequest, _: TokenData = Depends(require_admin)
+):
+    with services_scope() as services:
+        try:
+            return services["event_service"].substitute_player(
+                event_id,
+                payload.departingPlayerId,
+                payload.substitutePlayerId,
             )
         except DomainError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
