@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 
 import Stepper from "../components/stepper/Stepper"
 import { CourtSelector } from "../components/courts/CourtSelector"
 import { ModeAccordion } from "../components/mode/ModeAccordion"
 import { PlayerSelector } from "../components/players/PlayerSelector"
+import { useToast } from "../components/toast/ToastProvider"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { clearDraftPlayers, loadDraftPlayers, saveDraftPlayers } from "../features/create-event/draftPlayers"
 import {
@@ -18,7 +19,7 @@ import {
 import { getRosterHints } from "../features/create-event/rosterHints"
 import { createEvent, getEvent, listEvents, searchPlayers, setEventTeams, startEvent, updateEvent } from "../lib/api"
 import { getEventModeLabel } from "../lib/eventMode"
-import type { EventRecord, EventTeam, EventType } from "../lib/types"
+import type { EventRecord, EventType } from "../lib/types"
 
 // ─── Step-start helper (T009, T022) ────────────────────────────────────────
 // Derives which step to open at when editing an existing event.
@@ -37,6 +38,7 @@ const STEPPER_STEPS_TEAM_MEX = [{ label: "Setup" }, { label: "Roster" }, { label
 
 export default function CreateEventPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [searchParams] = useSearchParams()
   const editEventId = searchParams.get("editEventId") ?? ""
   const isEditMode = editEventId.length > 0
@@ -59,6 +61,19 @@ export default function CreateEventPage() {
   const [assignedPlayers, setAssignedPlayers] = useState(loadDraftPlayers)
   const [events, setEvents] = useState<EventRecord[]>([])
   const [expectedVersion, setExpectedVersion] = useState(1)
+
+  // ─── Lifecycle status (needed for edit-mode auto-name guard T013 and T018) ─
+  const [lifecycleStatus, setLifecycleStatus] = useState<EventRecord["lifecycleStatus"] | null>(null)
+
+  // ─── T010: manuallyEditedName ref ─────────────────────────────────────────
+  // Tracks whether the user has manually edited the event name in this session.
+  // MUST be useRef, NOT useState, to avoid triggering re-renders.
+  const manuallyEditedName = useRef<boolean>(false)
+
+  // ─── T014: slot-saving state ──────────────────────────────────────────────
+  const [slotSaving, setSlotSaving] = useState(false)
+  const [slotError, setSlotError] = useState("")
+  const [step1Saving, setStep1Saving] = useState(false)
 
   // ─── Team assignment state (Assign Teams step) ────────────────────────────
   // teamPairs: array of [player1Id, player2Id] pairs
@@ -85,6 +100,19 @@ export default function CreateEventPage() {
     listEvents().then(setEvents).catch(() => setEvents([]))
   }, [])
 
+  // T008: Strip stale draft entries (no displayName) on mount.
+  // Runs once after the initial loadDraftPlayers() seeds assignedPlayers.
+  useEffect(() => {
+    const filtered = assignedPlayers.filter(
+      (p) => p.displayName && p.displayName.trim().length > 0,
+    )
+    if (filtered.length !== assignedPlayers.length) {
+      saveDraftPlayers(filtered)
+      setAssignedPlayers(filtered)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally empty deps — run once on mount only
+
   // Edit mode: load event, derive start step (T022)
   // Back-navigation preserves all useState values — handlePrevious() does not
   // reset any form state, so navigating back from Roster always shows the
@@ -103,6 +131,7 @@ export default function CreateEventPage() {
           return
         }
 
+        setLifecycleStatus(event.lifecycleStatus)
         setEventName(event.eventName)
         setEventDate(event.eventDate)
         setEventTime24h(event.eventTime24h ?? "")
@@ -115,6 +144,7 @@ export default function CreateEventPage() {
 
         const catalog = await searchPlayers("")
         if (!mounted) return
+        // T009: displayName always comes from catalog; skip any player not found.
         const players = event.playerIds
           .map((playerId) => catalog.find((entry) => entry.id === playerId))
           .filter((entry): entry is { id: string; displayName: string } => Boolean(entry))
@@ -127,9 +157,13 @@ export default function CreateEventPage() {
     }
   }, [editEventId, isEditMode, navigate])
 
-  // Auto-name for new events
+  // T013: Auto-name for new events AND edit-mode (planned/ready).
+  // Guard order:
+  //   1. If user manually edited the name → preserve it.
+  //   2. If event is ongoing/finished → do not overwrite the persisted name.
   useEffect(() => {
-    if (isEditMode) return
+    if (manuallyEditedName.current === true) return
+    if (lifecycleStatus === "ongoing" || lifecycleStatus === "finished") return
     const recommendedName = getRecommendedEventName({
       eventDate,
       modeLabel: getEventModeLabel(eventType),
@@ -138,7 +172,20 @@ export default function CreateEventPage() {
     if (recommendedName) {
       setEventName(recommendedName)
     }
-  }, [eventDate, eventType, eventTime24h, isEditMode])
+  }, [eventDate, eventType, eventTime24h, lifecycleStatus])
+
+  // T012: Auto-append / remove " (Teams)" suffix when Team Mexicano is toggled.
+  // Only fires if the user has NOT manually edited the name.
+  useEffect(() => {
+    if (manuallyEditedName.current === true) return
+    if (eventType !== "Mexicano") return
+    if (isTeamMexicano && eventName.includes("Mexicano") && !eventName.endsWith(" (Teams)")) {
+      setEventName((prev) => prev + " (Teams)")
+    } else if (!isTeamMexicano && eventName.endsWith(" (Teams)")) {
+      setEventName((prev) => prev.slice(0, -7))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTeamMexicano, eventType])
 
   // ─── Derived warnings ──────────────────────────────────────────────────────
 
@@ -160,6 +207,7 @@ export default function CreateEventPage() {
   const handleNext = async () => {
     if (currentStep === 0) {
       setStep1Error("")
+      setStep1Saving(true)
       try {
         let event: EventRecord
         if (isEditMode || savedEventId) {
@@ -194,6 +242,8 @@ export default function CreateEventPage() {
         setCurrentStep(1)
       } catch (err) {
         setStep1Error(err instanceof Error ? err.message : "Failed to save setup. Please try again.")
+      } finally {
+        setStep1Saving(false)
       }
       return
     }
@@ -208,6 +258,10 @@ export default function CreateEventPage() {
           isTeamMexicano: teamMexicanoActive,
         })
         setExpectedVersion(event.version)
+        // T021: toast when roster save results in a ready event
+        if (event.lifecycleStatus === "ready" || event.setupStatus === "ready") {
+          toast.success("Event is ready to start")
+        }
         setDirection(1)
         // When Team Mexicano is active, go to Assign Teams step (2); otherwise go to Confirm (2)
         setCurrentStep(teamMexicanoActive ? 2 : 2)
@@ -251,9 +305,51 @@ export default function CreateEventPage() {
     setCurrentStep(index as 0 | 1 | 2 | 3)
   }
 
+  // ─── T015: Create Event Slot (save Setup and navigate home) ──────────────
+  const handleCreateEventSlot = async () => {
+    setSlotError("")
+    setSlotSaving(true)
+    try {
+      let event: EventRecord
+      if (isEditMode || savedEventId) {
+        const idToUpdate = savedEventId || editEventId
+        event = await updateEvent(idToUpdate, {
+          expectedVersion,
+          eventName,
+          eventType,
+          eventDate,
+          eventTime24h,
+          selectedCourts: [],
+          playerIds: [],
+          isTeamMexicano: teamMexicanoActive,
+        })
+      } else {
+        event = await createEvent({
+          eventName,
+          eventType,
+          eventDate,
+          eventTime24h,
+          createAction: "create_event_slot",
+          selectedCourts: [],
+          playerIds: [],
+          isTeamMexicano: teamMexicanoActive,
+        })
+      }
+      // Update local state so it is consistent if the user somehow stays
+      setSavedEventId(event.id)
+      setExpectedVersion(event.version)
+      toast.success("Event slot created")
+      navigate("/")
+    } catch (err) {
+      setSlotError(err instanceof Error ? err.message : "Failed to create event slot. Please try again.")
+      setSlotSaving(false)
+    }
+  }
+
   // ─── Start Event (Confirm step action) ──────────────────────────────────
   // Opens the run page in a new window (same as PreviewEvent).
   // Falls back to same-tab navigation if the popup is blocked.
+  // T007: If the event is already ongoing (corrupt-state), skip startEvent() call.
 
   const handleStartEvent = async () => {
     const idToStart = savedEventId || editEventId
@@ -262,8 +358,14 @@ export default function CreateEventPage() {
       return
     }
     try {
-      await startEvent(idToStart)
+      // T007: Pre-check — if event is already ongoing, just open the run page.
+      const currentEvent = await getEvent(idToStart)
+      if (currentEvent.lifecycleStatus !== "ongoing") {
+        await startEvent(idToStart)
+      }
       clearDraftPlayers()
+      // T020: toast on event started
+      toast.success("Event started")
       const win = window.open(`/events/${idToStart}/run`, "_blank")
       if (win === null) {
         // Popup blocked — fall back to same-tab navigation
@@ -299,6 +401,55 @@ export default function CreateEventPage() {
     if (need > 0) return `${need} more player${need === 1 ? "" : "s"} needed to start`
     return "Add players and courts to start event"
   })()
+
+  // ─── T018: Read-only summary for ongoing/finished ─────────────────────────
+  // The edit-mode useEffect already redirects ongoing/finished to /preview, but
+  // during the async fetch there can be a brief render window. We guard here too.
+  if (
+    isEditMode &&
+    (lifecycleStatus === "ongoing" || lifecycleStatus === "finished")
+  ) {
+    return (
+      <section className="page-shell" aria-label="Event summary (read-only)">
+        <header className="page-header panel">
+          <div>
+            <h2 className="page-title">{eventName || "Event"}</h2>
+            <p className="page-subtitle">
+              {lifecycleStatus === "ongoing" ? "This event is currently running." : "This event has finished."}
+            </p>
+          </div>
+        </header>
+        <div className="panel form-grid event-readonly-summary">
+          <ul className="summary-list">
+            <li className="summary-row"><span className="muted">Mode</span><span>{getEventModeLabel(eventType)}</span></li>
+            <li className="summary-row"><span className="muted">Date</span><span>{eventDate || "—"}</span></li>
+            <li className="summary-row"><span className="muted">Time</span><span>{eventTime24h || "—"}</span></li>
+            <li className="summary-row"><span className="muted">Players</span><span>{assignedPlayers.length}</span></li>
+          </ul>
+          {lifecycleStatus === "ongoing" ? (
+            <button
+              className={withInteractiveSurface("button")}
+              type="button"
+              onClick={() => {
+                const win = window.open(`/events/${savedEventId || editEventId}/run`, "_blank")
+                if (win === null) navigate(`/events/${savedEventId || editEventId}/run`)
+              }}
+            >
+              Open Running Event
+            </button>
+          ) : (
+            <button
+              className={withInteractiveSurface("button")}
+              type="button"
+              onClick={() => navigate(`/events/${savedEventId || editEventId}/summary`)}
+            >
+              View Summary
+            </button>
+          )}
+        </div>
+      </section>
+    )
+  }
 
   // ─── Rendered step panels ─────────────────────────────────────────────────
 
@@ -347,11 +498,15 @@ export default function CreateEventPage() {
           aria-label="Event time"
         />
       </div>
+      {/* T011: Set manuallyEditedName on every keystroke in the name field */}
       <input
         className="input"
         placeholder="Event name"
         value={eventName}
-        onChange={(e) => setEventName(e.target.value)}
+        onChange={(e) => {
+          manuallyEditedName.current = true
+          setEventName(e.target.value)
+        }}
       />
       {(pastScheduleWarning || duplicateWarning) && (
         <p className="warning-text" aria-live="polite">
@@ -364,10 +519,24 @@ export default function CreateEventPage() {
         className={withInteractiveSurface("button")}
         type="button"
         onClick={handleNext}
-        disabled={step0NextDisabled}
+        disabled={step0NextDisabled || step1Saving}
       >
         Next
       </button>
+      {/* T016: Create Event Slot button */}
+      <button
+        className={withInteractiveSurface("button-secondary")}
+        type="button"
+        onClick={handleCreateEventSlot}
+        disabled={slotSaving || step1Saving || step0NextDisabled}
+      >
+        Create Event Slot
+      </button>
+      {slotError && (
+        <p className="warning-text" aria-live="polite">
+          {slotError}
+        </p>
+      )}
       <hr className="stepper-divider" />
       <button
         className={withInteractiveSurface("button-secondary")}

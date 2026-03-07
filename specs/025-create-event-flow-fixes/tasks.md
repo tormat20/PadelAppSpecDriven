@@ -18,9 +18,9 @@
 
 **Purpose**: DB migration and toast component scaffolding that other work depends on or benefits from up-front.
 
-- [ ] T001 Write migration `backend/app/db/migrations/010_fix_corrupt_event_status.sql` — `UPDATE events SET status = 'Running' WHERE status = 'Lobby' AND id IN (SELECT DISTINCT event_id FROM rounds)`
-- [ ] T002 [P] Create directory `frontend/src/components/toast/` and write `Toast.css` — fixed bottom-right positioning, `z-index: 9999`, slide-in animation, success=green, error=red, info=neutral/grey, vertical stacking for multiple toasts, auto-dismiss handled by CSS `opacity` transition triggered by a `.toast--exiting` class
-- [ ] T003 [P] Create `frontend/src/components/toast/ToastProvider.tsx` — React context with `ToastContext`, `useToast()` hook, `ToastProvider` component; manages a `Toast[]` queue in state; exposes `toast.success(msg)`, `toast.error(msg)`, `toast.info(msg)`; each toast auto-removes after 4000ms via `setTimeout`; renders a `<div className="toast-container">` with `<div className="toast toast--{type}">` elements
+- [X] T001 Write migration `backend/app/db/migrations/010_fix_corrupt_event_status.sql` — `UPDATE events SET status = 'Running' WHERE status = 'Lobby' AND id IN (SELECT DISTINCT event_id FROM rounds)`
+- [X] T002 [P] Create directory `frontend/src/components/toast/` and write `Toast.css` — fixed bottom-right positioning, `z-index: 9999`, slide-in animation, success=green, error=red, info=neutral/grey, vertical stacking for multiple toasts, auto-dismiss handled by CSS `opacity` transition triggered by a `.toast--exiting` class
+- [X] T003 [P] Create `frontend/src/components/toast/ToastProvider.tsx` — React context with `ToastContext`, `useToast()` hook, `ToastProvider` component; manages a `Toast[]` queue in state; exposes `toast.success(msg)`, `toast.error(msg)`, `toast.info(msg)`; each toast auto-removes after 4000ms via `setTimeout`; renders a `<div className="toast-container">` with `<div className="toast toast--{type}">` elements
 
 **Checkpoint**: Migration file exists. Toast files exist. Tests can now reference the toast context.
 
@@ -30,7 +30,7 @@
 
 **Purpose**: Wire `ToastProvider` into `AppShell` before any component tries to call `useToast()`.
 
-- [ ] T004 [US7] Wrap the content of `frontend/src/app/AppShell.tsx` with `<ToastProvider>` — import `ToastProvider` from `../components/toast/ToastProvider` and wrap the existing JSX so toasts are available on every page
+- [X] T004 [US7] Wrap the content of `frontend/src/app/AppShell.tsx` with `<ToastProvider>` — import `ToastProvider` from `../components/toast/ToastProvider` and wrap the existing JSX so toasts are available on every page
 
 **Checkpoint**: `useToast()` can be called from any component in the app without "no context" runtime errors.
 
@@ -44,12 +44,12 @@
 
 ### Test for User Story 1 ⚠️ Write test FIRST — verify it FAILS before implementing
 
-- [ ] T005 [US1] Write `backend/tests/integration/test_start_event_corrupt_state.py` — create an event with `status='Lobby'`, manually insert a row in `rounds` for that event, call `start_event(event_id)`, assert the result contains `event_id` and `round_number` with no exception raised; also assert event status in DB is now `'Running'`
+- [X] T005 [US1] Write `backend/tests/integration/test_start_event_corrupt_state.py` — create an event with `status='Lobby'`, manually insert a row in `rounds` for that event, call `start_event(event_id)`, assert the result contains `event_id` and `round_number` with no exception raised; also assert event status in DB is now `'Running'`
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] In `backend/app/services/event_service.py` `start_event()` — between the `if lifecycle_status == "planned":` block (line ~283) and the `if current_round:` guard (line ~289), insert a recovery branch: if `lifecycle_status == "ready"` and `current_round` is not None, call `self.events_repo.update_status(event_id, "Running")` and return `{ "event_id": event_id, "round_number": current_round.round_number, "matches": self.matches_repo.list_by_round(current_round.id) }` — this makes the defensive check at line 289 unreachable for corrupt-state events
-- [ ] T007 [US1] In `frontend/src/pages/CreateEvent.tsx` `handleStartEvent()` — before calling `startEvent(idToStart)`, call `await getEvent(idToStart)` (or use the already-loaded `savedEventId` + a lightweight status check); if the fetched event's `lifecycleStatus === "ongoing"`, skip `startEvent()` and directly call `window.open('/events/${idToStart}/run', '_blank')` with the existing `navigate()` fallback pattern
+- [X] T006 [US1] In `backend/app/services/event_service.py` `start_event()` — between the `if lifecycle_status == "planned":` block (line ~283) and the `if current_round:` guard (line ~289), insert a recovery branch: if `lifecycle_status == "ready"` and `current_round` is not None, call `self.events_repo.update_status(event_id, "Running")` and return `{ "event_id": event_id, "round_number": current_round.round_number, "matches": self.matches_repo.list_by_round(current_round.id) }` — this makes the defensive check at line 289 unreachable for corrupt-state events
+- [X] T007 [US1] In `frontend/src/pages/CreateEvent.tsx` `handleStartEvent()` — before calling `startEvent(idToStart)`, call `await getEvent(idToStart)` (or use the already-loaded `savedEventId` + a lightweight status check); if the fetched event's `lifecycleStatus === "ongoing"`, skip `startEvent()` and directly call `window.open('/events/${idToStart}/run', '_blank')` with the existing `navigate()` fallback pattern
 
 **Checkpoint**: All four corrupt events can be started or resumed with zero errors. New integration test passes. ✅
 
@@ -61,8 +61,8 @@
 
 **Independent Test**: Open browser DevTools → set a localStorage draft entry with `{ id: "test-uuid", displayName: "" }` → reload the stepper → confirm the stale entry is gone and no UUID appears in any player list.
 
-- [ ] T008 [US2] In `frontend/src/pages/CreateEvent.tsx` — add a `useEffect` that runs once on mount (after `loadDraftPlayers()` initialises `assignedPlayers`): filter `assignedPlayers` to keep only entries where `p.displayName && p.displayName.trim().length > 0`; if any entries were removed, call `saveDraftPlayers(filteredPlayers)` and `setAssignedPlayers(filteredPlayers)`
-- [ ] T009 [US2] In `frontend/src/pages/CreateEvent.tsx` — in the edit-mode `useEffect` that loads an existing event's player list (the block starting with `if (!isEditMode) return` at line ~93): after resolving each player from the catalog, ensure `displayName` is always taken from the catalog response (`player.displayName`) and never from the raw localStorage entry; if a catalog lookup fails for a given `id`, skip that entry (do not add a UUID-only object)
+- [X] T008 [US2] In `frontend/src/pages/CreateEvent.tsx` — add a `useEffect` that runs once on mount (after `loadDraftPlayers()` initialises `assignedPlayers`): filter `assignedPlayers` to keep only entries where `p.displayName && p.displayName.trim().length > 0`; if any entries were removed, call `saveDraftPlayers(filteredPlayers)` and `setAssignedPlayers(filteredPlayers)`
+- [X] T009 [US2] In `frontend/src/pages/CreateEvent.tsx` — in the edit-mode `useEffect` that loads an existing event's player list (the block starting with `if (!isEditMode) return` at line ~93): after resolving each player from the catalog, ensure `displayName` is always taken from the catalog response (`player.displayName`) and never from the raw localStorage entry; if a catalog lookup fails for a given `id`, skip that entry (do not add a UUID-only object)
 
 **Checkpoint**: Assign Teams step always shows human-readable names. UUID entries in stale drafts are silently removed. ✅
 
@@ -74,9 +74,9 @@
 
 **Independent Test**: Set name to "Saturday Mexicano - 20:00" → enable Team Mexicano toggle → name becomes "Saturday Mexicano - 20:00 (Teams)" → disable → name reverts → type anything in name field → toggle on/off → name unchanged.
 
-- [ ] T010 [US3] In `frontend/src/pages/CreateEvent.tsx` — add `const manuallyEditedName = useRef<boolean>(false)` near the other state declarations (NOT `useState`)
-- [ ] T011 [US3] In `frontend/src/pages/CreateEvent.tsx` — find the event name `<input>` element and add/update its `onChange` handler to set `manuallyEditedName.current = true` before updating the `eventName` state; this fires on every keystroke
-- [ ] T012 [US3] In `frontend/src/pages/CreateEvent.tsx` — add a new `useEffect` watching `[isTeamMexicano, eventType]`: if `manuallyEditedName.current === true`, return early; if `eventType !== "Mexicano"`, return early; if `isTeamMexicano === true` and `eventName.includes("Mexicano")` and `!eventName.endsWith(" (Teams)")`, call `setEventName(prev => prev + " (Teams)")`; if `isTeamMexicano === false` and `eventName.endsWith(" (Teams)")`, call `setEventName(prev => prev.slice(0, -7))`
+- [X] T010 [US3] In `frontend/src/pages/CreateEvent.tsx` — add `const manuallyEditedName = useRef<boolean>(false)` near the other state declarations (NOT `useState`)
+- [X] T011 [US3] In `frontend/src/pages/CreateEvent.tsx` — find the event name `<input>` element and add/update its `onChange` handler to set `manuallyEditedName.current = true` before updating the `eventName` state; this fires on every keystroke
+- [X] T012 [US3] In `frontend/src/pages/CreateEvent.tsx` — add a new `useEffect` watching `[isTeamMexicano, eventType]`: if `manuallyEditedName.current === true`, return early; if `eventType !== "Mexicano"`, return early; if `isTeamMexicano === true` and `eventName.includes("Mexicano")` and `!eventName.endsWith(" (Teams)")`, call `setEventName(prev => prev + " (Teams)")`; if `isTeamMexicano === false` and `eventName.endsWith(" (Teams)")`, call `setEventName(prev => prev.slice(0, -7))`
 
 **Checkpoint**: Auto-suffix fires correctly when toggling Team Mexicano; manual edits permanently disable it for that session. ✅
 
@@ -88,7 +88,7 @@
 
 **Independent Test**: Edit a planned event → change time from 20:00 to 21:00 → confirm name updates → manually type a name → change time → confirm name is not touched.
 
-- [ ] T013 [US4] In `frontend/src/pages/CreateEvent.tsx` — locate the `useEffect` that watches `[eventDate, eventType, eventTime24h, isEditMode]` and contains `if (isEditMode) return` at line ~132; replace this guard with two guards: `if (manuallyEditedName.current === true) return` and `if (lifecycleStatus === "ongoing" || lifecycleStatus === "finished") return`; remove the `isEditMode` dependency from the effect's dependency array (or leave it in but it is now irrelevant since the guard is removed)
+- [X] T013 [US4] In `frontend/src/pages/CreateEvent.tsx` — locate the `useEffect` that watches `[eventDate, eventType, eventTime24h, isEditMode]` and contains `if (isEditMode) return` at line ~132; replace this guard with two guards: `if (manuallyEditedName.current === true) return` and `if (lifecycleStatus === "ongoing" || lifecycleStatus === "finished") return`; remove the `isEditMode` dependency from the effect's dependency array (or leave it in but it is now irrelevant since the guard is removed)
 
 > **Note**: This task depends on T010 (`manuallyEditedName` ref). Also requires `lifecycleStatus` to be in scope — it is loaded via the edit-mode `useEffect` already; ensure it is available as a state variable or derived value.
 
@@ -102,9 +102,9 @@
 
 **Independent Test**: Fill out the Setup step → click "Create Event Slot" → confirm `POST /api/v1/events` (or `PUT`) is called → land on main menu → confirm "Event slot created" toast appears → confirm the event appears in the event list.
 
-- [ ] T014 [US5] In `frontend/src/pages/CreateEvent.tsx` — add `const [slotSaving, setSlotSaving] = useState(false)` for the in-flight state and `const [slotError, setSlotError] = useState("")` for the error message
-- [ ] T015 [US5] In `frontend/src/pages/CreateEvent.tsx` — implement `handleCreateEventSlot()`: set `slotSaving(true)` and `slotError("")`; run the identical save logic as the Setup step "Next" handler (call `createEvent` or `updateEvent` based on `isEditMode || savedEventId`); on success, call `toast.success("Event slot created")` then `navigate("/")`; on error, call `setSlotError(errorMessage)` and `setSlotSaving(false)`; use `useToast()` from the toast context
-- [ ] T016 [US5] In `frontend/src/pages/CreateEvent.tsx` — in the Step 1 (Setup) render section, add the "Create Event Slot" button between the primary "Next" button and the `<hr className="stepper-divider" />` separator: `<button className="btn btn--secondary" onClick={handleCreateEventSlot} disabled={slotSaving || step1Saving}>Create Event Slot</button>`; render `{slotError && <p className="error-message">{slotError}</p>}` below the button
+- [X] T014 [US5] In `frontend/src/pages/CreateEvent.tsx` — add `const [slotSaving, setSlotSaving] = useState(false)` for the in-flight state and `const [slotError, setSlotError] = useState("")` for the error message
+- [X] T015 [US5] In `frontend/src/pages/CreateEvent.tsx` — implement `handleCreateEventSlot()`: set `slotSaving(true)` and `slotError("")`; run the identical save logic as the Setup step "Next" handler (call `createEvent` or `updateEvent` based on `isEditMode || savedEventId`); on success, call `toast.success("Event slot created")` then `navigate("/")`; on error, call `setSlotError(errorMessage)` and `setSlotSaving(false)`; use `useToast()` from the toast context
+- [X] T016 [US5] In `frontend/src/pages/CreateEvent.tsx` — in the Step 1 (Setup) render section, add the "Create Event Slot" button between the primary "Next" button and the `<hr className="stepper-divider" />` separator: `<button className="btn btn--secondary" onClick={handleCreateEventSlot} disabled={slotSaving || step1Saving}>Create Event Slot</button>`; render `{slotError && <p className="error-message">{slotError}</p>}` below the button
 
 **Checkpoint**: "Create Event Slot" saves the event and navigates to main menu with a toast. Error is shown inline on failure. ✅
 
@@ -116,8 +116,8 @@
 
 **Independent Test**: Fill all steps → click Previous → confirm state preserved → start an event → navigate to `/create-event?edit={id}` → confirm read-only summary shown.
 
-- [ ] T017 [US6] In `frontend/src/pages/CreateEvent.tsx` — verify "Previous" buttons exist on Steps 2, 3, and 4 and that clicking them decrements `currentStep`; if any step is missing a "Previous" button, add one; ensure `currentStep` state drives step visibility so back-navigation just sets state (no form reset)
-- [ ] T018 [US6] In `frontend/src/pages/CreateEvent.tsx` — add a read-only summary view: at the top of the component's return, before the stepper renders, check if `lifecycleStatus === "ongoing" || lifecycleStatus === "finished"` (after the edit-mode fetch completes); if true, render a `<div className="event-readonly-summary">` block showing event name, date, mode, and player count; include an "Open Running Event" button (`window.open('/events/${savedEventId}/run', '_blank')`) when ongoing, or a "View Summary" button (`navigate('/events/${savedEventId}/summary')`) when finished; return early so no editable fields are rendered
+- [X] T017 [US6] In `frontend/src/pages/CreateEvent.tsx` — verify "Previous" buttons exist on Steps 2, 3, and 4 and that clicking them decrements `currentStep`; if any step is missing a "Previous" button, add one; ensure `currentStep` state drives step visibility so back-navigation just sets state (no form reset)
+- [X] T018 [US6] In `frontend/src/pages/CreateEvent.tsx` — add a read-only summary view: at the top of the component's return, before the stepper renders, check if `lifecycleStatus === "ongoing" || lifecycleStatus === "finished"` (after the edit-mode fetch completes); if true, render a `<div className="event-readonly-summary">` block showing event name, date, mode, and player count; include an "Open Running Event" button (`window.open('/events/${savedEventId}/run', '_blank')`) when ongoing, or a "View Summary" button (`navigate('/events/${savedEventId}/summary')`) when finished; return early so no editable fields are rendered
 
 **Checkpoint**: Back navigation preserves state. Ongoing/finished events show read-only mode with correct action buttons. ✅
 
@@ -131,9 +131,9 @@
 
 > **Note**: `ToastProvider` is already wired (T003–T004). This phase only adds `useToast()` call sites.
 
-- [ ] T019 [P] [US7] In `frontend/src/components/players/PlayerSelector.tsx` — after a successful player creation API call, call `toast.success(`Player ${newPlayer.displayName} added`)` using `useToast()`
-- [ ] T020 [P] [US7] In `frontend/src/pages/CreateEvent.tsx` — after `startEvent()` succeeds in `handleStartEvent()`, call `toast.success("Event started")` using `useToast()` (already in scope from T015 wiring)
-- [ ] T021 [P] [US7] In `frontend/src/pages/CreateEvent.tsx` — after the Roster step save succeeds and `lifecycleStatus === "ready"`, call `toast.success("Event is ready to start")` using `useToast()`
+- [X] T019 [P] [US7] In `frontend/src/components/players/PlayerSelector.tsx` — after a successful player creation API call, call `toast.success(`Player ${newPlayer.displayName} added`)` using `useToast()`
+- [X] T020 [P] [US7] In `frontend/src/pages/CreateEvent.tsx` — after `startEvent()` succeeds in `handleStartEvent()`, call `toast.success("Event started")` using `useToast()` (already in scope from T015 wiring)
+- [X] T021 [P] [US7] In `frontend/src/pages/CreateEvent.tsx` — after the Roster step save succeeds and `lifecycleStatus === "ready"`, call `toast.success("Event is ready to start")` using `useToast()`
 
 > **Note**: The "Event slot created" toast (T015) is already included in the Phase 7 `handleCreateEventSlot()` implementation — no separate task needed.
 
@@ -145,10 +145,10 @@
 
 **Purpose**: Test suite verification and any leftover wiring.
 
-- [ ] T022 Run `PYTHONPATH=. uv run python -m pytest tests/ -v` and fix any backend failures
-- [ ] T023 [P] Run `npm test && npm run lint` and fix any frontend failures
-- [ ] T024 [P] Verify the DB migration is applied in the migration runner (check `backend/app/db/migrations/meta/` or the migration bootstrap code to ensure `010_fix_corrupt_event_status.sql` is picked up automatically)
-- [ ] T025 [P] Smoke-test manually: start the backend + frontend → open the stepper for each of the four corrupt event IDs → confirm each either opens the running view or starts cleanly → verify no UUID appears in any Team Mexicano Assign Teams step
+- [X] T022 Run `PYTHONPATH=. uv run python -m pytest tests/ -v` and fix any backend failures
+- [X] T023 [P] Run `npm test && npm run lint` and fix any frontend failures
+- [X] T024 [P] Verify the DB migration is applied in the migration runner (check `backend/app/db/migrations/meta/` or the migration bootstrap code to ensure `010_fix_corrupt_event_status.sql` is picked up automatically)
+- [X] T025 [P] Smoke-test manually: start the backend + frontend → open the stepper for each of the four corrupt event IDs → confirm each either opens the running view or starts cleanly → verify no UUID appears in any Team Mexicano Assign Teams step
 
 ---
 

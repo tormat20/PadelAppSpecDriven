@@ -286,12 +286,17 @@ class EventService:
                 "Event setup is incomplete. Add courts and players before starting.",
                 status_code=409,
             )
+        # Recovery path: event is in 'ready' state (Lobby status) but rounds already
+        # exist — a corrupt state from a prior bug. Treat this as "already started":
+        # update the status to Running and return the current round, same as the
+        # "ongoing" branch above.
         if current_round:
-            raise DomainError(
-                "EVENT_ALREADY_STARTED",
-                "Event already has rounds. Resume or restart instead of starting again.",
-                status_code=409,
-            )
+            self.events_repo.set_status(event_id, EventStatus.RUNNING, current_round.round_number)
+            return {
+                "event_id": event_id,
+                "round_number": current_round.round_number,
+                "matches": self.matches_repo.list_by_round(current_round.id),
+            }
 
         player_ids = self.events_repo.list_player_ids(event_id)
         courts = self.events_repo.list_courts(event_id)

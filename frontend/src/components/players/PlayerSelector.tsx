@@ -13,6 +13,7 @@ import {
   getNextActiveSuggestionIndex,
   LISTBOX_NAVIGATION_KEYS,
 } from "../../features/create-event/playerSearch"
+import { useToast } from "../toast/ToastProvider"
 import OcrImportPanel from "../ocr/OcrImportPanel"
 type Props = {
   assignedPlayers: AssignedPlayer[]
@@ -36,6 +37,7 @@ export function getAddPlayerMessage(reused: boolean) {
 }
 
 export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssignedPlayersChange }: Props) {
+  const toast = useToast()
   const [query, setQuery] = useState("")
   const [catalog, setCatalog] = useState<AssignedPlayer[]>([])
   const [isOcrOpen, setIsOcrOpen] = useState(false)
@@ -140,6 +142,10 @@ export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssign
       setCatalog((prev) => (prev.some((p) => p.id === player.id) ? prev : [...prev, player]))
       assignPlayer(player)
       setStatusMessage(getAddPlayerMessage(reused))
+      // T019: toast when a new player is created (not reused)
+      if (!reused) {
+        toast.success(`Player ${player.displayName} added`)
+      }
       setQuery("")
       setPrefixMatches([])
       setActiveSuggestionIndex(-1)

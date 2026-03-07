@@ -21,4 +21,5 @@ def test_migrations_apply_once(tmp_path):
         "007_users.sql",
         "008_team_mexicano.sql",
         "009_substitutions.sql",
+        "010_fix_corrupt_event_status.sql",
     ]

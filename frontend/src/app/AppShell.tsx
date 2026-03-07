@@ -7,6 +7,7 @@ import { usePointerProximity } from "../components/interaction/usePointerProximi
 import { CardNav } from "../components/nav/CardNav"
 import { UserMenu } from "../components/nav/UserMenu"
 import { ThemeAnimationToggle } from "../components/theme/ThemeAnimationToggle"
+import { ToastProvider } from "../components/toast/ToastProvider"
 import { useIsDark } from "../hooks/useIsDark"
 
 export function AppShell() {
@@ -14,6 +15,7 @@ export function AppShell() {
   const isDark = useIsDark()
 
   return (
+    <ToastProvider>
     <div
       className="app-shell"
       onMouseMoveCapture={proximity.onMouseMoveCapture}
@@ -52,5 +54,6 @@ export function AppShell() {
         <Outlet />
       </main>
     </div>
+    </ToastProvider>
   )
 }
