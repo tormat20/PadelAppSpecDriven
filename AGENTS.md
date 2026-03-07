@@ -52,5 +52,12 @@ TypeScript 5.x, React 18, Node.js 20+ for tooling: Follow standard conventions
 - 016-event-state-restart: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed SQL repositories
 
 
+## Git Workflow
+
+- Create a new branch when starting a new feature: `git checkout -b <feature-branch>`
+- After implementation is complete and tests pass: `git add -A && git commit -m "<message>"`
+- Push the branch: `git push -u origin <feature-branch>`
+- **Do NOT create PRs or merge branches** — that is handled manually outside this workflow
+
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
