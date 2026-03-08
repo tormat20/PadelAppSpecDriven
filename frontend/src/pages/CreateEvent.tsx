@@ -352,6 +352,9 @@ export default function CreateEventPage() {
       if (win === null) {
         // Popup blocked — fall back to same-tab navigation
         navigate(`/events/${idToStart}/run`)
+      } else {
+        // New tab opened — return the current tab to home
+        navigate("/")
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start event. Please try again."
