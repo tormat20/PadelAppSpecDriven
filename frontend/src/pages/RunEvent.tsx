@@ -63,6 +63,13 @@ export function getRoundStepperProps(
   }
 }
 
+// Errors that indicate a transient backend-busy state (new-tab race on start).
+// The initial load will retry automatically before surfacing these to the user.
+const TRANSIENT_LOAD_ERRORS = new Set([
+  "Failed to fetch",
+  "No active round found. Start or resume the event first.",
+])
+
 export default function RunEventPage() {
   const navigate = useNavigate()
   const { eventId = "" } = useParams()
@@ -109,17 +116,42 @@ export default function RunEventPage() {
     })
   }
 
+  // On initial mount, the RunEvent page may open in a new tab immediately after
+  // the backend finishes writing the first round (DuckDB sequential writes). The
+  // first fetch can land while the backend is still busy, producing a transient
+  // "Failed to fetch" or ROUND_NOT_FOUND. We retry up to 4 times with a short
+  // exponential backoff (300 ms, 600 ms, 1200 ms, 2400 ms) before surfacing an
+  // error to the user.
   useEffect(() => {
     if (!eventId) return
-    load().catch((error) => {
-      const msg = error instanceof Error ? error.message : "Failed to load run view"
-      // "Failed to fetch" means the backend is unreachable — give a clearer hint
-      setLoadError(
-        msg === "Failed to fetch"
-          ? "Could not reach the server. Make sure the backend is running and try again."
-          : msg
-      )
-    })
+    let cancelled = false
+    const loadWithRetry = async () => {
+      const MAX_ATTEMPTS = 5
+      let delay = 300
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          await load()
+          return
+        } catch (error) {
+          if (cancelled) return
+          const msg = error instanceof Error ? error.message : "Failed to load run view"
+          const isTransient = TRANSIENT_LOAD_ERRORS.has(msg)
+          if (!isTransient || attempt === MAX_ATTEMPTS) {
+            setLoadError(
+              msg === "Failed to fetch"
+                ? "Could not reach the server. Make sure the backend is running and try again."
+                : msg,
+            )
+            return
+          }
+          // Transient error — wait and retry
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          delay *= 2
+        }
+      }
+    }
+    loadWithRetry()
+    return () => { cancelled = true }
   }, [eventId])
 
   const isComplete = useMemo(() => canAdvanceRound(roundData, completed), [completed, roundData])
