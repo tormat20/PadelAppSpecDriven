@@ -87,7 +87,7 @@ class SummaryService:
         if not event:
             raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
 
-        if event.event_type == EventType.MEXICANO:
+        if event.event_type in (EventType.MEXICANO, EventType.AMERICANO):
             return self._crowned_players_for_mexicano(summary.get("standings", []))
         if event.event_type == EventType.WINNERS_COURT:
             return self._crowned_players_for_winners_court(summary)

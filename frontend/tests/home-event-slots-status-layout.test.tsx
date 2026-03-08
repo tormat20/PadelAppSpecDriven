@@ -60,12 +60,12 @@ describe("home event slots status layout", () => {
     expect(visible.map((event) => event.id)).toEqual(["early", "late"])
   })
 
-  it("groups by mode and honors selected mode filters", () => {
+  it("filters by selected mode filters without mode sort", () => {
     const winnersCourt = buildEvent({ id: "wc", eventType: "WinnersCourt" })
     const mexicano = buildEvent({ id: "mx", eventType: "Mexicano" })
     const beatTheBox = buildEvent({ id: "btb", eventType: "RankedBox" })
 
-    const visible = applyEventSlotView([mexicano, beatTheBox, winnersCourt], "all", "mode", ["Mexicano", "RankedBox"])
+    const visible = applyEventSlotView([mexicano, beatTheBox, winnersCourt], "all", "default", ["Mexicano", "RankedBox"])
     expect(visible.map((event) => event.id)).toEqual(["mx", "btb"])
   })
 })

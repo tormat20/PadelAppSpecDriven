@@ -19,7 +19,7 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> 
 }
 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
-export type EventSortOption = "default" | "mode" | "date"
+export type EventSortOption = "default" | "date"
 
 const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "Americano", "RankedBox"]
 
@@ -72,25 +72,18 @@ export function applyEventSlotView(
   modeFilters: EventType[],
 ): EventRecord[] {
   const filtered = events.filter((event) => matchesEventFilter(event, lifecycleFilter))
-  const modeFiltered = sortOption === "mode" ? filtered.filter((event) => modeFilters.includes(event.eventType)) : filtered
+  const modeFiltered = modeFilters.length < MODE_ORDER.length
+    ? filtered.filter((event) => modeFilters.includes(event.eventType))
+    : filtered
 
   if (sortOption === "default") return modeFiltered
 
-  const sorted = [...modeFiltered].sort((left, right) => {
+  return [...modeFiltered].sort((left, right) => {
     if (sortOption === "date") {
       return toScheduleTimestamp(left) - toScheduleTimestamp(right)
     }
-
-    const modeDelta = MODE_ORDER.indexOf(left.eventType) - MODE_ORDER.indexOf(right.eventType)
-    if (modeDelta !== 0) return modeDelta
-
-    const timeDelta = toScheduleTimestamp(left) - toScheduleTimestamp(right)
-    if (timeDelta !== 0) return timeDelta
-
-    return left.eventName.localeCompare(right.eventName)
+    return 0
   })
-
-  return sorted
 }
 
 export function getEventSlotDisplay(event: Pick<EventRecord, "eventDate" | "eventTime24h">): string {

@@ -134,7 +134,7 @@ export default function PlayerStatsPage() {
             <h2 className="stats-section-heading">Overview</h2>
             <div className="stats-cards-row">
               <StatCard label="Events Attended" value={stats.eventsAttended} />
-              <StatCard label="Mexicano Total" value={stats.mexicanoScoreTotal} />
+              <StatCard label="Mexicano / Americano Total" value={stats.mexicanoScoreTotal} />
               <StatCard label="Ranked Box Total" value={stats.rbScoreTotal} />
             </div>
           </section>

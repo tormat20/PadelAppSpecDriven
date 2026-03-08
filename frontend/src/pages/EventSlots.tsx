@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
@@ -36,7 +36,7 @@ function isEventSlotFilter(value: string | null): value is EventSlotFilter {
 }
 
 function isEventSortOption(value: string | null): value is EventSortOption {
-  return value === "default" || value === "mode" || value === "date"
+  return value === "default" || value === "date"
 }
 
 function isEventType(value: string): value is EventType {
@@ -235,24 +235,30 @@ function EventFilterDropdown({
 }: EventFilterDropdownProps) {
   const [open, setOpen] = useState(false)
   const [typesExpanded, setTypesExpanded] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null)
 
-  // Position the fixed panel below-right of the trigger button
-  useLayoutEffect(() => {
-    if (!open || !containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    setPanelPos({
-      top: rect.bottom + 6,
-      right: window.innerWidth - rect.right,
+  // Compute panel position from the button element when opening
+  const handleOpen = () => {
+    setOpen((o) => {
+      const next = !o
+      if (next && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        setPanelPos({
+          top: rect.bottom + 6,
+          right: window.innerWidth - rect.right,
+        })
+      }
+      return next
     })
-  }, [open])
+  }
 
   // Close on outside click
   useEffect(() => {
     if (!open) return
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
     }
@@ -270,20 +276,21 @@ function EventFilterDropdown({
     return () => document.removeEventListener("keydown", handleKey)
   }, [open])
 
-  const toggleSort = (option: "mode" | "date") => {
+  const toggleSort = (option: "date") => {
     onSortChange(sortOption === option ? "default" : option)
   }
 
   const pillLabel = activeFilterCount > 0 ? `Filters · ${activeFilterCount}` : "Filters"
 
   return (
-    <div className="event-filter-pill-wrap" ref={containerRef}>
+    <div className="event-filter-pill-wrap" ref={wrapRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={`event-filter-pill${open ? " event-filter-pill--open" : ""}${activeFilterCount > 0 ? " event-filter-pill--active" : ""}`}
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleOpen}
       >
         <span>{pillLabel}</span>
         <span className="event-filter-pill__chevron">{CHEVRON_DOWN}</span>
@@ -326,15 +333,6 @@ function EventFilterDropdown({
             />
             <span>Date</span>
           </label>
-          <label className="event-filter-panel__item">
-            <input
-              type="checkbox"
-              checked={sortOption === "mode"}
-              onChange={() => toggleSort("mode")}
-              className="event-filter-panel__checkbox"
-            />
-            <span>Mode</span>
-          </label>
 
           <div className="event-filter-panel__divider" />
 
@@ -358,7 +356,7 @@ function EventFilterDropdown({
               {ALL_EVENT_TYPES.map(({ key, label }) => {
                 if (key === "MexicanoTeam") {
                   return (
-                    <label key={key} className="event-filter-panel__item event-filter-panel__item--indented">
+                    <label key={key} className="event-filter-panel__item">
                       <input
                         type="checkbox"
                         checked={showTeamMexicano}
@@ -371,10 +369,7 @@ function EventFilterDropdown({
                 }
                 const mode = key as EventType
                 return (
-                  <label
-                    key={key}
-                    className={`event-filter-panel__item${mode === "Mexicano" ? "" : ""}`}
-                  >
+                  <label key={key} className="event-filter-panel__item">
                     <input
                       type="checkbox"
                       checked={modeFilters.includes(mode)}
