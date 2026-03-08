@@ -55,12 +55,14 @@ class SummaryService:
                 "Only ongoing events can be finished.",
                 status_code=409,
             )
-        if event.current_round_number is None or event.current_round_number < event.round_count:
-            raise DomainError(
-                "EVENT_NOT_AT_FINAL_ROUND",
-                "Event can only be finished after final round.",
-                status_code=409,
-            )
+        # Americano supports finish-early (same logic as Mexicano which has no fixed round_count).
+        if event.event_type != EventType.AMERICANO and event.event_type != EventType.MEXICANO:
+            if event.current_round_number is None or event.current_round_number < event.round_count:
+                raise DomainError(
+                    "EVENT_NOT_AT_FINAL_ROUND",
+                    "Event can only be finished after final round.",
+                    status_code=409,
+                )
 
         summary = self.round_service.summarize(event_id)
         self.events_repo.set_status(event_id, EventStatus.FINISHED, event.current_round_number)

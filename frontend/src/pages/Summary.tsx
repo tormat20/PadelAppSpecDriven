@@ -88,7 +88,7 @@ export function getPodiumSlots(
   type SlotSpec = { rank: 0 | 1 | 2; minRank: number; maxRank: number }
 
   const specs: SlotSpec[] =
-    eventType === "Mexicano"
+    eventType === "Mexicano" || eventType === "Americano"
       ? [
           { rank: 0, minRank: 1, maxRank: 1 },
           { rank: 1, minRank: 2, maxRank: 2 },

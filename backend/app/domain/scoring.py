@@ -28,6 +28,6 @@ def ranked_box_delta(outcome: str) -> tuple[int, int]:
 def result_type_for_event(event_type: EventType) -> str:
     if event_type == EventType.WINNERS_COURT:
         return "WinLoss"
-    if event_type == EventType.MEXICANO:
+    if event_type in (EventType.MEXICANO, EventType.AMERICANO):
         return "Score24"
     return "WinLossDraw"

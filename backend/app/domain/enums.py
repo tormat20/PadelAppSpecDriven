@@ -5,6 +5,7 @@ class EventType(str, Enum):
     WINNERS_COURT = "WinnersCourt"
     MEXICANO = "Mexicano"
     RANKED_BOX = "RankedBox"
+    AMERICANO = "Americano"
 
 
 class EventStatus(str, Enum):

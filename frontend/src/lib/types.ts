@@ -1,4 +1,4 @@
-export type EventType = "WinnersCourt" | "Mexicano" | "RankedBox"
+export type EventType = "WinnersCourt" | "Mexicano" | "RankedBox" | "Americano"
 
 export type MatchStatus = "Pending" | "Completed"
 

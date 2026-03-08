@@ -63,7 +63,7 @@ class RoundService:
             if winner_team not in (1, 2):
                 raise ValueError("WinnersCourt requires a winning team")
             winners_court_score(winner_team)
-        elif mode == "Mexicano":
+        elif mode in ("Mexicano", "Americano"):
             raw_team1 = payload.get("team1Score")
             raw_team2 = payload.get("team2Score")
             if not isinstance(raw_team1, int) or not isinstance(raw_team2, int):
@@ -123,15 +123,35 @@ class RoundService:
             )
 
         self.rounds_repo.set_status(current_round.id, RoundStatus.COMPLETED)
-        if (
-            current_round.round_number >= event.round_count
-            and event.event_type != EventType.MEXICANO
+        if current_round.round_number >= event.round_count and event.event_type not in (
+            EventType.MEXICANO,
+            EventType.AMERICANO,
         ):
             raise DomainError(
                 "EVENT_FINAL_ROUND_REACHED",
                 "Final round reached. Finish the event to view summary.",
                 status_code=409,
             )
+
+        # For Americano: the next round is already pre-stored; look it up and set it Running.
+        if event.event_type == EventType.AMERICANO:
+            next_round_number = current_round.round_number + 1
+            if next_round_number > event.round_count:
+                raise DomainError(
+                    "EVENT_FINAL_ROUND_REACHED",
+                    "Final round reached. Finish the event to view summary.",
+                    status_code=409,
+                )
+            next_round_obj = self.rounds_repo.get_round_by_number(event_id, next_round_number)
+            if not next_round_obj:
+                raise DomainError(
+                    "ROUND_NOT_FOUND",
+                    f"Pre-stored round {next_round_number} not found for Americano event.",
+                    status_code=404,
+                )
+            self.rounds_repo.set_status(next_round_obj.id, RoundStatus.RUNNING)
+            self.events_repo.set_status(event_id, event.status, next_round_number)
+            return self.get_current_round_view(event_id)
 
         player_ids = self.events_repo.list_player_ids(event_id)
         courts = self.events_repo.list_courts(event_id)

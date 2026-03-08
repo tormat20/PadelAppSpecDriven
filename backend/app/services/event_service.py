@@ -3,6 +3,7 @@ from uuid import uuid4
 from app.core.errors import DomainError
 from app.domain.enums import EventStatus, EventType, RoundStatus, SetupStatus
 from app.domain.models import Event
+from app.domain.scheduling import generate_americano_rounds
 from app.repositories.events_repo import EventsRepository
 from app.repositories.event_teams_repo import EventTeamsRepository
 from app.repositories.matches_repo import MatchesRepository
@@ -54,6 +55,9 @@ class EventService:
 
         if is_team_mexicano and len(player_ids) % 2 != 0:
             missing.append("team_mexicano_odd_players")
+
+        if event_type == EventType.AMERICANO and len(player_ids) % 4 != 0:
+            missing.append("americano_player_count_must_be_multiple_of_4")
 
         return missing
 
@@ -314,6 +318,29 @@ class EventService:
                 plan = self.mexicano_service.generate_round_1_team_mexicano(fixed_teams, courts)
             else:
                 plan = self.mexicano_service.generate_round_1(player_ids, courts)
+        elif event.event_type == EventType.AMERICANO:
+            all_plans = generate_americano_rounds(player_ids, courts)
+            total_rounds = len(all_plans)
+            # Insert all rounds and their matches at once
+            for americano_plan in all_plans:
+                round_id = str(uuid4())
+                status = (
+                    RoundStatus.RUNNING if americano_plan.round_number == 1 else RoundStatus.PENDING
+                )
+                self.rounds_repo.create_round(
+                    round_id, event_id, americano_plan.round_number, status
+                )
+                americano_matches = [(str(uuid4()), m) for m in americano_plan.matches]
+                self.matches_repo.create_matches_bulk(event_id, round_id, americano_matches)
+            # Update event round_count to total pre-generated rounds
+            self.events_repo.update_round_count(event_id, total_rounds)
+            self.events_repo.set_status(event_id, EventStatus.RUNNING, 1)
+            first_round = self.rounds_repo.get_current_round(event_id)
+            return {
+                "event_id": event_id,
+                "round_number": 1,
+                "matches": self.matches_repo.list_by_round(first_round.id),
+            }
         else:
             plan = self.rb_service.generate_round_1(player_ids, courts)
 

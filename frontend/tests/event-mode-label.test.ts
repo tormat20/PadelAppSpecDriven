@@ -11,4 +11,8 @@ describe("Event mode labels", () => {
     expect(getEventModeLabel("Mexicano")).toBe("Mexicano")
     expect(getEventModeLabel("RankedBox")).toBe("Ranked Box")
   })
+
+  it("returns Americano as-is", () => {
+    expect(getEventModeLabel("Americano")).toBe("Americano")
+  })
 })

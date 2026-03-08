@@ -182,3 +182,9 @@ class EventsRepository:
         )
         self.conn.execute("DELETE FROM matches WHERE event_id = ?", [event_id])
         self.conn.execute("DELETE FROM rounds WHERE event_id = ?", [event_id])
+
+    def update_round_count(self, event_id: str, round_count: int) -> None:
+        self.conn.execute(
+            "UPDATE events SET round_count = ? WHERE id = ?",
+            [round_count, event_id],
+        )

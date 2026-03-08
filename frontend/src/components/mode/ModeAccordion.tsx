@@ -3,14 +3,15 @@ import { getEventModeLabel } from "../../lib/eventMode"
 
 type Props = {
   selected: string
-  onSelect: (value: "WinnersCourt" | "Mexicano" | "RankedBox") => void
+  onSelect: (value: "WinnersCourt" | "Mexicano" | "RankedBox" | "Americano") => void
   isTeamMexicano?: boolean
   onTeamMexicanoChange?: (v: boolean) => void
 }
 
-const modes: Array<{ key: "WinnersCourt" | "Mexicano" | "RankedBox"; blurb: string }> = [
+const modes: Array<{ key: "WinnersCourt" | "Mexicano" | "RankedBox" | "Americano"; blurb: string }> = [
   { key: "WinnersCourt", blurb: "Win/loss court movement" },
   { key: "Mexicano", blurb: "24-point score regrouping" },
+  { key: "Americano", blurb: "Pre-set Whist schedule, 24-point scoring" },
   { key: "RankedBox", blurb: "3-round box rotations" },
 ]
 

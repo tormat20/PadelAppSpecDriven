@@ -10,7 +10,7 @@ import {
 } from "./resultEntry"
 
 type Props = {
-  mode: "WinnersCourt" | "Mexicano" | "RankedBox"
+  mode: "WinnersCourt" | "Mexicano" | "RankedBox" | "Americano"
   selectedSide: TeamSide
   selectedPayload?: WinnerPayload
   onPayload: (payload: WinnerPayload) => void
@@ -19,7 +19,7 @@ type Props = {
 export function ModeInputs({ mode, selectedSide, selectedPayload, onPayload }: Props) {
   const selectedValue = selectedPayload ? getSideRelativeSelectionKey(selectedPayload, selectedSide) : undefined
 
-  if (mode === "Mexicano") {
+  if (mode === "Mexicano" || mode === "Americano") {
     return (
       <ResultEntry
         label=""

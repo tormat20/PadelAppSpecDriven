@@ -30,3 +30,12 @@ class RoundsRepository:
 
     def set_status(self, round_id: str, status: RoundStatus) -> None:
         self.conn.execute(load_sql("rounds/set_status.sql"), [status.value, round_id])
+
+    def get_round_by_number(self, event_id: str, round_number: int) -> Round | None:
+        row = self.conn.execute(
+            "SELECT id, event_id, round_number, status FROM rounds WHERE event_id = ? AND round_number = ?",
+            [event_id, round_number],
+        ).fetchone()
+        if not row:
+            return None
+        return Round(id=row[0], event_id=row[1], round_number=row[2], status=RoundStatus(row[3]))

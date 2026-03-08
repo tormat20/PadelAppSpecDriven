@@ -4,9 +4,10 @@ export type WinnerSelectionMap = Record<string, string>
 
 type WinnersCourtPayload = { mode: "WinnersCourt"; winningTeam: 1 | 2 }
 type MexicanoPayload = { mode: "Mexicano"; team1Score: number; team2Score: number }
+type AmericanoPayload = { mode: "Americano"; team1Score: number; team2Score: number }
 type RankedBoxPayload = { mode: "RankedBox"; outcome: "Team1Win" | "Team2Win" | "Draw" }
 
-export type WinnerPayload = WinnersCourtPayload | MexicanoPayload | RankedBoxPayload
+export type WinnerPayload = WinnersCourtPayload | MexicanoPayload | AmericanoPayload | RankedBoxPayload
 export type TeamSide = 1 | 2
 export type RelativeOutcome = "Win" | "Loss" | "Draw"
 export type TeamBadgePair = { team1: string; team2: string }
@@ -43,6 +44,15 @@ export function toMexicanoPayload(selectedSide: TeamSide, selectedSideScore: num
   return { mode: "Mexicano", team1Score: opposingScore, team2Score: selectedSideScore }
 }
 
+export function toAmericanoPayload(selectedSide: TeamSide, selectedSideScore: number): AmericanoPayload {
+  const opposingScore = 24 - selectedSideScore
+  if (selectedSide === 1) {
+    return { mode: "Americano", team1Score: selectedSideScore, team2Score: opposingScore }
+  }
+
+  return { mode: "Americano", team1Score: opposingScore, team2Score: selectedSideScore }
+}
+
 export function getMexicanoSideScoreOptions(): number[] {
   return Array.from({ length: 24 }, (_, index) => index + 1)
 }
@@ -59,6 +69,7 @@ export function getSideRelativeSelectionKey(payload: WinnerPayload, selectedSide
     return selectedSideWins ? "Win" : "Loss"
   }
 
+  // Mexicano and Americano both carry team1Score / team2Score
   const selectedScore = selectedSide === 1 ? payload.team1Score : payload.team2Score
   return String(selectedScore)
 }
@@ -77,6 +88,7 @@ export function getMirroredBadgePair(payload: WinnerPayload): TeamBadgePair {
       : { team1: "Loss", team2: "Win" }
   }
 
+  // Mexicano and Americano
   return {
     team1: String(payload.team1Score),
     team2: String(payload.team2Score),

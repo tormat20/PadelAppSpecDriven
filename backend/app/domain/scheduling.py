@@ -283,4 +283,207 @@ def _result_type(event_type: EventType) -> ResultType:
         return ResultType.WIN_LOSS
     if event_type == EventType.MEXICANO:
         return ResultType.SCORE_24
+    if event_type == EventType.AMERICANO:
+        return ResultType.SCORE_24
     return ResultType.WIN_LOSS_DRAW
+
+
+# ─── Americano schedule tables ────────────────────────────────────────────────
+# Each entry is a list of rounds; each round is a list of (team1, team2) tuples
+# where team1 = (p_idx_a, p_idx_b) and team2 = (p_idx_c, p_idx_d).
+# Player indices are 0-based positions in the player_ids list.
+#
+# SCHEDULE_8: Whist optimal table for 8 players, 2 courts, 7 rounds.
+# Each player partners every other player exactly once.
+_SCHEDULE_8: list[list[tuple[tuple[int, int], tuple[int, int]]]] = [
+    [((0, 1), (2, 3)), ((4, 5), (6, 7))],
+    [((0, 2), (4, 6)), ((1, 3), (5, 7))],
+    [((0, 3), (5, 6)), ((1, 2), (4, 7))],
+    [((0, 4), (1, 7)), ((2, 6), (3, 5))],
+    [((0, 5), (2, 7)), ((1, 6), (3, 4))],
+    [((0, 6), (3, 7)), ((1, 5), (2, 4))],
+    [((0, 7), (1, 4)), ((2, 5), (3, 6))],
+]
+
+# SCHEDULE_16: Whist optimal table for 16 players, 4 courts, 15 rounds.
+_SCHEDULE_16: list[list[tuple[tuple[int, int], tuple[int, int]]]] = [
+    [((0, 1), (2, 3)), ((4, 5), (6, 7)), ((8, 9), (10, 11)), ((12, 13), (14, 15))],
+    [((0, 2), (4, 8)), ((1, 3), (5, 9)), ((6, 10), (12, 14)), ((7, 11), (13, 15))],
+    [((0, 3), (6, 9)), ((1, 2), (7, 8)), ((4, 11), (13, 14)), ((5, 10), (12, 15))],
+    [((0, 4), (1, 5)), ((2, 6), (3, 7)), ((8, 12), (9, 13)), ((10, 14), (11, 15))],
+    [((0, 5), (3, 6)), ((1, 4), (2, 7)), ((8, 13), (11, 14)), ((9, 12), (10, 15))],
+    [((0, 6), (2, 4)), ((1, 7), (3, 5)), ((8, 14), (10, 12)), ((9, 15), (11, 13))],
+    [((0, 7), (5, 2)), ((1, 6), (4, 3)), ((8, 15), (9, 14)), ((10, 13), (11, 12))],
+    [((0, 8), (1, 9)), ((2, 10), (3, 11)), ((4, 12), (5, 13)), ((6, 14), (7, 15))],
+    [((0, 9), (2, 11)), ((1, 8), (3, 10)), ((4, 13), (7, 14)), ((5, 12), (6, 15))],
+    [((0, 10), (4, 14)), ((1, 11), (5, 15)), ((2, 8), (6, 12)), ((3, 9), (7, 13))],
+    [((0, 11), (5, 14)), ((1, 10), (4, 15)), ((2, 9), (7, 12)), ((3, 8), (6, 13))],
+    [((0, 12), (3, 15)), ((1, 13), (2, 14)), ((4, 8), (7, 11)), ((5, 9), (6, 10))],
+    [((0, 13), (6, 11)), ((1, 12), (7, 10)), ((2, 15), (4, 9)), ((3, 14), (5, 8))],
+    [((0, 14), (7, 9)), ((1, 15), (6, 8)), ((2, 12), (5, 11)), ((3, 13), (4, 10))],
+    [((0, 15), (8, 7)), ((1, 14), (9, 6)), ((2, 13), (10, 5)), ((3, 12), (11, 4))],
+]
+
+# Z-cyclic seeds for 12 players (3 courts, 11 rounds).
+# Each seed defines a base-round pairing; rotate using (idx + round) % 11
+# for round offsets 0..10 to get all 11 rounds.
+# Format: list of (a, b, c, d) where (a,b) vs (c,d) is a match.
+_WHIST_SEEDS_12: list[tuple[int, int, int, int]] = [
+    (0, 1, 3, 9),  # court 1 seed
+    (0, 4, 7, 10),  # court 2 seed
+    (0, 6, 2, 8),  # court 3 seed
+]
+
+
+def _generate_americano_schedule_12(
+    player_ids: list[str],
+) -> list[list[tuple[tuple[int, int], tuple[int, int]]]]:
+    """Z-cyclic construction for 12 players (11 rounds, 3 courts)."""
+    mod = 11
+    all_rounds: list[list[tuple[tuple[int, int], tuple[int, int]]]] = []
+    for r in range(mod):
+        round_matches: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        for a_base, b_base, c_base, d_base in _WHIST_SEEDS_12:
+            a = a_base if a_base == 0 else ((a_base - 1 + r) % mod) + 1
+            b = b_base if b_base == 0 else ((b_base - 1 + r) % mod) + 1
+            c = c_base if c_base == 0 else ((c_base - 1 + r) % mod) + 1
+            d = d_base if d_base == 0 else ((d_base - 1 + r) % mod) + 1
+            round_matches.append(((a, b), (c, d)))
+        all_rounds.append(round_matches)
+    return all_rounds
+
+
+def _berger_circle_rotation(
+    n: int,
+) -> list[list[tuple[tuple[int, int], tuple[int, int]]]]:
+    """Generate N-1 rounds for N players using Berger circle rotation.
+
+    n must be even (a multiple of 4 is guaranteed by the caller).
+    Returns rounds as lists of (team1, team2) pairs where each element is a
+    0-based player index.  Each pair (a, b) vs (c, d) partners a with b and c
+    with d.
+    """
+    if n % 2 != 0:
+        raise ValueError("n must be even for Berger circle rotation")
+
+    # Build the Berger table: n-1 rounds of n/2 match pairs (player index pairs)
+    # using the standard circle method: fix index 0 (pinned), rotate 1..n-1.
+    num_rounds = n - 1
+    rotating = list(range(1, n))  # [1, 2, ..., n-1]
+    all_rounds: list[list[tuple[tuple[int, int], tuple[int, int]]]] = []
+
+    for r in range(num_rounds):
+        circle = [0] + rotating  # pinned 0 + current rotation
+        # Pair circle[i] with circle[n-1-i] for i in 0..n/2-1
+        pairs: list[tuple[int, int]] = []
+        for i in range(n // 2):
+            pairs.append((circle[i], circle[n - 1 - i]))
+        # Group consecutive pairs into matches: (pair[0], pair[1]), (pair[2], pair[3])...
+        round_matches: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        for j in range(0, len(pairs) - 1, 2):
+            round_matches.append((pairs[j], pairs[j + 1]))
+        all_rounds.append(round_matches)
+        # Rotate: move last element of rotating to front
+        rotating = [rotating[-1]] + rotating[:-1]
+
+    return all_rounds
+
+
+def _apply_court_rotation_optimization(
+    schedule: list[list[tuple[tuple[int, int], tuple[int, int]]]],
+    num_courts: int,
+) -> list[list[tuple[tuple[int, int], tuple[int, int]]]]:
+    """Minimize consecutive same-court assignments across rounds.
+
+    Rotate each round's match list so that a player who just played on court C
+    is less likely to play on court C again in the next round.  This is a simple
+    greedy pass: for each round after the first, find the rotation that minimises
+    the number of players who repeat their court from the previous round.
+    """
+    if not schedule:
+        return schedule
+
+    optimized = [schedule[0]]
+    for r in range(1, len(schedule)):
+        prev = optimized[r - 1]
+        curr = schedule[r]
+        if not curr:
+            optimized.append(curr)
+            continue
+
+        # Build player→court map from prev round
+        prev_court: dict[int, int] = {}
+        for court_idx, ((a, b), (c, d)) in enumerate(prev):
+            for p in (a, b, c, d):
+                prev_court[p] = court_idx
+
+        best_rotation = 0
+        best_penalty = float("inf")
+        n = len(curr)
+        for rotation in range(n):
+            rotated = curr[rotation:] + curr[:rotation]
+            penalty = sum(
+                1
+                for court_idx, ((a, b), (c, d)) in enumerate(rotated)
+                for p in (a, b, c, d)
+                if prev_court.get(p) == court_idx
+            )
+            if penalty < best_penalty:
+                best_penalty = penalty
+                best_rotation = rotation
+
+        best = curr[best_rotation:] + curr[:best_rotation]
+        optimized.append(best)
+
+    return optimized
+
+
+def generate_americano_rounds(player_ids: list[str], courts: list[int]) -> list[RoundPlan]:
+    """Generate all rounds for an Americano event at start time.
+
+    Returns a list of RoundPlan objects, one per round.  All rounds are
+    pre-computed; no scheduling occurs at next_round() time.
+
+    Supported player counts: any multiple of 4.
+    - 8 players: Whist table (7 rounds, 2 courts)
+    - 12 players: Z-cyclic construction (11 rounds, 3 courts)
+    - 16 players: Whist table (15 rounds, 4 courts)
+    - Other multiples of 4: Berger circle rotation fallback
+    """
+    n = len(player_ids)
+    if n < 4 or n % 4 != 0:
+        raise ValueError(f"Americano requires a multiple of 4 players; got {n}")
+
+    ordered_courts = get_ordered_courts(courts)
+    num_courts = min(len(ordered_courts), n // 4)
+
+    # Select schedule source
+    if n == 8:
+        raw_schedule = _SCHEDULE_8
+    elif n == 16:
+        raw_schedule = _SCHEDULE_16
+    else:
+        raw_schedule = _berger_circle_rotation(n)
+
+    # Apply court-rotation optimisation
+    optimized = _apply_court_rotation_optimization(raw_schedule, num_courts)
+
+    # Map indices to player IDs and build RoundPlan list
+    plans: list[RoundPlan] = []
+    for round_idx, round_matches in enumerate(optimized):
+        matches: list[RoundPlanMatch] = []
+        for match_idx, ((a, b), (c, d)) in enumerate(round_matches):
+            if match_idx >= num_courts:
+                break
+            court_number = ordered_courts[match_idx]
+            matches.append(
+                RoundPlanMatch(
+                    court_number=court_number,
+                    team1=(player_ids[a], player_ids[b]),
+                    team2=(player_ids[c], player_ids[d]),
+                    result_type=ResultType.SCORE_24,
+                )
+            )
+        plans.append(RoundPlan(round_number=round_idx + 1, matches=matches))
+
+    return plans
