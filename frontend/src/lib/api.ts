@@ -237,6 +237,7 @@ function normalizeProgressSummaryResponse(payload: any, eventId: string): InProg
   return {
     mode: "progress",
     eventId: payload?.eventId ?? eventId,
+    eventName: payload?.eventName ?? "",
     orderingMode: payload?.orderingMode ?? "legacy",
     orderingVersion: payload?.orderingVersion ?? "v1",
     columns: Array.isArray(payload?.columns) ? payload.columns : [],
@@ -257,6 +258,7 @@ function normalizeFinalSummaryResponse(payload: any, eventId: string): FinalEven
   return {
     mode: "final",
     eventId: payload.eventId ?? eventId,
+    eventName: payload.eventName ?? "",
     eventType: (payload.eventType ?? "WinnersCourt") as EventType,
     orderingMode: payload.orderingMode ?? "legacy",
     orderingVersion: payload.orderingVersion ?? "v1",

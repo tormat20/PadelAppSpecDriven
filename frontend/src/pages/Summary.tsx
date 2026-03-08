@@ -169,7 +169,7 @@ export default function SummaryPage() {
       <section className="page-shell" aria-label="Summary page">
         <header className="page-header panel">
           <h2 className="page-title">Progress Summary</h2>
-          <p className="page-subtitle">Track current event progress without finalizing results.</p>
+          {summary.eventName && <p className="page-subtitle">{summary.eventName}</p>}
         </header>
 
         <section className="panel list-stack">
@@ -218,7 +218,7 @@ export default function SummaryPage() {
     <section className="page-shell" aria-label="Summary page">
       <header className="page-header panel">
         <h2 className="page-title">Summary</h2>
-        <p className="page-subtitle">{getFinalSummarySubtitle()}</p>
+        {summary.eventName && <p className="page-subtitle">{summary.eventName}</p>}
       </header>
 
       {podiumSlots.length > 0 && (

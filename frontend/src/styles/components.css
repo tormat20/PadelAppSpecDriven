@@ -465,7 +465,9 @@
   box-shadow: var(--shadow-soft);
   min-width: 15rem;
   overflow: hidden;
-  position: fixed;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
   z-index: 9999;
 }
 

@@ -236,23 +236,6 @@ function EventFilterDropdown({
   const [open, setOpen] = useState(false)
   const [typesExpanded, setTypesExpanded] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null)
-
-  // Compute panel position from the button element when opening
-  const handleOpen = () => {
-    setOpen((o) => {
-      const next = !o
-      if (next && buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect()
-        setPanelPos({
-          top: rect.bottom + 6,
-          right: window.innerWidth - rect.right,
-        })
-      }
-      return next
-    })
-  }
 
   // Close on outside click
   useEffect(() => {
@@ -285,23 +268,21 @@ function EventFilterDropdown({
   return (
     <div className="event-filter-pill-wrap" ref={wrapRef}>
       <button
-        ref={buttonRef}
         type="button"
         className={`event-filter-pill${open ? " event-filter-pill--open" : ""}${activeFilterCount > 0 ? " event-filter-pill--active" : ""}`}
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={handleOpen}
+        onClick={() => setOpen((o) => !o)}
       >
         <span>{pillLabel}</span>
         <span className="event-filter-pill__chevron">{CHEVRON_DOWN}</span>
       </button>
 
-      {open && panelPos !== null && (
+      {open && (
         <div
           className="event-filter-panel"
           role="dialog"
           aria-label="Event filters"
-          style={{ position: "fixed", top: panelPos.top, right: panelPos.right }}
         >
           {/* ── Event status ─────────────────────────────── */}
           <div className="event-filter-panel__section-label">Event status</div>

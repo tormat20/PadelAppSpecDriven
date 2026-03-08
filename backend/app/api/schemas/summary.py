@@ -13,6 +13,7 @@ class StandingItem(BaseModel):
 class FinalSummaryResponse(BaseModel):
     mode: Literal["final"] = "final"
     eventId: str
+    eventName: str = ""
     eventType: str = ""
     orderingMode: str = "legacy"
     orderingVersion: str = "v1"
@@ -44,6 +45,7 @@ class ProgressPlayerRow(BaseModel):
 class ProgressSummaryResponse(BaseModel):
     mode: Literal["progress"] = "progress"
     eventId: str
+    eventName: str = ""
     orderingMode: str = "legacy"
     orderingVersion: str = "v1"
     columns: list[ProgressColumnItem]

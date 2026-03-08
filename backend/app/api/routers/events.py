@@ -244,6 +244,7 @@ def finish_event(event_id: str, _: TokenData = Depends(require_admin)) -> FinalS
             event = services["event_service"].get_event_details(event_id)["event"]
             return FinalSummaryResponse(
                 eventId=event_id,
+                eventName=event.event_name,
                 eventType=event.event_type.value,
                 orderingMode=matrix["ordering_mode"],
                 orderingVersion=matrix["ordering_version"],
@@ -276,6 +277,7 @@ def get_event_summary(event_id: str) -> EventSummaryResponse:
                 event = services["event_service"].get_event_details(event_id)["event"]
                 return FinalSummaryResponse(
                     eventId=event_id,
+                    eventName=event.event_name,
                     eventType=event.event_type.value,
                     orderingMode=matrix["ordering_mode"],
                     orderingVersion=matrix["ordering_version"],
@@ -290,8 +292,10 @@ def get_event_summary(event_id: str) -> EventSummaryResponse:
                 )
 
             progress = services["summary_service"].get_progress_summary(event_id)
+            event = services["event_service"].get_event_details(event_id)["event"]
             return ProgressSummaryResponse(
                 eventId=event_id,
+                eventName=event.event_name,
                 orderingMode=progress["ordering_mode"],
                 orderingVersion=progress["ordering_version"],
                 columns=progress["columns"],
