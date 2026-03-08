@@ -377,10 +377,11 @@ export default function CreateEventPage() {
   // Step 2 (Assign Teams) Next: disabled until all players are paired (even count required)
   const step2NextDisabled = teamMexicanoActive && (assignedPlayers.length === 0 || teamPairs.length * 2 !== assignedPlayers.length)
 
-  const step2StartDisabled = isStrictCreateEventDisabled({ eventName, eventDate, eventTime24h, courts, playerIds })
+  const step2StartDisabled = isStrictCreateEventDisabled({ eventName, eventDate, eventTime24h, courts, playerIds, eventType })
 
   const missingForStart = (() => {
     if (!step2StartDisabled) return ""
+    if (eventType === "Americano" && courts.length < 2) return "Americano requires 2 or more courts"
     if (courts.length === 0) return "Add players and courts to start event"
     const need = requiredPlayers - assignedPlayers.length
     if (need > 0) return `${need} more player${need === 1 ? "" : "s"} needed to start`
@@ -530,12 +531,15 @@ export default function CreateEventPage() {
   )
 
   // Step 1 — Roster
-  const rosterHints = getRosterHints(courts, assignedPlayers)
+  const rosterHints = getRosterHints(courts, assignedPlayers, eventType)
   const rosterPanel = (
     <div className="panel form-grid">
       <CourtSelector selectedCourts={courts} onChange={setCourts} />
       {rosterHints.showChooseCourts && (
         <p className="warning-text" aria-live="polite">Choose courts</p>
+      )}
+      {rosterHints.showAmericanoMinCourts && (
+        <p className="warning-text" aria-live="polite">Americano requires 2 or more courts (minimum 8 players)</p>
       )}
       <p className="muted">
         {assignedPlayers.length} / {requiredPlayers} players assigned

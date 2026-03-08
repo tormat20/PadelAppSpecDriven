@@ -60,4 +60,26 @@ describe("getRosterHints", () => {
     const hints = getRosterHints(courts, players)
     expect(hints.showAssignPlayers).toBe(true)
   })
+
+  it("shows Americano min-courts warning when Americano mode and only 1 court selected", () => {
+    const hints = getRosterHints([1], [], "Americano")
+    expect(hints.showAmericanoMinCourts).toBe(true)
+    expect(hints.showChooseCourts).toBe(false)
+  })
+
+  it("does not show Americano min-courts warning when 2 or more courts selected", () => {
+    const hints = getRosterHints([1, 2], [], "Americano")
+    expect(hints.showAmericanoMinCourts).toBe(false)
+  })
+
+  it("does not show Americano min-courts warning for non-Americano modes with 1 court", () => {
+    const hints = getRosterHints([1], [], "Mexicano")
+    expect(hints.showAmericanoMinCourts).toBe(false)
+  })
+
+  it("does not show Americano min-courts warning when no courts selected (showChooseCourts takes precedence)", () => {
+    const hints = getRosterHints([], [], "Americano")
+    expect(hints.showAmericanoMinCourts).toBe(false)
+    expect(hints.showChooseCourts).toBe(true)
+  })
 })

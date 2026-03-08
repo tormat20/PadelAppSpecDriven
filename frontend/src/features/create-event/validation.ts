@@ -133,8 +133,14 @@ export function isStrictCreateEventDisabled(input: {
   eventTime24h?: string
   courts: number[]
   playerIds: string[]
+  eventType?: EventType
 }) {
   if (isCreateEventDisabled(input)) {
+    return true
+  }
+
+  // Americano requires at least 2 courts (minimum 8 players)
+  if (input.eventType === "Americano" && input.courts.length < 2) {
     return true
   }
 

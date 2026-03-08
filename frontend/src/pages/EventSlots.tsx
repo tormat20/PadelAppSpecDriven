@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
@@ -19,9 +19,17 @@ import {
 const EVENT_SLOT_FILTER_KEY = "home.eventSlots.filter"
 const EVENT_SLOT_SORT_KEY = "home.eventSlots.sort"
 const EVENT_SLOT_MODE_FILTERS_KEY = "home.eventSlots.modeFilters"
-const EVENT_SLOT_COLLAPSED_MODES_KEY = "home.eventSlots.collapsedModes"
 
-const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox"]
+const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "Americano", "RankedBox"]
+
+// All individual event types for the filter checkboxes (includes Team Mexicano as a virtual filter)
+const ALL_EVENT_TYPES: { key: EventType | "MexicanoTeam"; label: string }[] = [
+  { key: "Mexicano", label: "Mexicano" },
+  { key: "MexicanoTeam", label: "Mexicano (Team)" },
+  { key: "Americano", label: "Americano" },
+  { key: "WinnersCourt", label: "Winners Court" },
+  { key: "RankedBox", label: "Ranked Box" },
+]
 
 function isEventSlotFilter(value: string | null): value is EventSlotFilter {
   return value === "all" || value === "planned" || value === "ready" || value === "ongoing" || value === "finished"
@@ -32,7 +40,12 @@ function isEventSortOption(value: string | null): value is EventSortOption {
 }
 
 function isEventType(value: string): value is EventType {
-  return value === "WinnersCourt" || value === "Mexicano" || value === "RankedBox"
+  return (
+    value === "WinnersCourt" ||
+    value === "Mexicano" ||
+    value === "Americano" ||
+    value === "RankedBox"
+  )
 }
 
 function parseSavedModeFilters(value: string | null): EventType[] {
@@ -48,17 +61,6 @@ function parseSavedModeFilters(value: string | null): EventType[] {
   }
 }
 
-function parseSavedCollapsedModes(value: string | null): EventType[] {
-  if (!value) return []
-  try {
-    const parsed = JSON.parse(value)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((entry): entry is EventType => typeof entry === "string" && isEventType(entry))
-  } catch {
-    return []
-  }
-}
-
 const FILTER_LABELS: Record<EventSlotFilter, string> = {
   all: "Show all",
   planned: "Planned",
@@ -66,6 +68,21 @@ const FILTER_LABELS: Record<EventSlotFilter, string> = {
   ongoing: "Ongoing",
   finished: "Finished",
 }
+
+// ── Filter chevron icon ─────────────────────────────────────────────────────────
+const CHEVRON_DOWN = (
+  <svg aria-hidden="true" fill="none" height="11" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" width="11">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+
+const CHEVRON_RIGHT = (
+  <svg aria-hidden="true" fill="none" height="11" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" width="11">
+    <polyline points="9 6 15 12 9 18" />
+  </svg>
+)
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function EventSlotsPage() {
   const navigate = useNavigate()
@@ -80,14 +97,13 @@ export default function EventSlotsPage() {
     const stored = window.localStorage.getItem(EVENT_SLOT_SORT_KEY)
     return isEventSortOption(stored) ? stored : "default"
   })
+  // modeFilters: which EventTypes are shown (default = all)
+  // "MexicanoTeam" is a virtual filter stored separately
   const [modeFilters, setModeFilters] = useState<EventType[]>(() => {
     if (typeof window === "undefined") return [...MODE_ORDER]
     return parseSavedModeFilters(window.localStorage.getItem(EVENT_SLOT_MODE_FILTERS_KEY))
   })
-  const [collapsedModes, setCollapsedModes] = useState<EventType[]>(() => {
-    if (typeof window === "undefined") return []
-    return parseSavedCollapsedModes(window.localStorage.getItem(EVENT_SLOT_COLLAPSED_MODES_KEY))
-  })
+  const [showTeamMexicano, setShowTeamMexicano] = useState(true)
 
   useEffect(() => {
     listEvents().then(setEvents).catch(() => setEvents([]))
@@ -108,15 +124,6 @@ export default function EventSlotsPage() {
     window.localStorage.setItem(EVENT_SLOT_MODE_FILTERS_KEY, JSON.stringify(modeFilters))
   }, [modeFilters])
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    window.localStorage.setItem(EVENT_SLOT_COLLAPSED_MODES_KEY, JSON.stringify(collapsedModes))
-  }, [collapsedModes])
-
-  const toggleSortOption = (option: "mode" | "date") => {
-    setSortOption((current) => (current === option ? "default" : option))
-  }
-
   const toggleModeFilter = (mode: EventType) => {
     setModeFilters((current) => {
       if (current.includes(mode)) {
@@ -126,14 +133,32 @@ export default function EventSlotsPage() {
     })
   }
 
-  const toggleCollapseMode = (mode: EventType) => {
-    setCollapsedModes((current) =>
-      current.includes(mode) ? current.filter((m) => m !== mode) : [...current, mode],
-    )
-  }
+  // Apply mode filters: if all MODE_ORDER types are selected, no filtering.
+  // Also handle Team Mexicano as a sub-filter on Mexicano events.
+  const effectiveModeFilters = modeFilters.length === MODE_ORDER.length ? MODE_ORDER : modeFilters
 
-  const visibleEvents = applyEventSlotView(events, filter, sortOption, modeFilters)
-  const emptyState = sortOption === "mode" && modeFilters.length === 0 ? "Select at least one mode." : getEventFilterEmptyState(filter)
+  // When Mexicano is in the filter, decide whether to show team/non-team events
+  // (for now we pass all modeFilters through — Team Mexicano is a display sub-filter
+  // applied at the event level via isTeamMexicano field if available)
+  const visibleEvents = applyEventSlotView(events, filter, sortOption, effectiveModeFilters).filter((event) => {
+    // Sub-filter: if Mexicano is active but Team Mexicano checkbox is off, hide team events
+    if (event.eventType === "Mexicano" && !showTeamMexicano) {
+      if (event.isTeamMexicano) return false
+    }
+    return true
+  })
+
+  const emptyState =
+    effectiveModeFilters.length === 0
+      ? "Select at least one mode."
+      : getEventFilterEmptyState(filter)
+
+  // Active filter count badge
+  const activeFilterCount = [
+    filter !== "all",
+    sortOption !== "default",
+    modeFilters.length < MODE_ORDER.length || !showTeamMexicano,
+  ].filter(Boolean).length
 
   return (
     <section className="page-shell">
@@ -150,61 +175,17 @@ export default function EventSlotsPage() {
       <section className="panel list-stack" aria-label="Planned and ready events">
         <div className="section-header">
           <h2 className="section-title">Event slots</h2>
-          <div className="event-filter-stack">
-            <div className="event-filter-control" role="tablist" aria-label="Filter events by lifecycle">
-              {(Object.keys(FILTER_LABELS) as EventSlotFilter[]).map((option) => (
-                <button
-                  key={option}
-                  className={withInteractiveSurface("event-filter-segment")}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === option}
-                  data-active={filter === option}
-                  onClick={() => setFilter(option)}
-                >
-                  {FILTER_LABELS[option]}
-                </button>
-              ))}
-            </div>
-            <div className="event-sort-toggle-row" role="group" aria-label="Order events">
-              <button
-                className={withInteractiveSurface("event-sort-toggle")}
-                type="button"
-                aria-pressed={sortOption === "mode"}
-                data-active={sortOption === "mode"}
-                onClick={() => toggleSortOption("mode")}
-              >
-                Mode
-              </button>
-              <button
-                className={withInteractiveSurface("event-sort-toggle")}
-                type="button"
-                aria-pressed={sortOption === "date"}
-                data-active={sortOption === "date"}
-                onClick={() => toggleSortOption("date")}
-              >
-                Date
-              </button>
-            </div>
-            {sortOption === "mode" && (
-              <div className="event-mode-blobs" role="group" aria-label="Filter by mode">
-                {MODE_ORDER.map((mode) => {
-                  const isActive = modeFilters.includes(mode)
-                  const isCollapsed = collapsedModes.includes(mode)
-                  return (
-                    <ModeBlob
-                      key={mode}
-                      mode={mode}
-                      isActive={isActive}
-                      isCollapsed={isCollapsed}
-                      onToggleFilter={() => toggleModeFilter(mode)}
-                      onToggleCollapse={() => toggleCollapseMode(mode)}
-                    />
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          <EventFilterDropdown
+            filter={filter}
+            sortOption={sortOption}
+            modeFilters={modeFilters}
+            showTeamMexicano={showTeamMexicano}
+            activeFilterCount={activeFilterCount}
+            onFilterChange={setFilter}
+            onSortChange={setSortOption}
+            onModeFilterToggle={toggleModeFilter}
+            onTeamMexicanoChange={setShowTeamMexicano}
+          />
         </div>
         {visibleEvents.length === 0 && <p className="muted">{emptyState}</p>}
         {visibleEvents.map((event) => (
@@ -227,85 +208,187 @@ export default function EventSlotsPage() {
   )
 }
 
-interface ModeBlobProps {
-  mode: EventType
-  isActive: boolean
-  isCollapsed: boolean
-  onToggleFilter: () => void
-  onToggleCollapse: () => void
+// ── EventFilterDropdown ────────────────────────────────────────────────────────
+
+interface EventFilterDropdownProps {
+  filter: EventSlotFilter
+  sortOption: EventSortOption
+  modeFilters: EventType[]
+  showTeamMexicano: boolean
+  activeFilterCount: number
+  onFilterChange: (f: EventSlotFilter) => void
+  onSortChange: (s: EventSortOption) => void
+  onModeFilterToggle: (mode: EventType) => void
+  onTeamMexicanoChange: (show: boolean) => void
 }
 
-function ModeBlob({ mode, isActive, isCollapsed, onToggleFilter, onToggleCollapse }: ModeBlobProps) {
-  // Track whether we're mid-animation to smoothly transition between states
-  const [visuallyCollapsed, setVisuallyCollapsed] = useState(isCollapsed)
-  const [animState, setAnimState] = useState<"idle" | "collapsing" | "expanding">("idle")
-  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+function EventFilterDropdown({
+  filter,
+  sortOption,
+  modeFilters,
+  showTeamMexicano,
+  activeFilterCount,
+  onFilterChange,
+  onSortChange,
+  onModeFilterToggle,
+  onTeamMexicanoChange,
+}: EventFilterDropdownProps) {
+  const [open, setOpen] = useState(false)
+  const [typesExpanded, setTypesExpanded] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null)
 
+  // Position the fixed panel below-right of the trigger button
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setPanelPos({
+      top: rect.bottom + 6,
+      right: window.innerWidth - rect.right,
+    })
+  }, [open])
+
+  // Close on outside click
   useEffect(() => {
-    // No change, skip
-    if (isCollapsed === visuallyCollapsed && animState === "idle") return
-
-    if (animTimer.current) clearTimeout(animTimer.current)
-
-    if (isCollapsed && !visuallyCollapsed) {
-      // Trigger collapse animation on the expanded blob
-      setAnimState("collapsing")
-      animTimer.current = setTimeout(() => {
-        setVisuallyCollapsed(true)
-        setAnimState("idle")
-      }, 260)
-    } else if (!isCollapsed && visuallyCollapsed) {
-      // Switch to expanded immediately, then animate expand
-      setVisuallyCollapsed(false)
-      setAnimState("expanding")
-      animTimer.current = setTimeout(() => {
-        setAnimState("idle")
-      }, 280)
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCollapsed])
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [open])
 
-  // Cleanup on unmount
-  useEffect(() => () => { if (animTimer.current) clearTimeout(animTimer.current) }, [])
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("keydown", handleKey)
+    return () => document.removeEventListener("keydown", handleKey)
+  }, [open])
 
-  if (visuallyCollapsed) {
-    return (
-      <button
-        className={withInteractiveSurface("event-mode-blob event-mode-blob--collapsed")}
-        type="button"
-        aria-label={`Expand ${getEventModeLabel(mode)}`}
-        onClick={onToggleCollapse}
-      >
-        <span className="event-mode-blob-plus">+</span>
-      </button>
-    )
+  const toggleSort = (option: "mode" | "date") => {
+    onSortChange(sortOption === option ? "default" : option)
   }
 
-  const blobClass = [
-    "event-mode-blob",
-    isActive ? "event-mode-blob--active" : "",
-    animState === "collapsing" ? "event-mode-blob--anim-collapse" : "",
-    animState === "expanding" ? "event-mode-blob--anim-expand" : "",
-  ].filter(Boolean).join(" ")
+  const pillLabel = activeFilterCount > 0 ? `Filters · ${activeFilterCount}` : "Filters"
 
   return (
-    <div className={blobClass} data-active={isActive}>
+    <div className="event-filter-pill-wrap" ref={containerRef}>
       <button
-        className={withInteractiveSurface("event-mode-blob-label")}
         type="button"
-        aria-pressed={isActive}
-        onClick={onToggleFilter}
+        className={`event-filter-pill${open ? " event-filter-pill--open" : ""}${activeFilterCount > 0 ? " event-filter-pill--active" : ""}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
       >
-        {getEventModeLabel(mode)}
+        <span>{pillLabel}</span>
+        <span className="event-filter-pill__chevron">{CHEVRON_DOWN}</span>
       </button>
-      <button
-        className={withInteractiveSurface("event-mode-blob-collapse")}
-        type="button"
-        aria-label={`Collapse ${getEventModeLabel(mode)}`}
-        onClick={onToggleCollapse}
-      >
-        −
-      </button>
+
+      {open && panelPos !== null && (
+        <div
+          className="event-filter-panel"
+          role="dialog"
+          aria-label="Event filters"
+          style={{ position: "fixed", top: panelPos.top, right: panelPos.right }}
+        >
+          {/* ── Event status ─────────────────────────────── */}
+          <div className="event-filter-panel__section-label">Event status</div>
+          <div role="radiogroup" aria-label="Filter events by lifecycle">
+            {(Object.keys(FILTER_LABELS) as EventSlotFilter[]).map((option) => (
+              <label key={option} className="event-filter-panel__item event-filter-panel__item--radio">
+                <input
+                  type="radio"
+                  name="event-status"
+                  checked={filter === option}
+                  onChange={() => onFilterChange(option)}
+                  className="event-filter-panel__radio"
+                />
+                <span>{FILTER_LABELS[option]}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="event-filter-panel__divider" />
+
+          {/* ── Sort by ───────────────────────────────────── */}
+          <div className="event-filter-panel__section-label">Sort by</div>
+          <label className="event-filter-panel__item">
+            <input
+              type="checkbox"
+              checked={sortOption === "date"}
+              onChange={() => toggleSort("date")}
+              className="event-filter-panel__checkbox"
+            />
+            <span>Date</span>
+          </label>
+          <label className="event-filter-panel__item">
+            <input
+              type="checkbox"
+              checked={sortOption === "mode"}
+              onChange={() => toggleSort("mode")}
+              className="event-filter-panel__checkbox"
+            />
+            <span>Mode</span>
+          </label>
+
+          <div className="event-filter-panel__divider" />
+
+          {/* ── Event types (collapsible) ─────────────────── */}
+          <button
+            type="button"
+            className="event-filter-panel__types-header"
+            aria-expanded={typesExpanded}
+            onClick={() => setTypesExpanded((e) => !e)}
+          >
+            <span className="event-filter-panel__section-label event-filter-panel__section-label--inline">
+              Event types
+            </span>
+            <span className="event-filter-panel__types-chevron">
+              {typesExpanded ? CHEVRON_DOWN : CHEVRON_RIGHT}
+            </span>
+          </button>
+
+          {typesExpanded && (
+            <div className="event-filter-panel__types-body">
+              {ALL_EVENT_TYPES.map(({ key, label }) => {
+                if (key === "MexicanoTeam") {
+                  return (
+                    <label key={key} className="event-filter-panel__item event-filter-panel__item--indented">
+                      <input
+                        type="checkbox"
+                        checked={showTeamMexicano}
+                        onChange={(e) => onTeamMexicanoChange(e.target.checked)}
+                        className="event-filter-panel__checkbox"
+                      />
+                      <span>{label}</span>
+                    </label>
+                  )
+                }
+                const mode = key as EventType
+                return (
+                  <label
+                    key={key}
+                    className={`event-filter-panel__item${mode === "Mexicano" ? "" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={modeFilters.includes(mode)}
+                      onChange={() => onModeFilterToggle(mode)}
+                      className="event-filter-panel__checkbox"
+                    />
+                    <span>{label}</span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

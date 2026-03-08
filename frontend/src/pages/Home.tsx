@@ -21,7 +21,7 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> 
 export type EventSlotFilter = "all" | "planned" | "ready" | "ongoing" | "finished"
 export type EventSortOption = "default" | "mode" | "date"
 
-const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox"]
+const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "Americano", "RankedBox"]
 
 const FILTER_LABELS: Record<EventSlotFilter, string> = {
   all: "Show all",
