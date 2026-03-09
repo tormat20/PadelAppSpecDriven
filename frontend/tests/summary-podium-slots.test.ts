@@ -87,6 +87,49 @@ describe("getPodiumSlots", () => {
     })
   })
 
+  // ── Americano (same podium logic as Mexicano) ─────────────────────────────
+
+  describe("Americano", () => {
+    it("returns 3 slots in visual order [2nd, 1st, 3rd] for full field", () => {
+      const rows = [
+        makeRow(1, "Alice", 30),
+        makeRow(2, "Bob", 20),
+        makeRow(3, "Carol", 10),
+        makeRow(4, "Dave", 5),
+      ]
+      const slots = getPodiumSlots("Americano", rows)
+      expect(slots).toHaveLength(3)
+      expect(slots[0].rank).toBe(1)   // 2nd place (visual left)
+      expect(slots[1].rank).toBe(0)   // 1st place (visual centre)
+      expect(slots[2].rank).toBe(2)   // 3rd place (visual right)
+    })
+
+    it("each slot has exactly 1 player", () => {
+      const rows = [makeRow(1, "Alice", 30), makeRow(2, "Bob", 20), makeRow(3, "Carol", 10)]
+      const slots = getPodiumSlots("Americano", rows)
+      const slot1st = slots.find((s) => s.rank === 0)!
+      expect(slot1st.playerNames).toEqual(["Alice"])
+    })
+
+    it("1st-place slot carries the highest score", () => {
+      const rows = [makeRow(1, "Alice", 42), makeRow(2, "Bob", 28), makeRow(3, "Carol", 15)]
+      const slots = getPodiumSlots("Americano", rows)
+      const slot1st = slots.find((s) => s.rank === 0)!
+      expect(slot1st.score).toBe(42)
+    })
+
+    it("returns empty array with no players", () => {
+      expect(getPodiumSlots("Americano", [])).toEqual([])
+    })
+
+    it("stores correct playerIds for crown lookup", () => {
+      const rows = [makeRow(1, "Alice", 10), makeRow(2, "Bob", 8), makeRow(3, "Carol", 6)]
+      const slots = getPodiumSlots("Americano", rows)
+      const slot1st = slots.find((s) => s.rank === 0)!
+      expect(slot1st.playerIds).toEqual(["p1-Alice"])
+    })
+  })
+
   // ── WinnersCourt ──────────────────────────────────────────────────────────
 
   describe("WinnersCourt", () => {

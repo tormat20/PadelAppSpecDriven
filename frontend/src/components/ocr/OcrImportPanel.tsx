@@ -297,22 +297,37 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     ) : (
                       inSystemResults.map((r) => {
                         const isAlreadyRegistered = mode === "register"
+                        const isChecked = checked.has(r.rawName)
                         return (
-                          <button
+                          <div
                             key={r.rawName}
-                            type="button"
-                            className={withInteractiveSurface("player-listbox-option")}
-                            aria-pressed={checked.has(r.rawName)}
-                            disabled={isAlreadyRegistered}
-                            onClick={() => !isAlreadyRegistered && toggleChecked(r.rawName)}
-                            data-active={checked.has(r.rawName)}
+                            className="ocr-in-system-row"
                           >
-                            <span>{r.rawName}</span>
-                            {isAlreadyRegistered
-                              ? <span className="tag">Registered</span>
-                              : <span className="tag">Matched</span>
-                            }
-                          </button>
+                            <button
+                              type="button"
+                              className={withInteractiveSurface("player-listbox-option ocr-in-system-name")}
+                              aria-pressed={isChecked}
+                              disabled={isAlreadyRegistered}
+                              onClick={() => !isAlreadyRegistered && toggleChecked(r.rawName)}
+                              data-active={isChecked}
+                            >
+                              <span>{r.rawName}</span>
+                              {isAlreadyRegistered
+                                ? <span className="tag">Registered</span>
+                                : <span className="tag">Matched</span>
+                              }
+                            </button>
+                            {!isAlreadyRegistered && isChecked && (
+                              <button
+                                type="button"
+                                className={withInteractiveSurface("button-secondary ocr-remove-btn")}
+                                aria-label={`Remove ${r.rawName}`}
+                                onClick={() => toggleChecked(r.rawName)}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
                         )
                       })
                     )}
@@ -328,12 +343,23 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     ) : (
                       newResults.map((r) => {
                         const isSaving = registering.has(r.rawName)
+                        const isChecked = checked.has(r.rawName)
                         return (
                           <div
                             key={r.rawName}
                             className="ocr-new-player-row"
                           >
                             <span className="ocr-new-player-name">{r.rawName}</span>
+                            {isChecked && (
+                              <button
+                                type="button"
+                                className={withInteractiveSurface("button-secondary ocr-remove-btn")}
+                                aria-label={`Remove ${r.rawName}`}
+                                onClick={() => toggleChecked(r.rawName)}
+                              >
+                                Remove
+                              </button>
+                            )}
                             <button
                               type="button"
                               className={withInteractiveSurface("button-secondary ocr-add-btn")}

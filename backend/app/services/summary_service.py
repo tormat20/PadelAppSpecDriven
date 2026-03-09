@@ -39,6 +39,8 @@ class SummaryService:
         event = self.events_repo.get(event_id)
         if not event:
             raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+        if event.status == EventStatus.FINISHED:
+            return True
         return (
             event.current_round_number is not None
             and event.current_round_number >= event.round_count

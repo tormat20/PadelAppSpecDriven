@@ -101,6 +101,18 @@ class SummaryOrderingService:
             ranked = self._assign_competition_rank_mexicano(ordered, totals_by_player, wins, best)
             return ranked, SummaryOrderingMetadata(ordering_mode="final-mexicano-total-desc")
 
+        if event_type == EventType.AMERICANO:
+            ordered = sorted(
+                rows,
+                key=lambda row: (
+                    -totals_by_player.get(row["playerId"], 0),
+                    row["displayName"].lower(),
+                    row["playerId"],
+                ),
+            )
+            ranked = self._assign_competition_rank(ordered, totals_by_player)
+            return ranked, SummaryOrderingMetadata(ordering_mode="final-americano-total-desc")
+
         if event_type == EventType.WINNERS_COURT:
             ordered = self._order_winners_court_final(rows, rounds, matches)
             ranked = self._assign_sequential_rank(ordered)

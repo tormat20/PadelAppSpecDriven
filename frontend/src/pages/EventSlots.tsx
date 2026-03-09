@@ -19,6 +19,7 @@ import {
 const EVENT_SLOT_FILTER_KEY = "home.eventSlots.filter"
 const EVENT_SLOT_SORT_KEY = "home.eventSlots.sort"
 const EVENT_SLOT_MODE_FILTERS_KEY = "home.eventSlots.modeFilters"
+const EVENT_SLOT_SHOW_TEAM_MEXICANO_KEY = "home.eventSlots.showTeamMexicano"
 
 const MODE_ORDER: EventType[] = ["WinnersCourt", "Mexicano", "Americano", "RankedBox"]
 
@@ -103,7 +104,12 @@ export default function EventSlotsPage() {
     if (typeof window === "undefined") return [...MODE_ORDER]
     return parseSavedModeFilters(window.localStorage.getItem(EVENT_SLOT_MODE_FILTERS_KEY))
   })
-  const [showTeamMexicano, setShowTeamMexicano] = useState(true)
+  const [showTeamMexicano, setShowTeamMexicano] = useState(() => {
+    if (typeof window === "undefined") return true
+    const stored = window.localStorage.getItem(EVENT_SLOT_SHOW_TEAM_MEXICANO_KEY)
+    if (stored === null) return true
+    return stored !== "false"
+  })
 
   useEffect(() => {
     listEvents().then(setEvents).catch(() => setEvents([]))
@@ -123,6 +129,11 @@ export default function EventSlotsPage() {
     if (typeof window === "undefined") return
     window.localStorage.setItem(EVENT_SLOT_MODE_FILTERS_KEY, JSON.stringify(modeFilters))
   }, [modeFilters])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(EVENT_SLOT_SHOW_TEAM_MEXICANO_KEY, String(showTeamMexicano))
+  }, [showTeamMexicano])
 
   const toggleModeFilter = (mode: EventType) => {
     setModeFilters((current) => {
@@ -234,7 +245,7 @@ function EventFilterDropdown({
   onTeamMexicanoChange,
 }: EventFilterDropdownProps) {
   const [open, setOpen] = useState(false)
-  const [typesExpanded, setTypesExpanded] = useState(false)
+  const [typesExpanded, setTypesExpanded] = useState(true)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   // Close on outside click
