@@ -46,6 +46,8 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const [status, setStatus] = useState<OcrStatus>("idle")
   const [results, setResults] = useState<OcrMatchResult[]>([])
   const [checked, setChecked] = useState<Set<string>>(new Set())
+  // Names the user has explicitly dismissed via the − button; hidden from both lists
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [ocrError, setOcrError] = useState("")
   const [isConfirming, setIsConfirming] = useState(false)
   // Per-row state for the "Add New Player" button in the unmatched column
@@ -96,6 +98,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       setStatus("processing")
       setResults([])
       setChecked(new Set())
+      setDismissed(new Set())
       setOcrError("")
       setIndividuallyRegistered(new Map())
       try {
@@ -160,10 +163,21 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
     })
   }
 
+  /** Remove a player row entirely: hide it and exclude it from the roster. */
+  const dismissPlayer = (rawName: string) => {
+    setDismissed((prev) => new Set(prev).add(rawName))
+    setChecked((prev) => {
+      const next = new Set(prev)
+      next.delete(rawName)
+      return next
+    })
+  }
+
   const handleReset = () => {
     setStatus("idle")
     setResults([])
     setChecked(new Set())
+    setDismissed(new Set())
     setOcrError("")
     setIndividuallyRegistered(new Map())
     queuedFileRef.current = null
@@ -223,8 +237,8 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const isInSystem = (r: OcrMatchResult) =>
     r.matchedPlayer !== null || individuallyRegistered.has(r.rawName)
 
-  const inSystemResults = results.filter(isInSystem)
-  const newResults = results.filter((r) => !isInSystem(r))
+  const inSystemResults = results.filter((r) => isInSystem(r) && !dismissed.has(r.rawName))
+  const newResults = results.filter((r) => !isInSystem(r) && !dismissed.has(r.rawName))
 
   // Build a live catalog that includes individually registered players (for createOrReusePlayer calls)
   const liveCatalog = [
@@ -303,6 +317,16 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                             key={r.rawName}
                             className="ocr-in-system-row"
                           >
+                            {!isAlreadyRegistered && (
+                              <button
+                                type="button"
+                                className={withInteractiveSurface("row-action row-action-remove")}
+                                aria-label={`Remove ${r.rawName}`}
+                                onClick={() => dismissPlayer(r.rawName)}
+                              >
+                                −
+                              </button>
+                            )}
                             <button
                               type="button"
                               className={withInteractiveSurface("player-listbox-option ocr-in-system-name")}
@@ -317,16 +341,6 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                                 : <span className="tag">Matched</span>
                               }
                             </button>
-                            {!isAlreadyRegistered && isChecked && (
-                              <button
-                                type="button"
-                                className={withInteractiveSurface("button-secondary ocr-remove-btn")}
-                                aria-label={`Remove ${r.rawName}`}
-                                onClick={() => toggleChecked(r.rawName)}
-                              >
-                                Remove
-                              </button>
-                            )}
                           </div>
                         )
                       })
@@ -343,23 +357,20 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     ) : (
                       newResults.map((r) => {
                         const isSaving = registering.has(r.rawName)
-                        const isChecked = checked.has(r.rawName)
                         return (
                           <div
                             key={r.rawName}
                             className="ocr-new-player-row"
                           >
+                            <button
+                              type="button"
+                              className={withInteractiveSurface("row-action row-action-remove")}
+                              aria-label={`Remove ${r.rawName}`}
+                              onClick={() => dismissPlayer(r.rawName)}
+                            >
+                              −
+                            </button>
                             <span className="ocr-new-player-name">{r.rawName}</span>
-                            {isChecked && (
-                              <button
-                                type="button"
-                                className={withInteractiveSurface("button-secondary ocr-remove-btn")}
-                                aria-label={`Remove ${r.rawName}`}
-                                onClick={() => toggleChecked(r.rawName)}
-                              >
-                                Remove
-                              </button>
-                            )}
                             <button
                               type="button"
                               className={withInteractiveSurface("button-secondary ocr-add-btn")}
