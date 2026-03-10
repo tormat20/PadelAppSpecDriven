@@ -26,6 +26,7 @@ export type EventRecord = {
   playerIds: string[]
   currentRoundNumber: number | null
   totalRounds: number
+  roundDurationMinutes: number
   isTeamMexicano?: boolean
 }
 

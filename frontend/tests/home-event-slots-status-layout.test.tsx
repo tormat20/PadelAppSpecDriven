@@ -26,6 +26,7 @@ function buildEvent(overrides: Partial<EventRecord>): EventRecord {
     playerIds: [],
     currentRoundNumber: null,
     totalRounds: 0,
+    roundDurationMinutes: 20,
     ...overrides,
   }
 }

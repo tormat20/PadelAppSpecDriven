@@ -35,11 +35,11 @@
 
 ## Risks & Open Questions
 
-- [ ] CHK021 OPEN: Confirm whether `PATCH /api/v1/events/{id}` currently supports partial updates to `event_date`, `event_time`, and `selectedCourts` — or whether a new endpoint/modification is needed
-- [ ] CHK022 OPEN: Confirm how `round_duration_minutes` is currently stored in DuckDB and whether it can be added to the event API response without a migration
-- [ ] CHK023 OPEN: Decide on the UI pattern for the edit panel — side drawer vs. modal. Both are referenced loosely; the plan should pick one.
-- [ ] CHK024 OPEN: Confirm the `recurrence_tag` field storage strategy — stored as a plain string column in the events table, or encoded in a metadata JSON blob?
-- [ ] CHK025 OPEN: Decide whether the Calendar page appears in the main navigation or only via a dedicated route. Spec says admin-only but does not specify the nav entry point.
+- [x] CHK021 RESOLVED (research.md Finding 3 + spec.md Assumption A7): PATCH supports partial updates — only sent fields are written; frontend sends only changed fields on drag/save
+- [x] CHK022 RESOLVED (research.md Finding 1 + data-model.md): `round_duration_minutes` is already in DuckDB (`INTEGER NOT NULL`); no migration required; add to `EventResponse` schema only
+- [x] CHK023 RESOLVED (spec.md clarification 2026-03-10): Side drawer — slides in from right, calendar grid remains visible behind it
+- [x] CHK024 RESOLVED (spec.md Assumption A3 + clarification): No `recurrence_tag` stored; recurrence is pure frontend calculation; each occurrence is a plain independent Lobby event
+- [x] CHK025 RESOLVED (spec.md clarification 2026-03-10 + research.md Finding 5): Admin-only route (`/calendar` under `RequireAdmin`); no navigation entry for regular users
 
 ## Notes
 

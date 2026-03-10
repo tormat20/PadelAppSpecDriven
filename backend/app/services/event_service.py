@@ -180,6 +180,27 @@ class EventService:
             )
         return output
 
+    def list_events_by_date_range(self, from_date, to_date) -> list[dict]:
+        events = self.events_repo.list_by_date_range(from_date, to_date)
+        output: list[dict] = []
+        for event in events:
+            player_ids = self.events_repo.list_player_ids(event.id)
+            courts = self.events_repo.list_courts(event.id)
+            missing_requirements = self.evaluate_setup(
+                event.event_type, courts, player_ids, event.is_team_mexicano
+            )
+            output.append(
+                {
+                    "event": event,
+                    "player_ids": player_ids,
+                    "courts": courts,
+                    "missing_requirements": missing_requirements,
+                    "warnings": self._get_warnings(event, exclude_event_id=event.id),
+                    "lifecycle_status": derive_lifecycle_status(event),
+                }
+            )
+        return output
+
     def update_event_setup(
         self,
         event_id: str,

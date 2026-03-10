@@ -1,6 +1,7 @@
+from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import TokenData, require_admin, services_scope
 from app.core.errors import DomainError
@@ -68,14 +69,21 @@ def _to_event_response(
         playerIds=player_ids,
         currentRoundNumber=event.current_round_number,
         totalRounds=event.round_count,
+        roundDurationMinutes=event.round_duration_minutes,
         isTeamMexicano=event.is_team_mexicano,
     )
 
 
 @router.get("", response_model=list[EventResponse])
-def list_events() -> list[EventResponse]:
+def list_events(
+    from_date: date | None = Query(default=None, alias="from"),
+    to_date: date | None = Query(default=None, alias="to"),
+) -> list[EventResponse]:
     with services_scope() as services:
-        events = services["event_service"].list_events()
+        if from_date is not None and to_date is not None:
+            events = services["event_service"].list_events_by_date_range(from_date, to_date)
+        else:
+            events = services["event_service"].list_events()
         return [
             _to_event_response(
                 row["event"],

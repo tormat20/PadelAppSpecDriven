@@ -183,6 +183,29 @@ class EventsRepository:
         self.conn.execute("DELETE FROM matches WHERE event_id = ?", [event_id])
         self.conn.execute("DELETE FROM rounds WHERE event_id = ?", [event_id])
 
+    def list_by_date_range(self, from_date: date, to_date: date) -> list[Event]:
+        rows = self.conn.execute(
+            load_sql("events/list_by_date_range.sql"),
+            [from_date.isoformat(), to_date.isoformat()],
+        ).fetchall()
+        return [
+            Event(
+                id=row[0],
+                event_name=row[1],
+                event_type=EventType(row[2]),
+                event_date=date.fromisoformat(str(row[3])),
+                status=EventStatus(row[4]),
+                round_count=row[5],
+                round_duration_minutes=row[6],
+                current_round_number=row[7],
+                event_time=row[8],
+                setup_status=SetupStatus(row[9]),
+                version=row[10],
+                is_team_mexicano=bool(row[11]),
+            )
+            for row in rows
+        ]
+
     def update_round_count(self, event_id: str, round_count: int) -> None:
         self.conn.execute(
             "UPDATE events SET round_count = ? WHERE id = ?",

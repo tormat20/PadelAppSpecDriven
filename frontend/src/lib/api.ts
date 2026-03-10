@@ -182,6 +182,10 @@ export async function listEvents(): Promise<EventRecord[]> {
   return request("/events")
 }
 
+export async function listEventsByDateRange(from: string, to: string): Promise<EventRecord[]> {
+  return request(`/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+}
+
 export async function getEvent(id: string): Promise<EventRecord> {
   return request(`/events/${id}`)
 }

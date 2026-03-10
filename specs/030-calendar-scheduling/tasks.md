@@ -21,10 +21,10 @@ Frontend tests: `cd frontend && npm test -- --run`
 
 **Purpose**: Wire up the route skeleton and extend the shared type system so every subsequent story compiles cleanly.
 
-- [ ] T001 Add `roundDurationMinutes: number` field to `EventRecord` in `frontend/src/lib/types.ts`
-- [ ] T002 [P] Add `listEventsByDateRange(from: string, to: string)` export to `frontend/src/lib/api.ts`
-- [ ] T003 [P] Add `/calendar` route under `RequireAdmin` in `frontend/src/app/routes.tsx` with stub `CalendarPage` in `frontend/src/pages/Calendar.tsx`
-- [ ] T004 [P] Fix any existing test fixtures that now fail due to missing `roundDurationMinutes` on `EventRecord` (scan `frontend/tests/` and add `roundDurationMinutes: 20` where needed)
+- [x] T001 Add `roundDurationMinutes: number` field to `EventRecord` in `frontend/src/lib/types.ts`
+- [x] T002 [P] Add `listEventsByDateRange(from: string, to: string)` export to `frontend/src/lib/api.ts`
+- [x] T003 [P] Add `/calendar` route under `RequireAdmin` in `frontend/src/app/routes.tsx` with stub `CalendarPage` in `frontend/src/pages/Calendar.tsx`
+- [x] T004 [P] Fix any existing test fixtures that now fail due to missing `roundDurationMinutes` on `EventRecord` (scan `frontend/tests/` and add `roundDurationMinutes: 20` where needed)
 
 **Checkpoint**: `npm test -- --run` passes with zero regressions; `/calendar` route resolves to stub page for admin users.
 
@@ -38,19 +38,19 @@ Frontend tests: `cd frontend && npm test -- --run`
 
 ### Backend — expose `roundDurationMinutes` (contract: `backend-round-duration-exposure.md`)
 
-- [ ] T005 [P] Write failing backend test `backend/tests/test_event_response_duration.py` — asserts `roundDurationMinutes` present and is `int` in both list and single-event responses
-- [ ] T006 Add `roundDurationMinutes: int` to `EventResponse` class in `backend/app/api/schemas/events.py`
-- [ ] T007 Add `roundDurationMinutes=event.round_duration_minutes` to `_to_event_response()` in `backend/app/api/routers/events.py`
-- [ ] T008 Run backend tests — all must pass including T005's new tests: `cd backend && PYTHONPATH=. uv run python -m pytest tests/ -q`
+- [x] T005 [P] Write failing backend test `backend/tests/test_event_response_duration.py` — asserts `roundDurationMinutes` present and is `int` in both list and single-event responses
+- [x] T006 Add `roundDurationMinutes: int` to `EventResponse` class in `backend/app/api/schemas/events.py`
+- [x] T007 Add `roundDurationMinutes=event.round_duration_minutes` to `_to_event_response()` in `backend/app/api/routers/events.py`
+- [x] T008 Run backend tests — all must pass including T005's new tests: `cd backend && PYTHONPATH=. uv run python -m pytest tests/ -q`
 
 ### Backend — date-range filter on `GET /api/v1/events` (contract: `backend-date-range-filter.md`)
 
-- [ ] T009 [P] Write failing backend test `backend/tests/test_events_date_range_filter.py` covering: no params → all events; both params → filtered by date range; invalid date format → 422; only `from` param → all events
-- [ ] T010 Create new SQL file `backend/app/repositories/sql/events/list_by_date_range.sql` with `WHERE event_date BETWEEN ? AND ?` and same column order as `list_all.sql`
-- [ ] T011 Add `list_by_date_range(self, from_date: date, to_date: date) -> list[Event]` method to `backend/app/repositories/events_repo.py`
-- [ ] T012 Add `list_events_by_date_range(self, from_date: date, to_date: date)` method to `backend/app/services/event_service.py` (mirrors `list_events()` enrichment loop)
-- [ ] T013 Update `list_events()` router handler in `backend/app/api/routers/events.py` to accept optional `from_date`/`to_date` Query params and delegate to the appropriate service method
-- [ ] T014 Run backend tests — all must pass including T009's new tests: `cd backend && PYTHONPATH=. uv run python -m pytest tests/ -q`
+- [x] T009 [P] Write failing backend test `backend/tests/test_events_date_range_filter.py` covering: no params → all events; both params → filtered by date range; invalid date format → 422; only `from` param → all events
+- [x] T010 Create new SQL file `backend/app/repositories/sql/events/list_by_date_range.sql` with `WHERE event_date BETWEEN ? AND ?` and same column order as `list_all.sql`
+- [x] T011 Add `list_by_date_range(self, from_date: date, to_date: date) -> list[Event]` method to `backend/app/repositories/events_repo.py`
+- [x] T012 Add `list_events_by_date_range(self, from_date: date, to_date: date)` method to `backend/app/services/event_service.py` (mirrors `list_events()` enrichment loop)
+- [x] T013 Update `list_events()` router handler in `backend/app/api/routers/events.py` to accept optional `from_date`/`to_date` Query params and delegate to the appropriate service method
+- [x] T014 Run backend tests — all must pass including T009's new tests: `cd backend && PYTHONPATH=. uv run python -m pytest tests/ -q`
 
 **Checkpoint**: Backend complete — all backend tests green. `GET /api/v1/events?from=2026-03-09&to=2026-03-15` returns only events in that range. All event responses include `roundDurationMinutes`.
 

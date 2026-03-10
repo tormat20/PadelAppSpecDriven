@@ -30,6 +30,7 @@ function buildEvent(id: string, eventType: EventType): EventRecord {
     playerIds: [],
     currentRoundNumber: null,
     totalRounds: 0,
+    roundDurationMinutes: 20,
   }
 }
 

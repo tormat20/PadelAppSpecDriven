@@ -50,6 +50,7 @@ class EventResponse(BaseModel):
     playerIds: list[str]
     currentRoundNumber: int | None
     totalRounds: int
+    roundDurationMinutes: int
     isTeamMexicano: bool
 
 
