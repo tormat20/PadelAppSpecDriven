@@ -64,7 +64,7 @@ Frontend tests: `cd frontend && npm test -- --run`
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] Write failing unit tests in `frontend/tests/calendar-grid-positioning.test.ts` covering all pure helpers:
+- [x] T015 [P] Write failing unit tests in `frontend/tests/calendar-grid-positioning.test.ts` covering all pure helpers:
   - `minutesSinceGridStart`: "07:00"→0, "07:30"→30, "10:00"→180, "00:00"→1020
   - `eventHeightPx`: durationMinutes=60 & pxPerMinute=1 → 60; durationMinutes=90 → 90
   - `deriveDurationMinutes`: totalRounds=3 & roundDurationMinutes=20 → 60; totalRounds=0 → 60; roundDurationMinutes=0 → 60
@@ -73,38 +73,38 @@ Frontend tests: `cd frontend && npm test -- --run`
   - `getWeekStart`: March 10 (Mon)→March 10; March 11 (Tue)→March 10; March 15 (Sun)→March 10
   - `getWeekDates`: returns exactly 7 dates Mon–Sun
   - `formatWeekLabel`: returns "10 Mar – 16 Mar 2026" for week of March 10
-- [ ] T016 [P] Write failing unit tests in `frontend/tests/calendar-api-integration.test.ts` — asserts `listEventsByDateRange` is called with Monday and Sunday ISO strings when week navigation occurs
+- [x] T016 [P] Write failing unit tests in `frontend/tests/calendar-api-integration.test.ts` — asserts `listEventsByDateRange` is called with Monday and Sunday ISO strings when week navigation occurs
 
 ### Implementation for User Story 1
 
-- [ ] T017 Implement all exported pure helper functions in `frontend/src/pages/Calendar.tsx`:
+- [x] T017 Implement all exported pure helper functions in `frontend/src/pages/Calendar.tsx`:
   - `GRID_START_HOUR`, `GRID_TOTAL_MINUTES`, `SNAP_MINUTES`, `PX_PER_MINUTE` constants
   - `minutesSinceGridStart`, `eventTopPx`, `eventHeightPx`, `deriveDurationMinutes`
   - `snapToGrid`, `minutesToTime24h`
   - `getWeekStart`, `getWeekDates`, `formatWeekLabel`
   - Run `npm test -- --run`; T015 tests must now pass
-- [ ] T018 [P] Implement `CalendarPage` default export in `frontend/src/pages/Calendar.tsx` with:
+- [x] T018 [P] Implement `CalendarPage` default export in `frontend/src/pages/Calendar.tsx` with:
   - `viewWeekStart` state (Monday of current week)
   - `events: EventRecord[]` state loaded via `listEventsByDateRange(from, to)` on mount and on week change
   - Week navigation handlers: `goToPreviousWeek`, `goToNextWeek`, `goToCurrentWeek`
   - Split events into `timedEvents` / `untimedEvents`
   - Page shell layout with nav bar (Previous/Next/Today buttons + `formatWeekLabel` label)
-- [ ] T019 Create `frontend/src/components/calendar/WeekGrid.tsx` with:
+- [x] T019 Create `frontend/src/components/calendar/WeekGrid.tsx` with:
   - Props per contract: `events`, `weekStart`, `ghostBlock`, `onBlockClick`, `onBlockDragStart`, `onGridDrop`, `onGridDragOver`, `onCellPointerDown`
   - 7 day columns (Mon–Sun) with date headers; today's column has `calendar-col--today` CSS class
   - Left time-label column (07:00, 07:30, … 00:00 — 34 labels)
   - Renders `<EventBlock>` for each timed event with `top` and `height` derived from helpers
   - Renders `<GhostBlock>` when `ghostBlock` prop is non-null
-- [ ] T020 Create `frontend/src/components/calendar/EventBlock.tsx` with:
+- [x] T020 Create `frontend/src/components/calendar/EventBlock.tsx` with:
   - Props: `event`, `top`, `height`, `isDragging`, `onDragStart`, `onClick`
   - Lobby: `draggable={true}`, cursor grab; Running/Finished: `draggable={false}`, cursor default, `onDragStart` blocked
   - `isDragging` → opacity 0.4
   - Block content: truncated event name, event type badge, courts label, status badge for Running/Finished
   - CSS classes: `calendar-event-block calendar-event-block--{status} calendar-event-block--{eventType}`
-- [ ] T021 Create `frontend/src/components/calendar/UnscheduledStrip.tsx` with props `events` + `onBlockClick`; renders a labelled horizontal panel with event name chips
-- [ ] T022 Wire `WeekGrid`, `UnscheduledStrip` into `CalendarPage`; render `UnscheduledStrip` only when `untimedEvents.length > 0`
-- [ ] T023 Write test `frontend/tests/calendar-event-block.test.ts` covering: Running/Finished block has `draggable=false` and drag rejected; Lobby block has `draggable=true`; `isDragging=true` renders opacity class
-- [ ] T024 Run all frontend tests: `npm test -- --run` — all must pass
+- [x] T021 Create `frontend/src/components/calendar/UnscheduledStrip.tsx` with props `events` + `onBlockClick`; renders a labelled horizontal panel with event name chips
+- [x] T022 Wire `WeekGrid`, `UnscheduledStrip` into `CalendarPage`; render `UnscheduledStrip` only when `untimedEvents.length > 0`
+- [x] T023 Write test `frontend/tests/calendar-event-block.test.ts` covering: Running/Finished block has `draggable=false` and drag rejected; Lobby block has `draggable=true`; `isDragging=true` renders opacity class
+- [x] T024 Run all frontend tests: `npm test -- --run` — all must pass
 
 **Checkpoint**: US1 complete and independently testable. Admin can open `/calendar`, see events for the week, navigate weeks, see "Today" highlight. All frontend tests green.
 
