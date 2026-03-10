@@ -12,8 +12,11 @@
 - Q: Should the calendar be admin-only or visible to all players? → A: Admin-only, consistent with all other event management screens.
 - Q: How is event duration determined if `round_duration_minutes` is not currently exposed in the API? → A: Derive total duration as `round_count × round_duration_minutes`; if either field is missing or zero, default to 60 minutes per event block.
 - Q: Courts are integers — how should they appear on calendar blocks? → A: Show "Court X" labels using the integer values (e.g., "Court 1, Court 2").
-- Q: Should recurring event support modify the backend schema? → A: No — recurrence is handled client-side. Each occurrence is a separate event; a shared `recurrence_tag` (UUID) groups them for display and edit/delete propagation. The backend receives individual create/update/delete calls.
+- Q: Should recurring event support modify the backend schema? → A: No — recurrence is handled client-side. Each occurrence is a separate, fully independent event. No `recurrence_tag` or grouping is stored; once created the occurrences are unrelated.
+- Q: How are recurring occurrences scoped? → A: The original event is occurrence 1. The system auto-creates additional Lobby slots for every remaining same-weekday in the current calendar month (starting from the following week). Occurrences are independent — editing or deleting one has no effect on the others. No "this and future" scope prompt is shown.
 - Q: What happens to Running or Finished events — can they be rescheduled? → A: No. Running and Finished events are locked (non-draggable, non-resizable). They display a status badge. Only Lobby-status events may be moved or edited.
+- Q: Should the edit/creation panel be a side drawer or a modal? → A: Side drawer — slides in from the right, keeping the calendar grid visible behind it for context.
+- Q: Does `PATCH /api/v1/events/{id}` support partial updates (only sent fields updated, unset fields left unchanged)? → A: Yes — partial updates are supported. The frontend sends only the changed fields; unset fields are left unchanged on the backend.
 
 ---
 
@@ -41,17 +44,17 @@ As an organiser, I open the Calendar page and see all scheduled events laid out 
 
 ### User Story 2 — Drag to Reschedule a Lobby Event (Priority: P1)
 
-As an organiser, I drag an existing Lobby-status event block horizontally to a new time slot (snapping to 30-minute intervals) or vertically to a different day. When I drop it, the event's `event_date` and `event_time` are updated immediately (optimistic UI) and persisted to the backend. If the save fails, the event snaps back to its original position with an error toast.
+As an organiser, I drag an existing Lobby-status event block horizontally (left/right) to a different day, or vertically (up/down) to a new time slot (snapping to 30-minute intervals). When I drop it, the event's `event_date` and/or `event_time` are updated immediately (optimistic UI) and persisted to the backend. If the save fails, the event snaps back to its original position with an error toast.
 
 **Why this priority**: Rescheduling by drag-and-drop is the core productivity win of a calendar. It must work alongside the view (P1) to justify building this feature at all.
 
-**Independent Test**: Create a Lobby event scheduled for Monday 10:00. Drag it to Wednesday 14:30. Verify the block moves to Wed 14:30 in the UI immediately. Verify the backend `event_date` and `event_time` are updated. Drag a Running event — verify it does not move (cursor shows not-allowed, no drop accepted).
+**Independent Test**: Create a Lobby event scheduled for Monday 10:00. Drag it horizontally to Wednesday's column at the same vertical position — verify date changes to Wednesday, time stays 10:00. Drag it vertically downward to the 14:30 row — verify time changes to 14:30, date unchanged. Drag a Running event — verify it does not move (cursor shows not-allowed, no drop accepted).
 
 **Acceptance Scenarios**:
 
 1. **Given** a Lobby-status event block, **When** the organiser starts dragging it, **Then** the block becomes semi-transparent and a ghost/preview block follows the cursor, snapping to 30-minute grid positions.
-2. **Given** the organiser drags a Lobby event to a new time on the same day, **When** they drop it, **Then** the block moves to the new time slot immediately (optimistic) and `event_time` is updated via `PATCH /api/v1/events/{id}`.
-3. **Given** the organiser drags a Lobby event from Monday to Thursday, **When** they drop it, **Then** the block moves to Thursday's column and `event_date` is updated.
+2. **Given** the organiser drags a Lobby event vertically to a new time on the same day, **When** they drop it, **Then** the block moves to the new time slot immediately (optimistic) and `event_time` is updated via `PATCH /api/v1/events/{id}`.
+3. **Given** the organiser drags a Lobby event horizontally from Monday's column to Thursday's column, **When** they drop it, **Then** the block moves to Thursday's column and `event_date` is updated.
 4. **Given** a drag drop where the backend `PATCH` call returns an error, **When** the error is received, **Then** the event block snaps back to its original position and an error toast is displayed.
 5. **Given** a Running or Finished event block, **When** the organiser attempts to drag it, **Then** the drag is rejected (block does not move, cursor shows not-allowed).
 6. **Given** an event is dropped outside the 07:00–00:00 time range, **When** the drop lands below 07:00, **Then** the event snaps to 07:00 (earliest allowed slot); if above 00:00, it snaps to the last available slot.
@@ -60,7 +63,7 @@ As an organiser, I drag an existing Lobby-status event block horizontally to a n
 
 ### User Story 3 — Click Event Block to Edit or Delete (Priority: P1)
 
-As an organiser, I click on a Lobby-status event block in the calendar. A panel (side drawer or modal) opens showing the event's editable fields: name, event type, date, start time, duration, and courts. I can update any field and save. I can also delete the event with a confirmation step. Running/Finished events open a read-only view with no edit controls.
+As an organiser, I click on a Lobby-status event block in the calendar. A side drawer slides in from the right showing the event's editable fields: name, event type, date, start time, duration, and courts. The calendar grid remains visible behind it. I can update any field and save. I can also delete the event with a confirmation step. Running/Finished events open the same drawer in read-only mode with no edit controls.
 
 **Why this priority**: Edit and delete by click is necessary for basic calendar management. Drag-and-drop only handles time/day; all other properties need a dedicated edit surface.
 
@@ -80,7 +83,7 @@ As an organiser, I click on a Lobby-status event block in the calendar. A panel 
 
 ### User Story 4 — Drag on Empty Slot to Create a New Event (Priority: P2)
 
-As an organiser, I click and drag on an empty area in the calendar grid. A ghost block appears as I drag, showing the proposed start time and duration. When I release, a creation panel opens pre-filled with the date, start time, and a duration derived from my drag length (snapped to 30-minute increments, minimum 60 minutes). I complete the event details and confirm to create the event.
+As an organiser, I click and drag on an empty area in the calendar grid. A ghost block appears as I drag, showing the proposed start time and duration. When I release, a side drawer slides in from the right pre-filled with the date, start time, and a duration derived from my drag length (snapped to 30-minute increments, minimum 60 minutes). The calendar grid remains visible behind it. I complete the event details and confirm to create the event.
 
 **Why this priority**: Drag-to-create is a power-user shortcut that makes scheduling feel natural. However, events can also be created through the existing event creation flow, so this is an enhancement rather than a core requirement.
 
@@ -97,23 +100,22 @@ As an organiser, I click and drag on an empty area in the calendar grid. A ghost
 
 ---
 
-### User Story 5 — Recurring Events: Create Weekly Repeating Occurrences (Priority: P2)
+### User Story 5 — Recurring Events: Auto-Fill Remaining Month (Priority: P2)
 
-As an organiser, I create an event (via drag or the creation panel) and choose to repeat it weekly. I specify the number of occurrences (2–12 weeks). The system creates that many individual events, each one week apart, all sharing a `recurrence_tag`. When I edit or delete a recurring occurrence, I am asked whether to apply the change to "this event only" or "this and all future occurrences."
+As an organiser, I create an event and enable "Repeat weekly". The system automatically creates additional identical Lobby event slots for every remaining occurrence of the same weekday in the current calendar month — starting from the following week. Each created event is fully independent: I can move, edit, or delete any one of them without affecting the others.
 
-**Why this priority**: Most padel clubs run regular weekly sessions. Recurring events dramatically reduce scheduling friction for the most common use case.
+**Why this priority**: Most padel clubs run regular weekly sessions on the same day and time. Auto-filling the rest of the month with one toggle click eliminates repetitive manual scheduling for the most common use case.
 
-**Independent Test**: Create a recurring event for every Monday at 10:00 for 4 weeks. Verify 4 separate event blocks appear in the calendar (one per Monday). Edit the 2nd occurrence — choose "this only" — verify only that block changes. Delete the 3rd occurrence — choose "this and future" — verify 3rd and 4th blocks are removed, 1st and 2nd remain.
+**Independent Test**: On March 10 (Monday), create a Lobby event at 10:00 and enable "Repeat weekly". The system should auto-create slots for March 17 and March 24 (the two remaining Mondays in March). Verify 2 new event blocks appear at 10:00 on those dates. Drag March 17's block to 11:00 — verify only that block moves; March 24 stays at 10:00. Delete March 24's block — verify only that block disappears; March 10 and March 17 are unaffected.
 
 **Acceptance Scenarios**:
 
-1. **Given** the creation panel is open, **When** the organiser enables "Repeat weekly" and sets 4 occurrences, **Then** clicking "Create" calls `POST /api/v1/events` 4 times (each one week apart) and all 4 blocks appear in the calendar.
-2. **Given** 4 recurring event blocks exist (sharing a `recurrence_tag`), **When** the organiser clicks one and opens the edit panel, **Then** the panel shows a "Recurring event" indicator and "Edit scope" options: "This event only" or "This and future events".
-3. **Given** the organiser chooses "This event only" and saves changes, **When** the save completes, **Then** only that one occurrence is updated; the other occurrences are unchanged.
-4. **Given** the organiser chooses "This and future events" and saves changes, **When** the save completes, **Then** the selected occurrence and all later occurrences (same `recurrence_tag`, sorted by date, from this date forward) are updated.
-5. **Given** the organiser clicks "Delete" on a recurring event and chooses "This event only", **When** confirmed, **Then** only that occurrence is deleted; others remain.
-6. **Given** the organiser clicks "Delete" on a recurring event and chooses "This and future events", **When** confirmed, **Then** that occurrence and all later occurrences with the same `recurrence_tag` are deleted.
-7. **Given** a recurring event with a Running or Finished occurrence, **When** "This and future events" edit/delete would affect the Running/Finished occurrence, **Then** the Running/Finished occurrence is skipped (not modified or deleted); only Lobby occurrences are affected.
+1. **Given** the creation panel is open for a Monday event, **When** the organiser enables "Repeat weekly" and clicks "Create", **Then** the system calls `POST /api/v1/events` once per remaining Monday in the current calendar month (starting next week) and all resulting blocks appear in the calendar.
+2. **Given** "Repeat weekly" is enabled for an event created on the last weekday occurrence of the month, **When** the organiser creates the event, **Then** no additional occurrences are created (there are no remaining same-weekdays this month) and the organiser is informed via a brief notice.
+3. **Given** multiple recurring occurrence blocks have been created, **When** the organiser drags one block to a new time, **Then** only that block moves; all other blocks remain in their original positions.
+4. **Given** multiple recurring occurrence blocks exist, **When** the organiser deletes one via the edit panel, **Then** only that occurrence is deleted; all others remain.
+5. **Given** multiple recurring occurrence blocks exist, **When** the organiser edits the name or duration of one, **Then** only that occurrence is updated; all others are unchanged.
+6. **Given** a recurring occurrence creation would land on a date that already has an event at the same time, **When** the occurrences are created, **Then** all occurrences are created regardless; a non-blocking warning is shown listing the conflicting dates.
 
 ---
 
@@ -140,7 +142,8 @@ As an organiser, I switch the calendar from weekly view to daily view. In daily 
 - Event with `event_time` = null: placed in an "Unscheduled" strip below the grid; dragging it onto the grid assigns a time; dragging it back removes the time.
 - Event spanning midnight (e.g., 23:00 + 90 min duration): block is clipped at 00:00; remainder not shown (events past midnight are edge-case data and not supported in v1).
 - Two events at the same time on the same day: blocks are rendered side-by-side (reduced width) rather than overlapping.
-- Recurring event creation where a later occurrence falls on an already-booked time: warn the user (non-blocking) that a conflict exists; create all occurrences anyway.
+- "Repeat weekly" enabled on the last weekday occurrence of the month: zero additional occurrences are created; organiser sees a non-blocking notice.
+- "Repeat weekly" where one or more auto-created dates conflict with an existing event at the same time: all occurrences are created regardless; a non-blocking warning lists the conflicting dates.
 - Week navigation past year boundaries (e.g., Dec 28 → Jan 4): date headers correctly roll over to the new year.
 - Backend returns an error on drag-drop `PATCH`: event snaps back to original position; error toast shown; no retry attempted automatically.
 - Drag cancelled (Escape key or release outside grid): event snaps back to original position; no API call made.
@@ -161,11 +164,12 @@ As an organiser, I switch the calendar from weekly view to daily view. In daily 
 - **FR-005**: The current day column MUST be visually highlighted (e.g., distinct background or border) to distinguish it from other columns.
 - **FR-006**: Events with no `event_time` MUST be displayed in an "Unscheduled" section separate from the timed grid.
 - **FR-007**: Running and Finished events MUST display a status badge on their calendar block and MUST be visually distinct from Lobby events (e.g., muted/locked style).
+- **FR-007b**: The backend `GET /api/v1/events` endpoint MUST support `?from=YYYY-MM-DD&to=YYYY-MM-DD` query parameters to return only events within the given date range. The frontend MUST use these parameters when fetching events for each week view navigation.
 
 #### Drag-to-Reschedule
 
-- **FR-008**: Dragging a Lobby-status event block horizontally MUST move it to a new time slot, snapping to the nearest 30-minute interval.
-- **FR-009**: Dragging a Lobby-status event block vertically MUST move it to a different day column.
+- **FR-008**: Dragging a Lobby-status event block **vertically (up/down)** MUST move it to a new time slot, snapping to the nearest 30-minute interval.
+- **FR-009**: Dragging a Lobby-status event block **horizontally (left/right)** MUST move it to a different day column.
 - **FR-010**: A live preview ghost block MUST appear during drag showing the proposed new position and time label.
 - **FR-011**: On drop, the UI MUST update optimistically immediately, then persist the new `event_date` and/or `event_time` via `PATCH /api/v1/events/{id}`.
 - **FR-012**: If the backend `PATCH` call fails, the event block MUST revert to its pre-drag position and an error toast MUST be displayed.
@@ -174,26 +178,26 @@ As an organiser, I switch the calendar from weekly view to daily view. In daily 
 
 #### Click-to-Edit
 
-- **FR-015**: Clicking a Lobby event block MUST open an edit panel pre-filled with: event name, event type, date, start time, duration, and court list.
-- **FR-016**: The edit panel MUST allow updating: event name, date, start time, duration (60/90/120/custom minutes), and court list.
-- **FR-017**: Saving changes in the edit panel MUST persist updates via `PATCH /api/v1/events/{id}` and update the calendar block immediately.
-- **FR-018**: The edit panel MUST include a "Delete" button that, after a confirmation dialog, deletes the event via `DELETE /api/v1/events/{id}` and removes the block from the calendar.
-- **FR-019**: Clicking a Running or Finished event block MUST open a read-only info panel; no Save or Delete controls MUST be present.
-- **FR-020**: The edit panel MUST show a "Discard changes?" confirmation if the organiser attempts to close it with unsaved changes.
+- **FR-015**: Clicking a Lobby event block MUST open a **side drawer** (sliding in from the right) pre-filled with: event name, event type, date, start time, duration, and court list. The calendar grid MUST remain visible behind the open drawer.
+- **FR-016**: The side drawer MUST allow updating: event name, date, start time, duration (60/90/120/custom minutes), and court list.
+- **FR-017**: Saving changes in the side drawer MUST persist updates via `PATCH /api/v1/events/{id}` and update the calendar block immediately.
+- **FR-018**: The side drawer MUST include a "Delete" button that, after a confirmation dialog, deletes the event via `DELETE /api/v1/events/{id}` and removes the block from the calendar.
+- **FR-019**: Clicking a Running or Finished event block MUST open the same side drawer in read-only mode; no Save or Delete controls MUST be present.
+- **FR-020**: The side drawer MUST show a "Discard changes?" confirmation if the organiser attempts to close it with unsaved changes.
 
 #### Drag-to-Create
 
 - **FR-021**: Clicking and dragging on an empty calendar grid cell MUST initiate an event creation gesture, showing a ghost block growing from the drag origin.
-- **FR-022**: On release, the creation panel MUST open pre-filled with the date from the column, the start time from the drag origin (snapped to 30 minutes), and duration derived from drag length (minimum 60 minutes).
-- **FR-023**: The creation panel MUST require event name and event type before allowing submission.
-- **FR-024**: Cancelling the creation panel MUST remove the ghost block and create no event.
+- **FR-022**: On release, a **side drawer** MUST slide in from the right pre-filled with the date from the column, the start time from the drag origin (snapped to 30 minutes), and duration derived from drag length (minimum 60 minutes). The calendar grid MUST remain visible behind the open drawer.
+- **FR-023**: The side drawer MUST require event name and event type before allowing submission.
+- **FR-024**: Cancelling the side drawer MUST remove the ghost block and create no event.
 
 #### Recurring Events
 
-- **FR-025**: The creation panel MUST include an optional "Repeat weekly" toggle with an occurrence count selector (range: 2–12).
-- **FR-026**: When "Repeat weekly" is enabled and the organiser creates the event, the system MUST create N individual events via N separate `POST /api/v1/events` calls, each one week apart, all sharing a client-generated `recurrence_tag` UUID stored in the event's metadata or name convention.
-- **FR-027**: Editing or deleting a recurring occurrence MUST prompt the organiser to choose between "This event only" or "This and future events".
-- **FR-028**: "This and future events" edit/delete MUST skip any occurrence in Running or Finished status; only Lobby occurrences are affected.
+- **FR-025**: The creation panel MUST include an optional "Repeat weekly" toggle.
+- **FR-026**: When "Repeat weekly" is enabled and the organiser creates the event, the system MUST automatically calculate the remaining occurrences of the same weekday in the current calendar month (from the week following the original event's date) and create one additional Lobby event per occurrence via individual `POST /api/v1/events` calls, each with the same time, duration, event type, and court list as the original.
+- **FR-027**: If "Repeat weekly" is enabled but the original event falls on the last occurrence of that weekday in the current month, the system MUST create only the original event and display a non-blocking notice to the organiser.
+- **FR-028**: Each occurrence created by "Repeat weekly" MUST be a fully independent event — no shared identifier, no linked state. Editing, moving, or deleting one occurrence MUST NOT affect any other occurrence.
 
 #### Daily Court View
 
@@ -204,27 +208,26 @@ As an organiser, I switch the calendar from weekly view to daily view. In daily 
 ### Key Entities
 
 - **Calendar Block**: A visual representation of a scheduled event on the calendar grid. Has a position (day, start time), height (duration), colour (event type), and status indicator. Lobby blocks are interactive; Running/Finished blocks are locked.
-- **Recurrence Group**: A set of individual events sharing a `recurrence_tag` UUID. Each occurrence is an independent event in the backend. The frontend groups them for "edit/delete scope" prompts.
+- **Recurring Occurrence**: One of the auto-created Lobby events generated when "Repeat weekly" is enabled. Each occurrence is an independent event with no shared state or linkage to the others.
 - **Unscheduled Event**: An event with `event_date` set but `event_time` = null. Displayed in a separate strip below the main grid, outside the timed area.
 - **Ghost Block**: A semi-transparent placeholder shown during drag operations (drag-to-reschedule or drag-to-create), indicating where the event will land.
-- **Edit Panel**: A side drawer or modal containing event fields for editing. Opens on click of a Lobby event block. Read-only variant opens for locked events.
+- **Edit/Create Side Drawer**: A panel that slides in from the right edge of the screen. Used for both creating new events (pre-filled from drag gesture) and editing existing Lobby events (pre-filled from current event data). The calendar grid remains visible behind it. Read-only variant opens for Running/Finished events with no Save or Delete controls.
 
 ## Assumptions
 
 - **A1**: `round_duration_minutes` is stored in the backend but not yet exposed in the event API response. The spec assumes this field will be added to `GET /api/v1/events` and `GET /api/v1/events/{id}` responses as part of the implementation plan.
 - **A2**: Courts are integers only (no user-defined names). All court labels are rendered as "Court N" by the frontend.
-- **A3**: Recurrence is entirely client-side. The backend stores no recurrence metadata. A `recurrence_tag` is a UUID stored in a new optional `recurrence_tag` field on the event schema (backend schema addition required).
+- **A3**: Recurrence is entirely frontend-computed. No recurrence metadata is stored in the backend — no `recurrence_tag` field, no grouping. When "Repeat weekly" is toggled, the frontend calculates the remaining same-weekday dates in the current month and fires individual `POST` calls. Each resulting event is a plain independent Lobby event.
 - **A4**: The Calendar page is accessible to admin users only — it does not appear in the player-facing navigation.
 - **A5**: Events spanning midnight are not supported in v1. Blocks are clipped at 00:00.
 - **A6**: No new npm packages are allowed. Drag-and-drop must be implemented using native HTML5 drag-and-drop APIs or pointer events — no external DnD library.
-- **A7**: The existing `PATCH /api/v1/events/{id}` endpoint supports partial updates to `event_date`, `event_time`, and `selectedCourts`. If it does not currently support partial updates, this must be implemented as part of the plan.
+- **A7**: `PATCH /api/v1/events/{id}` supports partial updates — only the fields included in the request body are updated; omitted fields are left unchanged. The frontend MUST send only the changed fields on drag-drop and drawer-save operations.
 
 ## Dependencies
 
-- Existing `GET /api/v1/events` endpoint (event list with date, time, type, status).
+- Existing `GET /api/v1/events` endpoint — **requires addition of `?from` / `?to` date-range filter parameters** (backend work required).
 - Existing `POST /api/v1/events`, `PATCH /api/v1/events/{id}`, `DELETE /api/v1/events/{id}` endpoints.
 - `round_duration_minutes` field exposure in the event API response (currently stored in DB but not returned — requires backend addition).
-- New optional `recurrence_tag` field in the event schema (backend schema addition required for recurring events story).
 - Existing React Router navigation structure and admin-only route guard.
 - Existing toast/notification system for error feedback.
 
@@ -234,9 +237,9 @@ As an organiser, I switch the calendar from weekly view to daily view. In daily 
 
 - **SC-001**: The weekly calendar view renders all events for the current week at the correct day and time position in 100% of tested scenarios with up to 20 events in a week.
 - **SC-002**: Dragging a Lobby event to a new time slot updates the block position and persists the change to the backend within 2 seconds in 100% of tested drag operations.
-- **SC-003**: Clicking a Lobby event block opens the edit panel with all fields pre-filled correctly in 100% of tested cases.
-- **SC-004**: Creating a recurring event with 4 occurrences results in exactly 4 backend events being created, each one week apart, all sharing the same `recurrence_tag`.
+- **SC-003**: Clicking a Lobby event block opens the side drawer with all fields pre-filled correctly in 100% of tested cases.
+- **SC-004**: Enabling "Repeat weekly" on a Monday event created on March 10 results in exactly 2 additional backend events (March 17, March 24), each with the same time and configuration as the original, verified via API state after creation.
 - **SC-005**: Running and Finished events are never moved by drag operations in 100% of tested cases (drag attempts are rejected).
-- **SC-006**: All existing backend tests continue to pass with no regressions after backend changes (duration field exposure, recurrence_tag field).
+- **SC-006**: All existing backend tests continue to pass with no regressions after backend changes (duration field exposure and `?from`/`?to` filter addition only — no schema change required for recurrence).
 - **SC-007**: All existing frontend tests continue to pass with no regressions after calendar component additions.
-- **SC-008**: New tests cover: weekly grid rendering, drag-reschedule optimistic update + revert on error, edit panel pre-fill, recurring event creation (N API calls), and locked-event drag rejection.
+- **SC-008**: New tests cover: weekly grid rendering, drag-reschedule optimistic update + revert on error, side drawer pre-fill, recurring occurrence auto-calculation (correct remaining-weekdays-in-month logic), independent occurrence editing, and locked-event drag rejection.
