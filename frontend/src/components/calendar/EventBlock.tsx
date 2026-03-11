@@ -10,6 +10,7 @@ type EventBlockProps = {
   height: number    // px height
   isDragging: boolean
   onDragStart: (e: React.DragEvent) => void
+  onDragEnd: () => void
   onClick: () => void
 }
 
@@ -23,6 +24,7 @@ export default function EventBlock({
   height,
   isDragging,
   onDragStart,
+  onDragEnd,
   onClick,
 }: EventBlockProps) {
   const isLobby = event.status === "Lobby"
@@ -62,6 +64,7 @@ export default function EventBlock({
         }
         onDragStart(e)
       }}
+      onDragEnd={onDragEnd}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

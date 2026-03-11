@@ -1,3 +1,4 @@
+import { forwardRef } from "react"
 import type { EventRecord } from "../../lib/types"
 import {
   getWeekDates,
@@ -21,8 +22,10 @@ type WeekGridProps = {
   events: EventRecord[]
   weekStart: Date
   ghostBlock: GhostBlockState | null
+  draggingEventId: string | null
   onBlockClick: (event: EventRecord) => void
   onBlockDragStart: (event: EventRecord, e: React.DragEvent) => void
+  onBlockDragEnd: () => void
   onGridDrop: (e: React.DragEvent) => void
   onGridDragOver: (e: React.DragEvent) => void
   onCellPointerDown: (
@@ -74,21 +77,26 @@ const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 // WeekGrid
 // ---------------------------------------------------------------------------
 
-export default function WeekGrid({
-  events,
-  weekStart,
-  ghostBlock,
-  onBlockClick,
-  onBlockDragStart,
-  onGridDrop,
-  onGridDragOver,
-  onCellPointerDown,
-}: WeekGridProps) {
+export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
+  {
+    events,
+    weekStart,
+    ghostBlock,
+    draggingEventId,
+    onBlockClick,
+    onBlockDragStart,
+    onBlockDragEnd,
+    onGridDrop,
+    onGridDragOver,
+    onCellPointerDown,
+  },
+  ref
+) {
   const weekDates = getWeekDates(weekStart)
   const today = new Date()
 
   return (
-    <div className="calendar-week-grid" role="grid" aria-label="Weekly calendar">
+    <div ref={ref} className="calendar-week-grid" role="grid" aria-label="Weekly calendar">
       {/* Header row */}
       <div className="calendar-week-grid__header">
         {/* Spacer for the time label column */}
@@ -191,8 +199,9 @@ export default function WeekGrid({
                     event={event}
                     top={top}
                     height={height}
-                    isDragging={false}
+                    isDragging={draggingEventId === event.id}
                     onDragStart={(e) => onBlockDragStart(event, e)}
+                    onDragEnd={onBlockDragEnd}
                     onClick={() => onBlockClick(event)}
                   />
                 )
@@ -213,7 +222,7 @@ export default function WeekGrid({
       </div>
     </div>
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // Internal helper

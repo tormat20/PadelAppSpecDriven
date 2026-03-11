@@ -39,6 +39,7 @@ describe("EventBlock — draggable attribute", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     // The root div element's draggable prop should be true
@@ -53,6 +54,7 @@ describe("EventBlock — draggable attribute", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block).toBeTruthy()
@@ -66,6 +68,7 @@ describe("EventBlock — draggable attribute", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block).toBeTruthy()
@@ -81,6 +84,7 @@ describe("EventBlock — isDragging opacity", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.style?.opacity).toBe(1)
@@ -93,6 +97,7 @@ describe("EventBlock — isDragging opacity", () => {
       height: 60,
       isDragging: true,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.style?.opacity).toBe(0.4)
@@ -107,6 +112,7 @@ describe("EventBlock — CSS classes", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.className).toContain("calendar-event-block--lobby")
@@ -119,6 +125,7 @@ describe("EventBlock — CSS classes", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.className).toContain("calendar-event-block--running")
@@ -131,6 +138,7 @@ describe("EventBlock — CSS classes", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.className).toContain("calendar-event-block--finished")
@@ -145,6 +153,7 @@ describe("EventBlock — cursor style", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.style?.cursor).toBe("grab")
@@ -157,6 +166,7 @@ describe("EventBlock — cursor style", () => {
       height: 60,
       isDragging: false,
       onDragStart: vi.fn(),
+      onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
     expect(block?.props?.style?.cursor).toBe("default")

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import type { EventRecord } from "../lib/types"
-import { listEventsByDateRange } from "../lib/api"
+import { listEventsByDateRange, updateEvent } from "../lib/api"
+import { useToast } from "../components/toast/ToastProvider"
 import WeekGrid from "../components/calendar/WeekGrid"
 import UnscheduledStrip from "../components/calendar/UnscheduledStrip"
 import EventDrawer from "../components/calendar/EventDrawer"
@@ -138,22 +139,34 @@ export function formatWeekLabel(weekStart: Date): string {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 4 helper stubs (exported for future tests; implemented in Phase 4)
+// Phase 4 drag math helpers
 // ---------------------------------------------------------------------------
 
-export function computeDragDayIndex(clientX: number, gridRect: DOMRect): number {
+/**
+ * Given the cursor's clientX and the bounding rect of the 7-column grid,
+ * returns the day column index (0 = Monday … 6 = Sunday), clamped to [0, 6].
+ */
+export function computeDragDayIndex(
+  clientX: number,
+  gridRect: { left: number; width: number },
+): number {
   const relativeX = clientX - gridRect.left
   const colWidth = gridRect.width / 7
   return Math.min(Math.max(Math.floor(relativeX / colWidth), 0), 6)
 }
 
+/**
+ * Given the cursor's clientY, the bounding rect of the grid body, and the
+ * px-per-minute scale factor, returns the raw (un-snapped) minutes since
+ * grid start (07:00). The caller is responsible for snapping via snapToGrid().
+ */
 export function computeDropMinutes(
   clientY: number,
-  gridRect: DOMRect,
-  pxPerMinute: number
+  gridRect: { top: number; height: number },
+  pxPerMinute: number,
 ): number {
   const relativeY = clientY - gridRect.top
-  return snapToGrid(relativeY / pxPerMinute)
+  return relativeY / pxPerMinute
 }
 
 // ---------------------------------------------------------------------------
@@ -202,8 +215,19 @@ export type DrawerState =
 // CalendarPage (default export)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Pre-drag snapshot type (for optimistic revert on PATCH failure)
+// ---------------------------------------------------------------------------
+
+type PreDragSnapshot = {
+  eventId: string
+  originalDate: string
+  originalTime: string | null | undefined
+}
+
 export default function CalendarPage() {
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [viewWeekStart, setViewWeekStart] = useState<Date>(() =>
     getWeekStart(new Date())
@@ -211,6 +235,14 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<EventRecord[]>([])
   const [ghostBlock, setGhostBlock] = useState<GhostBlockState | null>(null)
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false })
+
+  // Drag state
+  const [draggingEventId, setDraggingEventId] = useState<string | null>(null)
+  const preDragSnapshot = useRef<PreDragSnapshot | null>(null)
+  const dropSucceeded = useRef(false)
+
+  // Ref to the WeekGrid DOM element for bounding rect calculations
+  const gridRef = useRef<HTMLDivElement | null>(null)
 
   // Derive timed / untimed splits
   const timedEvents = events.filter(
@@ -256,16 +288,138 @@ export default function CalendarPage() {
     setDrawerState({ open: true, mode: "edit", event })
   }
 
-  function handleBlockDragStart(_event: EventRecord, _e: React.DragEvent) {
-    // Phase 4
-  }
+  // -------------------------------------------------------------------------
+  // Drag handlers (T028 / T029 / T030)
+  // -------------------------------------------------------------------------
 
-  function handleGridDrop(_e: React.DragEvent) {
-    // Phase 4
+  function handleBlockDragStart(event: EventRecord, e: React.DragEvent) {
+    // Only Lobby events are draggable (EventBlock already guards this, but defensive check)
+    if (event.status !== "Lobby") {
+      e.preventDefault()
+      return
+    }
+
+    e.dataTransfer.setData("text/plain", event.id)
+    e.dataTransfer.effectAllowed = "move"
+
+    dropSucceeded.current = false
+    setDraggingEventId(event.id)
+    preDragSnapshot.current = {
+      eventId: event.id,
+      originalDate: event.eventDate,
+      originalTime: event.eventTime24h,
+    }
   }
 
   function handleGridDragOver(e: React.DragEvent) {
-    e.preventDefault() // Phase 4
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+
+    const gridEl = gridRef.current
+    if (!gridEl || !draggingEventId) return
+
+    const rect = gridEl.getBoundingClientRect()
+    const dayIndex = computeDragDayIndex(e.clientX, rect)
+    const rawMinutes = computeDropMinutes(e.clientY, rect, PX_PER_MINUTE)
+    // Clamp raw minutes to [0, GRID_TOTAL_MINUTES] before snapping (T030)
+    const clampedMinutes = Math.min(Math.max(rawMinutes, 0), GRID_TOTAL_MINUTES)
+    const snappedMinutes = snapToGrid(clampedMinutes)
+
+    // Find the dragging event to compute height
+    const dragEvent = events.find((ev) => ev.id === draggingEventId)
+    const height = dragEvent
+      ? eventHeightPx(deriveDurationMinutes(dragEvent), PX_PER_MINUTE)
+      : 60
+
+    // Build ghost label: "Day DD Mon HH:MM"
+    const weekDates = getWeekDates(viewWeekStart)
+    const dayDate = weekDates[dayIndex]
+    const SHORT_WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const timeLabel = minutesToTime24h(snappedMinutes)
+    const label = `${SHORT_WEEKDAY[dayDate.getDay()]} ${dayDate.getDate()} ${SHORT_MONTH[dayDate.getMonth()]}  ${timeLabel}`
+
+    setGhostBlock({
+      dayIndex,
+      top: snappedMinutes * PX_PER_MINUTE,
+      height,
+      label,
+      mode: "drag",
+    })
+  }
+
+  function handleGridDrop(e: React.DragEvent) {
+    e.preventDefault()
+
+    const eventId = e.dataTransfer.getData("text/plain")
+    if (!eventId) return
+
+    const gridEl = gridRef.current
+    if (!gridEl) return
+
+    const rect = gridEl.getBoundingClientRect()
+    const dayIndex = computeDragDayIndex(e.clientX, rect)
+    const rawMinutes = computeDropMinutes(e.clientY, rect, PX_PER_MINUTE)
+
+    // T030: Out-of-bounds clamping
+    // Drop below 07:00 → "07:00" (0 minutes), above 23:30 → "23:30" (960 minutes)
+    const clampedMinutes = Math.min(Math.max(rawMinutes, 0), GRID_TOTAL_MINUTES)
+    const snappedMinutes = snapToGrid(clampedMinutes)
+
+    // Derive new date from dayIndex
+    const weekDates = getWeekDates(viewWeekStart)
+    const newDate = toISODate(weekDates[dayIndex])
+    const newTime = minutesToTime24h(snappedMinutes)
+
+    // Find the event being dropped
+    const draggedEvent = events.find((ev) => ev.id === eventId)
+    if (!draggedEvent) return
+
+    // Optimistic update
+    setEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId
+          ? { ...ev, eventDate: newDate, eventTime24h: newTime }
+          : ev
+      )
+    )
+    setGhostBlock(null)
+    dropSucceeded.current = true
+    setDraggingEventId(null)
+
+    // PATCH to backend
+    updateEvent(eventId, {
+      expectedVersion: draggedEvent.version,
+      eventDate: newDate,
+      eventTime24h: newTime,
+    }).catch(() => {
+      // Revert optimistic update on failure (T030 / contract FR-012)
+      const snapshot = preDragSnapshot.current
+      if (snapshot) {
+        setEvents((prev) =>
+          prev.map((ev) =>
+            ev.id === eventId
+              ? { ...ev, eventDate: snapshot.originalDate, eventTime24h: snapshot.originalTime }
+              : ev
+          )
+        )
+      }
+      toast.error("Could not reschedule. Changes reverted.")
+    }).finally(() => {
+      preDragSnapshot.current = null
+    })
+  }
+
+  function handleDragEnd() {
+    // Fires when drag ends (cancel / Escape / drop outside grid)
+    if (!dropSucceeded.current) {
+      // No successful drop — restore everything, no API call
+      setGhostBlock(null)
+      setDraggingEventId(null)
+      preDragSnapshot.current = null
+    }
+    dropSucceeded.current = false
   }
 
   function handleCellPointerDown(_dayIndex: number, _minutesFromGridStart: number, _e: React.PointerEvent) {
@@ -310,11 +464,14 @@ export default function CalendarPage() {
 
       {/* Main grid */}
       <WeekGrid
+        ref={gridRef}
         events={timedEvents}
         weekStart={viewWeekStart}
         ghostBlock={ghostBlock}
+        draggingEventId={draggingEventId}
         onBlockClick={handleBlockClick}
         onBlockDragStart={handleBlockDragStart}
+        onBlockDragEnd={handleDragEnd}
         onGridDrop={handleGridDrop}
         onGridDragOver={handleGridDragOver}
         onCellPointerDown={handleCellPointerDown}

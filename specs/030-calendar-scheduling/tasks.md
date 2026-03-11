@@ -118,25 +118,25 @@ Frontend tests: `cd frontend && npm test -- --run`
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] Write failing unit tests in `frontend/tests/calendar-drag-reschedule.test.ts` covering:
+- [x] T025 [P] Write failing unit tests in `frontend/tests/calendar-drag-reschedule.test.ts` covering:
   - `computeDragDayIndex`: col 0 centre→0, col 6 centre→6, before col 0→0 (clamp), after col 6→6 (clamp)
   - `computeDropMinutes`: at grid top & pxPerMinute=1 → 0; at grid bottom → 1020
   - `snapToGrid(975)` → 960 (clamp to last valid slot)
 
 ### Implementation for User Story 2
 
-- [ ] T026 Export `computeDragDayIndex(clientX, gridRect)` and `computeDropMinutes(clientY, gridRect, pxPerMinute)` from `frontend/src/pages/Calendar.tsx`; implement both — run T025 tests to verify
-- [ ] T027 Create `frontend/src/components/calendar/GhostBlock.tsx` with props `top`, `height`, `label`, `mode`; CSS: `position: absolute; opacity: 0.45; pointer-events: none; z-index: 10; border: 2px dashed var(--color-accent)`
-- [ ] T028 Add drag-reschedule state and handlers to `CalendarPage` in `frontend/src/pages/Calendar.tsx`:
+- [x] T026 Export `computeDragDayIndex(clientX, gridRect)` and `computeDropMinutes(clientY, gridRect, pxPerMinute)` from `frontend/src/pages/Calendar.tsx`; implement both — run T025 tests to verify
+- [x] T027 Create `frontend/src/components/calendar/GhostBlock.tsx` with props `top`, `height`, `label`, `mode`; CSS: `position: absolute; opacity: 0.45; pointer-events: none; z-index: 10; border: 2px dashed var(--color-accent)`
+- [x] T028 Add drag-reschedule state and handlers to `CalendarPage` in `frontend/src/pages/Calendar.tsx`:
   - `draggingEventId: string | null` state
   - `preDragSnapshot: { eventId; originalDate; originalTime } | null` ref
   - `handleBlockDragStart(event, e)`: set `draggingEventId`, populate `preDragSnapshot`, store eventId in `dataTransfer`
   - `handleGridDragOver(e)`: call `e.preventDefault()`; compute and update `ghostBlock` state via `computeDragDayIndex` / `computeDropMinutes` / `snapToGrid`
   - `handleGridDrop(e)`: compute new date + time; apply optimistic update to `events` state; call `updateEvent`; on failure revert state and show `useToast().error(...)`; on success/finally clear `draggingEventId` and `ghostBlock`
   - `handleDragEnd`: clear drag state if drop did not succeed (use `dropSucceeded` ref)
-- [ ] T029 Pass drag handlers from `CalendarPage` into `WeekGrid` and `EventBlock`; wire `onGridDrop`, `onGridDragOver`, `onBlockDragStart` props
-- [ ] T030 Implement out-of-bounds clamping in drop handler: drop below 07:00 → "07:00"; drop above 23:30 → "23:30"
-- [ ] T031 Run all frontend tests: `npm test -- --run` — all must pass
+- [x] T029 Pass drag handlers from `CalendarPage` into `WeekGrid` and `EventBlock`; wire `onGridDrop`, `onGridDragOver`, `onBlockDragStart` props
+- [x] T030 Implement out-of-bounds clamping in drop handler: drop below 07:00 → "07:00"; drop above 23:30 → "23:30"
+- [x] T031 Run all frontend tests: `npm test -- --run` — all must pass
 
 **Checkpoint**: US2 complete. Drag-reschedule works with optimistic update + revert. Running/Finished events reject drag. All frontend tests green.
 
