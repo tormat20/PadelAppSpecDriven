@@ -1,0 +1,3 @@
+The next step forward is to create a calender. The calender should have hours of the day from 7 - 00 on the x axis and the days of teh week on the y axis. Where we symbolize events with boxes that fills the calender. This is a way of visualizing what is about to happen for the upcoming week. 
+
+I want to have different colors ( in teh same color pallet) for different events. The key things here is that i want to be able to drag and drop events (empty event slots) in the calender, to create the 

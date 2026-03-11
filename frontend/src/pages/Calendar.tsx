@@ -1,21 +1,34 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import type { EventRecord } from "../lib/types"
-import { listEventsByDateRange, updateEvent } from "../lib/api"
+import { listEventsByDateRange, updateEvent, deleteEvent } from "../lib/api"
+import type { UpdateEventPayload } from "../lib/types"
 import { useToast } from "../components/toast/ToastProvider"
 import WeekGrid from "../components/calendar/WeekGrid"
 import UnscheduledStrip from "../components/calendar/UnscheduledStrip"
 import EventDrawer from "../components/calendar/EventDrawer"
 
 // ---------------------------------------------------------------------------
-// Grid constants (exported for use in tests and sub-components)
+// Grid constants — defined in calendarConstants.ts; re-exported here so that
+// existing tests that import from Calendar.tsx continue to work, and so that
+// WeekGrid.tsx can import directly without creating a circular dependency.
 // ---------------------------------------------------------------------------
 
-export const GRID_START_HOUR = 7         // 07:00
-export const GRID_END_HOUR = 24          // 00:00 next day (midnight)
-export const GRID_TOTAL_MINUTES = (GRID_END_HOUR - GRID_START_HOUR) * 60  // 1020
-export const SNAP_MINUTES = 30
-export const PX_PER_MINUTE = 1           // 1 px per minute → grid height = 1020 px
+export {
+  GRID_START_HOUR,
+  GRID_END_HOUR,
+  GRID_TOTAL_MINUTES,
+  SNAP_MINUTES,
+  PX_PER_MINUTE,
+} from "../components/calendar/calendarConstants"
+
+// Keep a local alias for use within this file
+import {
+  GRID_START_HOUR,
+  GRID_TOTAL_MINUTES,
+  SNAP_MINUTES,
+  PX_PER_MINUTE,
+} from "../components/calendar/calendarConstants"
 
 // ---------------------------------------------------------------------------
 // Exported pure helper functions (contract: calendar-page-weekly-view.md)
@@ -209,6 +222,7 @@ export type GhostBlockState = {
 export type DrawerState =
   | { open: false }
   | { open: true; mode: "edit"; event: EventRecord }
+  | { open: true; mode: "readonly"; event: EventRecord }
   | { open: true; mode: "create"; dayIndex: number; startMinutes: number }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +299,11 @@ export default function CalendarPage() {
   }
 
   function handleBlockClick(event: EventRecord) {
-    setDrawerState({ open: true, mode: "edit", event })
+    if (event.status === "Lobby") {
+      setDrawerState({ open: true, mode: "edit", event })
+    } else {
+      setDrawerState({ open: true, mode: "readonly", event })
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -426,14 +444,29 @@ export default function CalendarPage() {
     // Phase 6 (create new event)
   }
 
-  function handleSave(_payload: Partial<EventRecord>) {
-    // Phase 5
-    setDrawerState({ open: false })
+  async function handleSave(payload: UpdateEventPayload): Promise<void> {
+    if (!drawerState.open || drawerState.mode === "create") return
+    const eventId = drawerState.event.id
+    try {
+      const updated = await updateEvent(eventId, payload)
+      setEvents((prev) => prev.map((ev) => (ev.id === eventId ? updated : ev)))
+      setDrawerState({ open: false })
+    } catch {
+      // Error is surfaced inline inside EventDrawer — rethrow so drawer can catch it
+      throw new Error("Failed to save event")
+    }
   }
 
-  function handleDelete(_eventId: string) {
-    // Phase 5
-    setDrawerState({ open: false })
+  async function handleDelete(eventId: string, version: number): Promise<void> {
+    try {
+      await deleteEvent(eventId)
+      // version parameter reserved for optimistic-concurrency — not used in DELETE today
+      void version
+      setEvents((prev) => prev.filter((ev) => ev.id !== eventId))
+      setDrawerState({ open: false })
+    } catch {
+      throw new Error("Failed to delete event")
+    }
   }
 
   function handleDrawerClose() {

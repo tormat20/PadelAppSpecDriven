@@ -150,15 +150,15 @@ Frontend tests: `cd frontend && npm test -- --run`
 
 ### Tests for User Story 3
 
-- [ ] T032 Write failing unit tests in `frontend/tests/calendar-drawer.test.ts` covering:
+- [x] T032 Write failing unit tests in `frontend/tests/calendar-drawer.test.ts` covering:
   - `isDrawerDirty(original, current)` → false when nothing changed; true when any field changed
   - Duration derivation: `deriveDurationMinutes` with totalRounds=3, roundDurationMinutes=30 → 90
 
 ### Implementation for User Story 3
 
-- [ ] T033 Define `DrawerState`, `DrawerPrefill` types in `frontend/src/pages/Calendar.tsx` (or `frontend/src/components/calendar/types.ts`) per data-model.md
-- [ ] T034 Export `isDrawerDirty(original: DrawerFormValues, current: DrawerFormValues): boolean` from `frontend/src/components/calendar/EventDrawer.tsx`; run T032 tests to verify
-- [ ] T035 Create `frontend/src/components/calendar/EventDrawer.tsx` with:
+- [x] T033 Define `DrawerState`, `DrawerPrefill` types in `frontend/src/pages/Calendar.tsx` (or `frontend/src/components/calendar/types.ts`) per data-model.md
+- [x] T034 Export `isDrawerDirty(original: DrawerFormValues, current: DrawerFormValues): boolean` from `frontend/src/components/calendar/EventDrawer.tsx`; run T032 tests to verify
+- [x] T035 Create `frontend/src/components/calendar/EventDrawer.tsx` with:
   - Props: `state: DrawerState`, `onSave`, `onDelete`, `onClose`
   - Edit mode fields: event name (text), event type (select), date (date input), start time (time, step=1800), duration (select: 60/90/120/custom), courts (number input)
   - Save behaviour: send only changed fields + `expectedVersion` via PATCH; on success update events state + close; on error show inline error
@@ -166,13 +166,13 @@ Frontend tests: `cd frontend && npm test -- --run`
   - Discard-changes prompt: when closing with unsaved form changes show `window.confirm("Discard changes?")`
   - Read-only mode: all fields `disabled`, no Save or Delete buttons, only Close button
   - Slide-in animation using `motion.div` (Framer Motion): `initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "tween", duration: 0.22 }}`
-- [ ] T036 Add `drawerState: DrawerState` state and handlers to `CalendarPage` in `frontend/src/pages/Calendar.tsx`:
+- [x] T036 Add `drawerState: DrawerState` state and handlers to `CalendarPage` in `frontend/src/pages/Calendar.tsx`:
   - `handleBlockClick(event)`: Lobby → `{ open: true, mode: "edit", event }`; Running/Finished → `{ open: true, mode: "readonly", event }`
   - `handleSave(updates)`: call `updateEvent`; on success update `events` state + close drawer
   - `handleDelete(eventId, version)`: call `deleteEvent`; on success remove from `events` state + close drawer
   - `handleDrawerClose`: check dirty state; if dirty show confirm; else close
-- [ ] T037 Wire `EventDrawer` into `CalendarPage` JSX; pass `drawerState`, `onSave`, `onDelete`, `onClose`
-- [ ] T038 Run all frontend tests: `npm test -- --run` — all must pass
+- [x] T037 Wire `EventDrawer` into `CalendarPage` JSX; pass `drawerState`, `onSave`, `onDelete`, `onClose`
+- [x] T038 Run all frontend tests: `npm test -- --run` — all must pass
 
 **Checkpoint**: US3 complete. Editing and deleting via drawer works. Read-only mode for locked events. Discard-changes prompt guards unsaved work. All frontend tests green.
 

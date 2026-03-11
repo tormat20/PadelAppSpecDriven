@@ -5,12 +5,14 @@ import {
   eventTopPx,
   eventHeightPx,
   deriveDurationMinutes,
+} from "../../pages/Calendar"
+import type { GhostBlockState } from "../../pages/Calendar"
+import {
   PX_PER_MINUTE,
   GRID_START_HOUR,
   GRID_TOTAL_MINUTES,
   SNAP_MINUTES,
-} from "../../pages/Calendar"
-import type { GhostBlockState } from "../../pages/Calendar"
+} from "./calendarConstants"
 import EventBlock from "./EventBlock"
 import GhostBlock from "./GhostBlock"
 
