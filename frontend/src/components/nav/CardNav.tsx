@@ -24,6 +24,12 @@ const NAV_CARDS = [
     colorClass: "card-nav-card--view",
   },
   {
+    title: "Calendar",
+    subtitle: "Schedule and drag events on the week view",
+    to: "/calendar",
+    colorClass: "card-nav-card--calendar",
+  },
+  {
     title: "Register Player",
     subtitle: "Add a new player to the roster",
     to: "/players/register",

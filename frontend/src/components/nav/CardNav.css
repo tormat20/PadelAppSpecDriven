@@ -194,6 +194,14 @@
   );
 }
 
+.card-nav-card--calendar {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-menu-card-bg-start) 80%, var(--color-info, #0ea5e9) 20%),
+    color-mix(in srgb, var(--color-menu-card-bg-end) 76%, var(--color-info, #0284c7) 24%)
+  );
+}
+
 /* Up-right arrow anchored to bottom-right of each card */
 .card-nav-card-arrow {
   bottom: var(--space-4);

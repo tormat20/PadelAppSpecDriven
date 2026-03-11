@@ -9,6 +9,7 @@ export function getMenuCardClassName(): string {
 const cards = [
   { title: "Create Event", to: "/events/create", subtitle: "Configure courts and players" },
   { title: "View Events", to: "/events", subtitle: "Browse and manage all events" },
+  { title: "Calendar", to: "/calendar", subtitle: "Schedule and drag events on the week view" },
   { title: "Register Player", to: "/players/register", subtitle: "Add a new player to the roster" },
 ]
 
