@@ -1,4 +1,3 @@
 SELECT id, display_name, global_ranking_score, email
 FROM players
-WHERE lower(display_name) LIKE lower(?)
-ORDER BY display_name;
+WHERE lower(email) = lower(?);

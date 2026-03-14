@@ -16,6 +16,7 @@ class Player:
     id: str
     display_name: str
     global_ranking_score: int
+    email: str | None = None
 
 
 @dataclass(slots=True)

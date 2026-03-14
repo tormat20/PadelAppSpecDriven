@@ -4,14 +4,16 @@ import { createWorker } from "tesseract.js"
 
 import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
 import { matchNamesToCatalog, parseOcrNames } from "../../features/ocr/ocrImport"
+import { parseBookingHtml, parseBookingText } from "../../features/ocr/bookingTextParser"
 import { createOrReusePlayer } from "../../lib/api"
 import type { OcrMatchResult } from "../../features/ocr/ocrImport"
 
 type OcrStatus = "idle" | "processing" | "results" | "error"
+type Tab = "image" | "text"
 
 type OcrImportPanelProps = {
   /** Player catalog used for name matching and duplicate detection. */
-  catalog: { id: string; displayName: string }[]
+  catalog: { id: string; displayName: string; email?: string | null }[]
 
   /**
    * Controls behaviour and labelling:
@@ -43,6 +45,7 @@ type OcrImportPanelProps = {
 }
 
 export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRoster, onConfirmRegister }: OcrImportPanelProps) {
+  const [tab, setTab] = useState<Tab>("image")
   const [status, setStatus] = useState<OcrStatus>("idle")
   const [results, setResults] = useState<OcrMatchResult[]>([])
   const [checked, setChecked] = useState<Set<string>>(new Set())
@@ -130,8 +133,10 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   // Attach clipboard paste listener to document — only when no parent is
   // managing paste (pendingFile prop is absent). When a parent owns the paste
   // listener (e.g. PlayerSelector) it passes files via pendingFile instead.
+  // Only active on the "image" tab.
   useEffect(() => {
     if (pendingFile !== undefined) return // parent owns paste
+    if (tab !== "image") return
     const handler = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items
       if (!items) return
@@ -145,7 +150,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
     }
     document.addEventListener("paste", handler)
     return () => document.removeEventListener("paste", handler)
-  }, [runOcr, pendingFile])
+  }, [runOcr, pendingFile, tab])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -153,6 +158,63 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
     // Reset input so the same file can be re-selected
     e.target.value = ""
   }
+
+  // ---------------------------------------------------------------------------
+  // "Paste list" tab — parse booking text/HTML on paste into the textarea
+  // ---------------------------------------------------------------------------
+
+  const handleTextareaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+
+    // Try HTML first (richer / unambiguous bold-tag strategy)
+    const htmlData = e.clipboardData.getData("text/html")
+    const textData = e.clipboardData.getData("text/plain")
+
+    let participants: { name: string; email: string }[] = []
+    if (htmlData) {
+      participants = parseBookingHtml(htmlData)
+    }
+    if (participants.length === 0 && textData) {
+      participants = parseBookingText(textData)
+    }
+
+    if (participants.length === 0) return
+
+    // Convert ParsedParticipant[] → OcrMatchResult[] by looking up catalog
+    const matched: OcrMatchResult[] = participants.map(({ name, email }) => {
+      // Email-first match against catalog
+      const emailLower = email.toLowerCase()
+      let matchedPlayer =
+        catalog.find((p) => p.email != null && p.email.toLowerCase() === emailLower) ?? null
+
+      // Fallback: name-based match
+      if (!matchedPlayer) {
+        const normalizedName = name.toLowerCase().trim()
+        matchedPlayer =
+          catalog.find((p) => p.displayName.toLowerCase().trim() === normalizedName) ?? null
+      }
+
+      return { rawName: name, email, matchedPlayer }
+    })
+
+    // Deduplicate by rawName in case parser returned duplicates
+    const seen = new Set<string>()
+    const deduped = matched.filter((r) => {
+      if (seen.has(r.rawName)) return false
+      seen.add(r.rawName)
+      return true
+    })
+
+    setResults(deduped)
+    setChecked(new Set(deduped.map((r) => r.rawName)))
+    setDismissed(new Set())
+    setIndividuallyRegistered(new Map())
+    setStatus("results")
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared result/action logic (used by both tabs)
+  // ---------------------------------------------------------------------------
 
   const toggleChecked = (rawName: string) => {
     setChecked((prev) => {
@@ -187,18 +249,18 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
    * Register a single unmatched player via the "Add New Player" per-row button.
    * On success the row moves to the left (in-system) column and is pre-checked.
    */
-  const handleAddNewPlayer = async (rawName: string, localCatalog: { id: string; displayName: string }[]) => {
-    setRegistering((prev) => new Set(prev).add(rawName))
+  const handleAddNewPlayer = async (r: OcrMatchResult, localCatalog: { id: string; displayName: string; email?: string | null }[]) => {
+    setRegistering((prev) => new Set(prev).add(r.rawName))
     try {
-      const { player } = await createOrReusePlayer(rawName, localCatalog)
-      setIndividuallyRegistered((prev) => new Map(prev).set(rawName, player))
-      setChecked((prev) => new Set(prev).add(rawName))
+      const { player } = await createOrReusePlayer(r.rawName, localCatalog, r.email)
+      setIndividuallyRegistered((prev) => new Map(prev).set(r.rawName, player))
+      setChecked((prev) => new Set(prev).add(r.rawName))
     } catch {
       // If creation fails, leave the row in the unmatched column
     } finally {
       setRegistering((prev) => {
         const next = new Set(prev)
-        next.delete(rawName)
+        next.delete(r.rawName)
         return next
       })
     }
@@ -250,48 +312,67 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   // Only in-system checked rows count.
   const checkedCount = results.filter((r) => isInSystem(r) && checked.has(r.rawName)).length
 
+  // Switch tabs: reset any in-progress results
+  const handleTabChange = (newTab: Tab) => {
+    if (newTab === tab) return
+    handleReset()
+    setTab(newTab)
+  }
+
   return (
     <div className="ocr-import-panel">
-      {/* Idle state — drop zone + file picker */}
-      {status === "idle" && (
-        <div className="ocr-drop-zone">
-          <p className="muted">Paste a screenshot or pick an image file</p>
-          <label className="ocr-file-label">
-            <input
-              type="file"
-              accept="image/*"
-              className="visually-hidden"
-              onChange={handleFileChange}
-            />
-            <span className={withInteractiveSurface("button-secondary")}>Choose image…</span>
-          </label>
-        </div>
-      )}
+      {/* Tab bar */}
+      <div className="ocr-tab-bar" role="tablist">
+        <button
+          role="tab"
+          type="button"
+          aria-selected={tab === "image"}
+          className={`ocr-tab${tab === "image" ? " ocr-tab--active" : ""}`}
+          onClick={() => handleTabChange("image")}
+        >
+          Image
+        </button>
+        <button
+          role="tab"
+          type="button"
+          aria-selected={tab === "text"}
+          className={`ocr-tab${tab === "text" ? " ocr-tab--active" : ""}`}
+          onClick={() => handleTabChange("text")}
+        >
+          Paste list
+        </button>
+      </div>
 
-      {/* Processing state */}
-      {status === "processing" && (
-        <p className="muted">Reading names…</p>
-      )}
+      {/* ------------------------------------------------------------------ */}
+      {/* IMAGE TAB                                                            */}
+      {/* ------------------------------------------------------------------ */}
+      {tab === "image" && (
+        <>
+          {/* Idle state — drop zone + file picker */}
+          {status === "idle" && (
+            <div className="ocr-drop-zone">
+              <p className="muted">Paste a screenshot or pick an image file</p>
+              <label className="ocr-file-label">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="visually-hidden"
+                  onChange={handleFileChange}
+                />
+                <span className={withInteractiveSurface("button-secondary")}>Choose image…</span>
+              </label>
+            </div>
+          )}
 
-      {/* Error state */}
-      {status === "error" && (
-        <div>
-          <p className="warning-text" role="alert">{ocrError}</p>
-          <button
-            className={withInteractiveSurface("button-secondary")}
-            onClick={handleReset}
-          >
-            Try again
-          </button>
-        </div>
-      )}
+          {/* Processing state */}
+          {status === "processing" && (
+            <p className="muted">Reading names…</p>
+          )}
 
-      {/* Results state */}
-      {status === "results" && (
-        <div className="ocr-results">
-          {results.length === 0 ? (
+          {/* Error state */}
+          {status === "error" && (
             <div>
-              <p className="muted">No names found — try a clearer image.</p>
+              <p className="warning-text" role="alert">{ocrError}</p>
               <button
                 className={withInteractiveSurface("button-secondary")}
                 onClick={handleReset}
@@ -299,69 +380,74 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                 Try again
               </button>
             </div>
-          ) : (
-            <>
-              <div className="ocr-columns">
-                {/* Left column — in system (originally matched OR individually registered) */}
-                <div className="ocr-column">
-                  <p className="section-title">Already in system</p>
-                  <div className="player-listbox">
-                    {inSystemResults.length === 0 ? (
-                      <p className="muted player-listbox-empty">None found</p>
-                    ) : (
-                      inSystemResults.map((r) => {
-                        const isAlreadyRegistered = mode === "register"
-                        const isChecked = checked.has(r.rawName)
-                        return (
-                          <div
-                            key={r.rawName}
-                            className="ocr-in-system-row"
-                          >
-                            {!isAlreadyRegistered && (
-                              <button
-                                type="button"
-                                className={withInteractiveSurface("row-action row-action-remove")}
-                                aria-label={`Remove ${r.rawName}`}
-                                onClick={() => dismissPlayer(r.rawName)}
-                              >
-                                −
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className={withInteractiveSurface("player-listbox-option ocr-in-system-name")}
-                              aria-pressed={isChecked}
-                              disabled={isAlreadyRegistered}
-                              onClick={() => !isAlreadyRegistered && toggleChecked(r.rawName)}
-                              data-active={isChecked}
-                            >
-                              <span>{r.rawName}</span>
-                              {isAlreadyRegistered
-                                ? <span className="tag">Registered</span>
-                                : <span className="tag">Matched</span>
-                              }
-                            </button>
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
+          )}
 
-                {/* Right column — not yet in system */}
-                <div className="ocr-column">
-                  <p className="section-title">New players</p>
-                  <div className="player-listbox">
-                    {newResults.length === 0 ? (
-                      <p className="muted player-listbox-empty">None found</p>
-                    ) : (
-                      newResults.map((r) => {
-                        const isSaving = registering.has(r.rawName)
-                        return (
-                          <div
-                            key={r.rawName}
-                            className="ocr-new-player-row"
-                          >
+          {/* Results state */}
+          {status === "results" && renderResults()}
+        </>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* PASTE LIST TAB                                                       */}
+      {/* ------------------------------------------------------------------ */}
+      {tab === "text" && (
+        <>
+          {status === "idle" && (
+            <div className="ocr-drop-zone">
+              <p className="muted">Paste your booking list below — names and emails are extracted automatically.</p>
+              <textarea
+                className="ocr-paste-area"
+                placeholder="Paste here…"
+                rows={6}
+                onPaste={handleTextareaPaste}
+                readOnly
+                aria-label="Paste booking list here"
+              />
+            </div>
+          )}
+
+          {/* Results state */}
+          {status === "results" && renderResults()}
+        </>
+      )}
+    </div>
+  )
+
+  // ---------------------------------------------------------------------------
+  // Shared results renderer (used by both tabs)
+  // ---------------------------------------------------------------------------
+  function renderResults() {
+    return (
+      <div className="ocr-results">
+        {results.length === 0 ? (
+          <div>
+            <p className="muted">No names found — try a clearer image.</p>
+            <button
+              className={withInteractiveSurface("button-secondary")}
+              onClick={handleReset}
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="ocr-columns">
+              {/* Left column — in system (originally matched OR individually registered) */}
+              <div className="ocr-column">
+                <p className="section-title">Already in system</p>
+                <div className="player-listbox">
+                  {inSystemResults.length === 0 ? (
+                    <p className="muted player-listbox-empty">None found</p>
+                  ) : (
+                    inSystemResults.map((r) => {
+                      const isAlreadyRegistered = mode === "register"
+                      const isChecked = checked.has(r.rawName)
+                      return (
+                        <div
+                          key={r.rawName}
+                          className="ocr-in-system-row"
+                        >
+                          {!isAlreadyRegistered && (
                             <button
                               type="button"
                               className={withInteractiveSurface("row-action row-action-remove")}
@@ -370,46 +456,97 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                             >
                               −
                             </button>
-                            <span className="ocr-new-player-name">{r.rawName}</span>
-                            <button
-                              type="button"
-                              className={withInteractiveSurface("button-secondary ocr-add-btn")}
-                              disabled={isSaving}
-                              onClick={() => void handleAddNewPlayer(r.rawName, liveCatalog)}
-                            >
-                              {isSaving ? "Saving…" : "Add New Player"}
-                            </button>
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
+                          )}
+                          <button
+                            type="button"
+                            className={withInteractiveSurface("player-listbox-option ocr-in-system-name")}
+                            aria-pressed={isChecked}
+                            disabled={isAlreadyRegistered}
+                            onClick={() => !isAlreadyRegistered && toggleChecked(r.rawName)}
+                            data-active={isChecked}
+                          >
+                            <span className="ocr-player-name">{r.rawName}</span>
+                            {r.email && (
+                              <span className="ocr-player-email muted">{r.email}</span>
+                            )}
+                            {isAlreadyRegistered
+                              ? <span className="tag">Registered</span>
+                              : <span className="tag">Matched</span>
+                            }
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
 
-              <div className="action-row">
-                <button
-                  className={withInteractiveSurface("button-secondary")}
-                  onClick={handleReset}
-                >
-                  Clear
-                </button>
-                <button
-                  className={withInteractiveSurface("button")}
-                  onClick={mode === "roster" ? () => void handleConfirmRoster() : handleConfirmRegister}
-                  disabled={isConfirming || checkedCount === 0}
-                >
-                  {isConfirming
-                    ? "Saving…"
-                    : mode === "roster"
-                      ? "Add to Roster"
-                      : "Register All"}
-                </button>
+              {/* Right column — not yet in system */}
+              <div className="ocr-column">
+                <p className="section-title">New players</p>
+                <div className="player-listbox">
+                  {newResults.length === 0 ? (
+                    <p className="muted player-listbox-empty">None found</p>
+                  ) : (
+                    newResults.map((r) => {
+                      const isSaving = registering.has(r.rawName)
+                      return (
+                        <div
+                          key={r.rawName}
+                          className="ocr-new-player-row"
+                        >
+                          <button
+                            type="button"
+                            className={withInteractiveSurface("row-action row-action-remove")}
+                            aria-label={`Remove ${r.rawName}`}
+                            onClick={() => dismissPlayer(r.rawName)}
+                          >
+                            −
+                          </button>
+                          <span className="ocr-new-player-info">
+                            <span className="ocr-new-player-name">{r.rawName}</span>
+                            {r.email && (
+                              <span className="ocr-player-email muted">{r.email}</span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            className={withInteractiveSurface("button-secondary ocr-add-btn")}
+                            disabled={isSaving}
+                            onClick={() => void handleAddNewPlayer(r, liveCatalog)}
+                          >
+                            {isSaving ? "Saving…" : "Add New Player"}
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  )
+            </div>
+
+            <div className="action-row">
+              <button
+                className={withInteractiveSurface("button-secondary")}
+                onClick={handleReset}
+              >
+                Clear
+              </button>
+              <button
+                className={withInteractiveSurface("button")}
+                onClick={mode === "roster" ? () => void handleConfirmRoster() : handleConfirmRegister}
+                disabled={isConfirming || checkedCount === 0}
+              >
+                {isConfirming
+                  ? "Saving…"
+                  : mode === "roster"
+                    ? "Add to Roster"
+                    : "Register All"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
 }

@@ -101,7 +101,7 @@ function getFriendlyMessage(detail: ErrorDetail, fallback: string): string {
   return fallback
 }
 
-export type PlayerApiRecord = { id: string; displayName: string }
+export type PlayerApiRecord = { id: string; displayName: string; email?: string | null }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getStoredToken()
@@ -141,10 +141,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function createPlayer(displayName: string): Promise<PlayerApiRecord> {
+export async function createPlayer(displayName: string, email?: string | null): Promise<PlayerApiRecord> {
   return request("/players", {
     method: "POST",
-    body: JSON.stringify({ displayName }),
+    body: JSON.stringify({ displayName, ...(email != null ? { email } : {}) }),
   })
 }
 
@@ -160,7 +160,19 @@ export async function searchPlayersByPrefix(prefix: string): Promise<PlayerApiRe
 export async function createOrReusePlayer(
   displayName: string,
   catalog: PlayerApiRecord[],
+  email?: string | null,
 ): Promise<{ player: PlayerApiRecord; reused: boolean }> {
+  // Email-first dedup: if we have an email, check the catalog for a matching one first
+  if (email) {
+    const emailLower = email.toLowerCase()
+    const emailMatch = catalog.find(
+      (player) => player.email != null && player.email.toLowerCase() === emailLower,
+    )
+    if (emailMatch) {
+      return { player: emailMatch, reused: true }
+    }
+  }
+
   const normalizedDisplayName = normalizePlayerName(displayName)
   const existing = catalog.find(
     (player) => normalizePlayerName(player.displayName) === normalizedDisplayName,
@@ -170,7 +182,7 @@ export async function createOrReusePlayer(
     return { player: existing, reused: true }
   }
 
-  const player = await createPlayer(displayName.trim())
+  const player = await createPlayer(displayName.trim(), email)
   return { player, reused: false }
 }
 

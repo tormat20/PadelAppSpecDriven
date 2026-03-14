@@ -999,6 +999,76 @@
   }
 }
 
+/* OCR tab bar */
+.ocr-tab-bar {
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.ocr-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: -1px;
+  padding: 0.4rem 0.75rem;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.ocr-tab:hover {
+  color: var(--color-ink);
+}
+
+.ocr-tab--active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent-strong);
+}
+
+/* Paste-list textarea */
+.ocr-paste-area {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: var(--space-3);
+  resize: vertical;
+  width: 100%;
+}
+
+.ocr-paste-area::placeholder {
+  color: var(--color-ink-muted);
+}
+
+/* Email sub-line inside OCR player rows */
+.ocr-player-name {
+  display: block;
+}
+
+.ocr-player-email {
+  display: block;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* New-player info wrapper (name + email stacked) */
+.ocr-new-player-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
 @media (max-width: 760px) {
   .panel {
     padding: var(--space-4);
@@ -1269,6 +1339,20 @@
 .player-search-name {
   color: var(--color-ink-strong);
   font-weight: 500;
+}
+
+.player-search-name-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.player-search-email {
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-search-arrow {

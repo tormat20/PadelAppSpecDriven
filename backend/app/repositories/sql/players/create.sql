@@ -1,2 +1,2 @@
-INSERT INTO players (id, display_name, global_ranking_score)
-VALUES (?, ?, 0);
+INSERT INTO players (id, display_name, global_ranking_score, email)
+VALUES (?, ?, 0, ?);

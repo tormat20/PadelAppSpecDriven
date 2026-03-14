@@ -81,14 +81,19 @@ export default function SearchPlayerPage() {
           <ul className="player-search-list" role="list">
             {filtered.map((player) => (
               <li key={player.id} className="player-search-item">
-                <button
-                  type="button"
-                  className={withInteractiveSurface("player-search-row")}
-                  onClick={() => navigate(`/players/${player.id}/stats`)}
-                  aria-label={`View stats for ${player.displayName}`}
-                >
-                  <span className="player-search-name">{player.displayName}</span>
-                  <span className="player-search-arrow" aria-hidden="true">
+                  <button
+                    type="button"
+                    className={withInteractiveSurface("player-search-row")}
+                    onClick={() => navigate(`/players/${player.id}/stats`)}
+                    aria-label={`View stats for ${player.displayName}`}
+                  >
+                    <span className="player-search-name-group">
+                      <span className="player-search-name">{player.displayName}</span>
+                      {player.email && (
+                        <span className="player-search-email muted">{player.email}</span>
+                      )}
+                    </span>
+                    <span className="player-search-arrow" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                       <path
                         d="M3 13L13 3M13 3H6M13 3V10"

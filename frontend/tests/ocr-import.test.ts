@@ -138,19 +138,19 @@ const catalog = [
 describe("matchNamesToCatalog", () => {
   it("returns matched player for a name that exists in catalog", () => {
     const results = matchNamesToCatalog(["Alice"], catalog)
-    expect(results).toEqual([{ rawName: "Alice", matchedPlayer: { id: "1", displayName: "Alice" } }])
+    expect(results).toEqual([{ rawName: "Alice", email: null, matchedPlayer: { id: "1", displayName: "Alice" } }])
   })
 
   it("returns null matchedPlayer for a name not in catalog", () => {
     const results = matchNamesToCatalog(["Bob"], catalog)
-    expect(results).toEqual([{ rawName: "Bob", matchedPlayer: null }])
+    expect(results).toEqual([{ rawName: "Bob", email: null, matchedPlayer: null }])
   })
 
   it("handles a mix of matched and unmatched names", () => {
     const results = matchNamesToCatalog(["Alice", "Bob"], catalog)
     expect(results).toEqual([
-      { rawName: "Alice", matchedPlayer: { id: "1", displayName: "Alice" } },
-      { rawName: "Bob", matchedPlayer: null },
+      { rawName: "Alice", email: null, matchedPlayer: { id: "1", displayName: "Alice" } },
+      { rawName: "Bob", email: null, matchedPlayer: null },
     ])
   })
 
@@ -161,8 +161,8 @@ describe("matchNamesToCatalog", () => {
   it("returns all null matchedPlayers when catalog is empty", () => {
     const results = matchNamesToCatalog(["Alice", "Bob"], [])
     expect(results).toEqual([
-      { rawName: "Alice", matchedPlayer: null },
-      { rawName: "Bob", matchedPlayer: null },
+      { rawName: "Alice", email: null, matchedPlayer: null },
+      { rawName: "Bob", email: null, matchedPlayer: null },
     ])
   })
 

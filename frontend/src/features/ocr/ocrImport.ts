@@ -5,6 +5,11 @@ export type OcrMatchResult = {
   /** The raw name string extracted from the OCR output (trimmed, deduplicated). */
   rawName: string
   /**
+   * Email address associated with this entry (from the booking-text parser).
+   * Null for entries created via OCR image parsing.
+   */
+  email: string | null
+  /**
    * The matched catalog player, or null if no case-insensitive match was found.
    */
   matchedPlayer: { id: string; displayName: string } | null
@@ -87,6 +92,7 @@ export function matchNamesToCatalog(
 ): OcrMatchResult[] {
   return names.map((rawName) => ({
     rawName,
+    email: null,
     matchedPlayer: findDuplicateByName(catalog, rawName),
   }))
 }
