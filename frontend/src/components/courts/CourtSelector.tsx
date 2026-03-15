@@ -15,7 +15,7 @@ export function CourtSelector({ selectedCourts, onChange }: Props) {
     <div className="court-selector" aria-label="Court selector">
       <p className="section-title">Courts</p>
       <div className="court-list">
-        {Array.from({ length: 7 }, (_, i) => i + 1).map((court) => (
+        {Array.from({ length: 7 }, (_, i) => 7 - i).map((court) => (
           <button
             key={court}
             type="button"

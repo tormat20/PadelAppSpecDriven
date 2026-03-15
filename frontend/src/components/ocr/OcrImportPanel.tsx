@@ -42,9 +42,17 @@ type OcrImportPanelProps = {
    * Roster mode — pass a no-op: () => {}
    */
   onConfirmRegister: (names: string[]) => void
+
+  /**
+   * Optional callback fired after a new player is successfully created via the
+   * "Add New Player" per-row button. Use this to refresh the parent's player
+   * catalog so re-pasting the same booking list correctly identifies the newly
+   * created player as "already in system".
+   */
+  onPlayerCreated?: () => void
 }
 
-export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRoster, onConfirmRegister }: OcrImportPanelProps) {
+export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRoster, onConfirmRegister, onPlayerCreated }: OcrImportPanelProps) {
   const [tab, setTab] = useState<Tab>("image")
   const [status, setStatus] = useState<OcrStatus>("idle")
   const [results, setResults] = useState<OcrMatchResult[]>([])
@@ -255,6 +263,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       const { player } = await createOrReusePlayer(r.rawName, localCatalog, r.email)
       setIndividuallyRegistered((prev) => new Map(prev).set(r.rawName, player))
       setChecked((prev) => new Set(prev).add(r.rawName))
+      onPlayerCreated?.()
     } catch {
       // If creation fails, leave the row in the unmatched column
     } finally {

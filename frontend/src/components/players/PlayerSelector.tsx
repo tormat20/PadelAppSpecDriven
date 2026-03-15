@@ -218,6 +218,7 @@ export function PlayerSelector({ assignedPlayers, totalPlayersRequired, onAssign
             catalog={catalog}
             mode="roster"
             pendingFile={pastedFile}
+            onPlayerCreated={() => void refreshCatalog()}
             onConfirmRoster={(players) => {
               // Merge all OCR players into the roster in a single state update
               // to avoid the stale-closure problem of calling assignPlayer one-by-one.

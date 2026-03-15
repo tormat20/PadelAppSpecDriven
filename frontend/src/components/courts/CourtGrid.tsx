@@ -56,7 +56,7 @@ export function CourtGrid({
 }: CourtGridProps) {
   return (
     <div className="grid-columns-2">
-      {matches.map((match) => (
+      {[...matches].sort((a, b) => b.courtNumber - a.courtNumber).map((match) => (
         <article key={match.matchId} className="match-card court-card" data-has-image={showCourtImage}>
           {showCourtImage ? <img src={COURT_IMAGE_SRC} alt="" aria-hidden="true" className="court-card-image" /> : null}
           <h3 className="match-title">Court {match.courtNumber}</h3>
