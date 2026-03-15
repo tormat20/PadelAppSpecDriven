@@ -40,53 +40,119 @@ function isBoilerplate(line: string): boolean {
  * to the `@` symbol), find where the email local-part starts.
  *
  * The booking system concatenates the name's last word directly against the
- * email local-part with no separator.  The heuristic (ordered by priority):
+ * email local-part with no separator.  `wordsFromLine` provides the other
+ * words on the same line (before the jammed word) as hints for name-word
+ * boundary detection.
  *
- * 1. **Digit**: if a digit appears anywhere in the segment, the email starts
- *    at the first digit (Apple relay addresses and other alphanumeric emails).
- * 2. **Non-ASCII boundary**: if the segment contains non-ASCII characters
- *    (Swedish ö, å, ä…), the email starts right after the last non-ASCII char
- *    (since email local-parts are ASCII-only).
- * 3. **Repetition**: for all-ASCII segments, the last name word often appears
- *    (case-insensitively) both at the start of the segment *and* somewhere
- *    inside the email local-part.  We find the longest prefix of the lowercase
- *    segment that also occurs at a later position; the email starts at the end
- *    of that prefix.
- * 4. **Fallback**: return the entire segment (best effort).
+ * Heuristics applied in order of priority:
+ *
+ * 1. **Non-ASCII boundary**: if the segment contains non-ASCII characters
+ *    (Swedish ö, å, ä…), the email starts right after the last non-ASCII char.
+ *    The ASCII remainder is further narrowed by repetition (min 4 chars) and
+ *    name-word search before being returned.
+ * 2. **All-caps-to-lowercase boundary**: a run of 2+ uppercase letters
+ *    followed immediately by a lowercase letter signals an ALL-CAPS name suffix
+ *    jammed against a lowercase email (e.g. "NYBORGtanming7" → "tanming7").
+ * 3. **Repetition** (min 4 chars): the last name word often appears both at
+ *    the start of the jammed segment *and* somewhere inside the email local;
+ *    the longest such prefix (≥ 4 chars) is used as the name portion.
+ * 4. **Name-word boundary**: look for any word from `wordsFromLine` (or a
+ *    prefix ≥ 3 chars) occurring inside the jammed segment; the email starts
+ *    at that occurrence.
+ * 5. **Digit boundary**: the email starts at the first digit (Apple relay
+ *    addresses and other purely alphanumeric email locals).
+ * 6. **Fallback**: return the entire segment.
  *
  * Returns the email local-part string.
  */
-function extractEmailLocalFromJammed(jammed: string): string {
-  // 1. Digit boundary
-  const digitIdx = jammed.search(/[0-9]/)
-  if (digitIdx >= 0) return jammed.slice(digitIdx)
 
-  // 2. Non-ASCII boundary
+/** Minimum prefix length for the repetition heuristic. */
+const MIN_REPETITION_LEN = 4
+
+/**
+ * Search `s` for any word in `wordsFromLine` (full match, then prefix ≥ 3)
+ * starting from index 1 (never the very beginning).  Returns the slice of `s`
+ * from the first match position, or `null` if no match found.
+ */
+function nameWordSearch(s: string, wordsFromLine: string[]): string | null {
+  const ls = s.toLowerCase()
+  // Full word match
+  for (const word of wordsFromLine) {
+    if (word.length < 2) continue
+    const wl = word.toLowerCase()
+    const idx = ls.indexOf(wl, 1)
+    if (idx > 0) return s.slice(idx)
+  }
+  // Prefix match (longest first, minimum 3 chars)
+  const maxWordLen = wordsFromLine.reduce((m, w) => Math.max(m, w.length), 0)
+  for (let prefixLen = maxWordLen; prefixLen >= 3; prefixLen--) {
+    for (const word of wordsFromLine) {
+      const wl = word.toLowerCase()
+      if (prefixLen >= wl.length) continue
+      const pfx = wl.slice(0, prefixLen)
+      const idx = ls.indexOf(pfx, 1)
+      if (idx > 0) return s.slice(idx)
+    }
+  }
+  return null
+}
+
+function extractEmailLocalFromJammed(jammed: string, wordsFromLine: string[]): string {
+  // 1. Non-ASCII boundary
   let lastNonAscii = -1
   for (let i = 0; i < jammed.length; i++) {
     if (jammed.charCodeAt(i) > 127) lastNonAscii = i
   }
-  if (lastNonAscii >= 0) return jammed.slice(lastNonAscii + 1)
+  if (lastNonAscii >= 0) {
+    const afterNonAscii = jammed.slice(lastNonAscii + 1)
+    const lower = afterNonAscii.toLowerCase()
+    // Try repetition on the ASCII remainder
+    for (let wordLen = lower.length - 1; wordLen >= MIN_REPETITION_LEN; wordLen--) {
+      const prefix = lower.slice(0, wordLen)
+      if (lower.indexOf(prefix, wordLen) >= 0) return afterNonAscii.slice(wordLen)
+    }
+    // Try name-word search on the ASCII remainder
+    const nwAfter = nameWordSearch(afterNonAscii, wordsFromLine)
+    if (nwAfter) return nwAfter
+    // Return full ASCII remainder (name was entirely before the non-ASCII char)
+    return afterNonAscii
+  }
 
-  // 3. Repetition detection (all-ASCII)
-  const lower = jammed.toLowerCase()
-  for (let wordLen = lower.length - 1; wordLen >= 1; wordLen--) {
-    const prefix = lower.slice(0, wordLen)
-    if (lower.indexOf(prefix, wordLen) >= 0) {
-      return jammed.slice(wordLen)
+  // 2. All-caps-to-lowercase boundary (requires 2+ uppercase chars before lowercase)
+  for (let i = 2; i < jammed.length; i++) {
+    const curr = jammed[i]
+    if (curr >= "a" && curr <= "z") {
+      const prefix = jammed.slice(0, i)
+      if (/^[A-Z]{2,}$/.test(prefix)) return jammed.slice(i)
     }
   }
 
-  // 4. Fallback
+  // 3. Repetition heuristic (min 4 chars)
+  const lower = jammed.toLowerCase()
+  for (let wordLen = lower.length - 1; wordLen >= MIN_REPETITION_LEN; wordLen--) {
+    const prefix = lower.slice(0, wordLen)
+    if (lower.indexOf(prefix, wordLen) >= 0) return jammed.slice(wordLen)
+  }
+
+  // 4. Name-word boundary
+  const nw = nameWordSearch(jammed, wordsFromLine)
+  if (nw) return nw
+
+  // 5. Digit boundary
+  const digitIdx = jammed.search(/[0-9]/)
+  if (digitIdx >= 0) return jammed.slice(digitIdx)
+
+  // 6. Fallback
   return jammed
 }
 
 /**
- * Extract { email, localStartIdx } from a line that may have a jammed
- * name+email or a standalone email.
+ * Extract { email, name } from a line that may have a jammed name+email or a
+ * standalone email.
  *
- * If `prevLine` is provided and is a prefix of `line`, strip it first so
- * the email search operates only on the remainder.
+ * If `prevLine` is provided and is a **case-insensitive prefix** of `line`,
+ * strip it first so the email search operates only on the remainder (Case 1).
+ * Otherwise infer both name and email from the jammed segment (Case 2).
  */
 function findEmailInLine(
   line: string,
@@ -95,34 +161,50 @@ function findEmailInLine(
   const atIdx = line.indexOf("@")
   if (atIdx < 0) return null
 
-  // --- Case 1: prevLine is a prefix of the current line ---
-  if (prevLine && line.startsWith(prevLine)) {
+  // --- Case 1: prevLine is a case-insensitive prefix of the current line ---
+  if (prevLine && line.toLowerCase().startsWith(prevLine.toLowerCase())) {
     const remainder = line.slice(prevLine.length)
     const remAtIdx = remainder.indexOf("@")
     if (remAtIdx < 0) return null
 
-    // Scan back from @ in remainder to collect the local-part
-    const LOCAL_CHAR = /[a-zA-Z0-9._%+\-]/
-    let start = remAtIdx - 1
-    while (start > 0 && LOCAL_CHAR.test(remainder[start - 1])) start--
-    const local = remainder.slice(start, remAtIdx)
-    if (!local) return null
+    // Examine what sits immediately before the @ in the remainder.
+    const beforeAt = remainder.slice(0, remAtIdx).trim()
+    const remWords = beforeAt.split(/\s+/).filter(Boolean)
+    const lastWord = remWords[remWords.length - 1] ?? ""
 
+    let emailLocal: string
+    if (!lastWord || /^[a-z0-9]/.test(lastWord)) {
+      // The text before @ is already a valid email local (starts lowercase/digit).
+      // Scan back from @ to collect it.
+      const LOCAL_CHAR = /[a-zA-Z0-9._%+\-]/
+      let start = remAtIdx - 1
+      while (start > 0 && LOCAL_CHAR.test(remainder[start - 1])) start--
+      emailLocal = remainder.slice(start, remAtIdx)
+    } else {
+      // The last word before @ starts with uppercase — a name word is jammed
+      // directly against the email local (e.g. "ZHANG NYBORGtanming7").
+      const extraWords = remWords.slice(0, -1)
+      const prevLineWords = prevLine.trim().split(/\s+/).filter(Boolean)
+      emailLocal = extractEmailLocalFromJammed(lastWord, [
+        ...extraWords,
+        ...prevLineWords,
+      ])
+    }
+
+    if (!emailLocal) return null
     const domain = extractDomain(remainder, remAtIdx)
     if (!domain) return null
-
-    return { email: local + "@" + domain, name: prevLine }
+    return { email: emailLocal + "@" + domain, name: prevLine }
   }
 
-  // --- Case 2: no prevLine context — infer from the jammed segment ---
-  // Isolate the text before @.
+  // --- Case 2: no matching prevLine context — infer from the jammed segment ---
   const beforeAt = line.slice(0, atIdx)
-
-  // The last-space segment is the jammed {last_name_word}{email_local}.
+  const allWords = beforeAt.split(/\s+/).filter(Boolean)
   const lastSpaceIdx = beforeAt.lastIndexOf(" ")
   const jammed = beforeAt.slice(lastSpaceIdx + 1)
+  const wordsFromLine = allWords.slice(0, -1)
 
-  const emailLocal = extractEmailLocalFromJammed(jammed)
+  const emailLocal = extractEmailLocalFromJammed(jammed, wordsFromLine)
   if (!emailLocal) return null
 
   const domain = extractDomain(line, atIdx)
