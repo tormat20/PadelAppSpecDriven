@@ -20,6 +20,7 @@ class PlayerStatsRepository:
 
     def upsert_player_stats(self, player_id: str, deltas: dict) -> None:
         """Increment all-time stats for one player by the given deltas."""
+        event_wins_delta = deltas.get("event_wins_delta", 0)
         self.conn.execute(
             load_sql("player_stats/upsert_player_stats.sql"),
             [
@@ -33,6 +34,9 @@ class PlayerStatsRepository:
                 deltas.get("rb_wins_delta", 0),
                 deltas.get("rb_losses_delta", 0),
                 deltas.get("rb_draws_delta", 0),
+                deltas.get("mexicano_event_score", 0),  # candidate for GREATEST highscore
+                event_wins_delta,
+                event_wins_delta,  # second use: CASE WHEN ? = 1 THEN NOW()
             ],
         )
 
@@ -74,6 +78,9 @@ class PlayerStatsRepository:
             "rb_wins": row[7],
             "rb_losses": row[8],
             "rb_draws": row[9],
+            "mexicano_best_event_score": row[10],
+            "event_wins": row[11],
+            "last_win_at": row[12],
         }
 
     def get_player_of_month(self, year: int, month: int) -> list[dict]:
@@ -122,3 +129,22 @@ class PlayerStatsRepository:
             }
             for row in rows
         ]
+
+    def get_mexicano_highscore_ladder(self) -> list[dict]:
+        """Return all-time Mexicano highscore ladder ordered by best single-event score DESC."""
+        rows = self.conn.execute(
+            load_sql("player_stats/get_mexicano_highscore_ladder.sql")
+        ).fetchall()
+        return [
+            {
+                "player_id": row[0],
+                "display_name": row[1],
+                "mexicano_best_event_score": row[2],
+            }
+            for row in rows
+        ]
+
+    def get_on_fire_player_ids(self) -> list[str]:
+        """Return player IDs whose last_win_at is within the past 7 days."""
+        rows = self.conn.execute(load_sql("player_stats/get_on_fire_player_ids.sql")).fetchall()
+        return [row[0] for row in rows]

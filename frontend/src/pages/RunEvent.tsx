@@ -9,7 +9,7 @@ import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
 import { getMirroredBadgePair } from "../features/run-event/resultEntry"
 import { SubstituteModal } from "../features/run-event/SubstituteModal"
-import { finishEvent, getCurrentRound, getEvent, searchPlayers, submitResult } from "../lib/api"
+import { finishEvent, getCurrentRound, getEvent, getOnFirePlayerIds, searchPlayers, submitResult } from "../lib/api"
 import type { EventRecord, RunEventTeamBadgeView } from "../lib/types"
 
 export const RUN_PAGE_ACTIONS = ["Next Match", "Finish", "Go to Summary"] as const
@@ -83,6 +83,7 @@ export default function RunEventPage() {
   const [modalContext, setModalContext] = useState<{ matchId: string; selectedSide: TeamSide } | null>(null)
   const [showSubstituteModal, setShowSubstituteModal] = useState(false)
   const [assignedPlayers, setAssignedPlayers] = useState<{ id: string; displayName: string }[]>([])
+  const [onFireNames, setOnFireNames] = useState<Set<string>>(new Set())
 
   const load = async () => {
     setLoadError("")
@@ -114,6 +115,14 @@ export default function RunEventPage() {
       ...roundRes,
       matches: mapMatchPlayersToDisplayNames(roundRes.matches, playerNameById),
     })
+
+    // Fetch on-fire player IDs and map to display names (non-critical, silently ignored)
+    getOnFirePlayerIds()
+      .then((ids) => {
+        const names = new Set(ids.map((id) => playerNameById[id]).filter(Boolean) as string[])
+        setOnFireNames(names)
+      })
+      .catch(() => {})
   }
 
   // On initial mount, the RunEvent page may open in a new tab immediately after
@@ -257,6 +266,7 @@ export default function RunEventPage() {
               return { ...current, [matchId]: teamNumber }
             })
           }}
+          onFireNames={onFireNames}
         />
       </section>
 

@@ -8,6 +8,9 @@ SELECT
     ps.wc_losses,
     ps.rb_wins,
     ps.rb_losses,
-    ps.rb_draws
+    ps.rb_draws,
+    ps.mexicano_best_event_score,
+    ps.event_wins,
+    ps.last_win_at
 FROM player_stats ps
 WHERE ps.player_id = ?;

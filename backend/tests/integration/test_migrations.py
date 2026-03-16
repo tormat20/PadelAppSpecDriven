@@ -25,4 +25,5 @@ def test_migrations_apply_once(tmp_path):
         "011_remove_event_fk_from_event_teams_and_substitutions.sql",
         "012_americano_event_type.sql",
         "013_player_email.sql",
+        "014_player_stats_wins_highscore.sql",
     ]

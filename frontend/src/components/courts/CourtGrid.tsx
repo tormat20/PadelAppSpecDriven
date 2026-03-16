@@ -23,6 +23,8 @@ type CourtGridProps = {
   onTeamGroupClick?: (matchId: string, teamNumber: 1 | 2) => void
   onTeamGroupHover?: (matchId: string, teamNumber: 1 | 2 | null) => void
   renderMatchFooter?: (matchId: string) => ReactNode
+  /** Set of player display-names that have a hot streak (won in the last 7 days). */
+  onFireNames?: Set<string>
 }
 
 export function selectTeamGrouping(
@@ -53,6 +55,7 @@ export function CourtGrid({
   onTeamGroupClick,
   onTeamGroupHover,
   renderMatchFooter,
+  onFireNames,
 }: CourtGridProps) {
   return (
     <div className="grid-columns-2">
@@ -71,7 +74,17 @@ export function CourtGrid({
           >
             <div className="team-grouping-names">
               {getTeamNames(match).team1.map((name) => (
-                <span key={name} className="team-player-name">{name}</span>
+                <span key={name} className="team-player-name">
+                  {name}
+                  {onFireNames?.has(name) && (
+                    <img
+                      src="/images/icons/fire.svg"
+                      alt="Hot streak"
+                      className="court-fire-icon"
+                      title="Won an event in the last 7 days"
+                    />
+                  )}
+                </span>
               ))}
             </div>
             {resultBadgeByMatch[match.matchId]?.team1 ? (
@@ -90,7 +103,17 @@ export function CourtGrid({
           >
             <div className="team-grouping-names">
               {getTeamNames(match).team2.map((name) => (
-                <span key={name} className="team-player-name">{name}</span>
+                <span key={name} className="team-player-name">
+                  {name}
+                  {onFireNames?.has(name) && (
+                    <img
+                      src="/images/icons/fire.svg"
+                      alt="Hot streak"
+                      className="court-fire-icon"
+                      title="Won an event in the last 7 days"
+                    />
+                  )}
+                </span>
               ))}
             </div>
             {resultBadgeByMatch[match.matchId]?.team2 ? (

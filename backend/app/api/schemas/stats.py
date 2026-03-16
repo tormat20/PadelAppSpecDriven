@@ -13,6 +13,8 @@ class PlayerStatsResponse(BaseModel):
     rb_wins: int
     rb_losses: int
     rb_draws: int
+    event_wins: int
+    mexicano_best_event_score: int
 
 
 class LeaderboardEntryResponse(BaseModel):
@@ -42,3 +44,18 @@ class RankedBoxLadderEntryResponse(BaseModel):
 
 class RankedBoxLadderResponse(BaseModel):
     entries: list[RankedBoxLadderEntryResponse]
+
+
+class MexicanoHighscoreEntryResponse(BaseModel):
+    rank: int
+    player_id: str
+    display_name: str
+    mexicano_best_event_score: int
+
+
+class MexicanoHighscoreResponse(BaseModel):
+    entries: list[MexicanoHighscoreEntryResponse]
+
+
+class OnFireResponse(BaseModel):
+    player_ids: list[str]

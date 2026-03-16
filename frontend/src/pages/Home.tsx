@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { rankLeaderboardEntries } from "../features/leaderboards/rankLeaderboard"
-import { getMexicanoOfMonthLeaderboard, getPlayerOfMonthLeaderboard, getRankedBoxLadder } from "../lib/api"
-import type { EventRecord, EventType, Leaderboard, RankedBoxLadder } from "../lib/types"
+import { getMexicanoHighscore, getMexicanoOfMonthLeaderboard, getOnFirePlayerIds, getPlayerOfMonthLeaderboard, getRankedBoxLadder } from "../lib/api"
+import type { EventRecord, EventType, Leaderboard, MexicanoHighscore, RankedBoxLadder } from "../lib/types"
 
 // ── Fetch helpers ──────────────────────────────────────────────────────────────
 
@@ -132,9 +132,10 @@ interface LeaderboardSectionProps {
   scoreLabel: string
   scoreKey: "eventsPlayed" | "mexicanoScore"
   onRetry: () => void
+  onFireIds?: Set<string>
 }
 
-function LeaderboardSection({ title, board, error, scoreLabel, scoreKey, onRetry }: LeaderboardSectionProps) {
+function LeaderboardSection({ title, board, error, scoreLabel, scoreKey, onRetry, onFireIds }: LeaderboardSectionProps) {
   const label = board ? monthLabel(board.year, board.month) : ""
   const ranked = board ? rankLeaderboardEntries(board.entries) : []
   const [showAll, setShowAll] = useState(false)
@@ -169,7 +170,17 @@ function LeaderboardSection({ title, board, error, scoreLabel, scoreKey, onRetry
                 <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
                   #{entry.rank}
                 </span>
-                <span className="leaderboard-name">{entry.displayName}</span>
+                <span className="leaderboard-name">
+                  {entry.displayName}
+                  {onFireIds?.has(entry.playerId) && (
+                    <img
+                      src="/images/icons/fire.svg"
+                      alt="Hot streak"
+                      className="leaderboard-fire-icon"
+                      title="Won an event in the last 7 days"
+                    />
+                  )}
+                </span>
                 <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
                   {entry[scoreKey]} {scoreLabel}
                 </span>
@@ -197,9 +208,10 @@ interface RankedLadderSectionProps {
   ladder: RankedBoxLadder | null
   error: string
   onRetry: () => void
+  onFireIds?: Set<string>
 }
 
-function RankedLadderSection({ ladder, error, onRetry }: RankedLadderSectionProps) {
+function RankedLadderSection({ ladder, error, onRetry, onFireIds }: RankedLadderSectionProps) {
   const entries = ladder?.entries ?? []
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? entries : entries.slice(0, PAGE_SIZE)
@@ -233,9 +245,94 @@ function RankedLadderSection({ ladder, error, onRetry }: RankedLadderSectionProp
                 <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
                   #{entry.rank}
                 </span>
-                <span className="leaderboard-name">{entry.displayName}</span>
+                <span className="leaderboard-name">
+                  {entry.displayName}
+                  {onFireIds?.has(entry.playerId) && (
+                    <img
+                      src="/images/icons/fire.svg"
+                      alt="Hot streak"
+                      className="leaderboard-fire-icon"
+                      title="Won an event in the last 7 days"
+                    />
+                  )}
+                </span>
                 <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
                   {entry.rbScoreTotal} pts
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <button
+              className="leaderboard-show-more"
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+            >
+              {showAll ? "Show less" : "Show more..."}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+// ── Mexicano Highscore section ────────────────────────────────────────────────
+
+interface MexicanoHighscoreSectionProps {
+  highscore: MexicanoHighscore | null
+  error: string
+  onRetry: () => void
+  onFireIds?: Set<string>
+}
+
+function MexicanoHighscoreSection({ highscore, error, onRetry, onFireIds }: MexicanoHighscoreSectionProps) {
+  const entries = highscore?.entries ?? []
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? entries : entries.slice(0, PAGE_SIZE)
+  const hasMore = entries.length > PAGE_SIZE
+
+  return (
+    <section className="panel leaderboard-section">
+      <h2 className="leaderboard-heading">Mexicano Highscore</h2>
+
+      {error && (
+        <div className="leaderboard-error-row">
+          <p className="leaderboard-error" role="alert">{error}</p>
+          <button className="leaderboard-retry-btn" type="button" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!error && entries.length === 0 && (
+        <p className="leaderboard-empty">No Mexicano events finished yet.</p>
+      )}
+
+      {!error && entries.length > 0 && (
+        <>
+          <ul className="leaderboard-list" role="list">
+            {visible.map((entry) => (
+              <li
+                key={entry.playerId}
+                className={`leaderboard-entry${entry.rank === 1 ? " leaderboard-entry--top" : ""}`}
+              >
+                <span className={rankClass(entry.rank)} aria-label={`Rank ${entry.rank}`}>
+                  #{entry.rank}
+                </span>
+                <span className="leaderboard-name">
+                  {entry.displayName}
+                  {onFireIds?.has(entry.playerId) && (
+                    <img
+                      src="/images/icons/fire.svg"
+                      alt="Hot streak"
+                      className="leaderboard-fire-icon"
+                      title="Won an event in the last 7 days"
+                    />
+                  )}
+                </span>
+                <span className={`leaderboard-score${entry.rank === 1 ? " leaderboard-score--highlight" : ""}`}>
+                  {entry.mexicanoBestEventScore} pts
                 </span>
               </li>
             ))}
@@ -266,6 +363,9 @@ export default function HomePage() {
   const [mexError, setMexError] = useState("")
   const [ladder, setLadder] = useState<RankedBoxLadder | null>(null)
   const [ladderError, setLadderError] = useState("")
+  const [highscore, setHighscore] = useState<MexicanoHighscore | null>(null)
+  const [highscoreError, setHighscoreError] = useState("")
+  const [onFireIds, setOnFireIds] = useState<Set<string>>(new Set())
 
   const fetchPotm = useCallback(() => {
     setPotmError("")
@@ -288,15 +388,31 @@ export default function HomePage() {
       .catch(() => setLadderError("Could not load leaderboard."))
   }, [])
 
+  const fetchHighscore = useCallback(() => {
+    setHighscoreError("")
+    fetchWithRetry(getMexicanoHighscore)
+      .then(setHighscore)
+      .catch(() => setHighscoreError("Could not load leaderboard."))
+  }, [])
+
+  useEffect(() => {
+    // Fetch on-fire IDs once; silently ignore errors (non-critical)
+    getOnFirePlayerIds()
+      .then((ids) => setOnFireIds(new Set(ids)))
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     fetchPotm()
     const t1 = setTimeout(fetchMex, STAGGER_MS)
     const t2 = setTimeout(fetchLadder, STAGGER_MS * 2)
+    const t3 = setTimeout(fetchHighscore, STAGGER_MS * 3)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
+      clearTimeout(t3)
     }
-  }, [fetchPotm, fetchMex, fetchLadder])
+  }, [fetchPotm, fetchMex, fetchLadder, fetchHighscore])
 
   return (
     <section className="page-shell">
@@ -308,6 +424,7 @@ export default function HomePage() {
           scoreLabel="events"
           scoreKey="eventsPlayed"
           onRetry={fetchPotm}
+          onFireIds={onFireIds}
         />
         <LeaderboardSection
           title="Mexicano of the Month"
@@ -316,11 +433,19 @@ export default function HomePage() {
           scoreLabel="pts"
           scoreKey="mexicanoScore"
           onRetry={fetchMex}
+          onFireIds={onFireIds}
         />
         <RankedLadderSection
           ladder={ladder}
           error={ladderError}
           onRetry={fetchLadder}
+          onFireIds={onFireIds}
+        />
+        <MexicanoHighscoreSection
+          highscore={highscore}
+          error={highscoreError}
+          onRetry={fetchHighscore}
+          onFireIds={onFireIds}
         />
       </div>
     </section>

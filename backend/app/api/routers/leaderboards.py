@@ -6,6 +6,8 @@ from app.api.deps import read_services_scope
 from app.api.schemas.stats import (
     LeaderboardEntryResponse,
     LeaderboardResponse,
+    MexicanoHighscoreEntryResponse,
+    MexicanoHighscoreResponse,
     RankedBoxLadderEntryResponse,
     RankedBoxLadderResponse,
 )
@@ -73,6 +75,23 @@ def get_ranked_box_ladder() -> RankedBoxLadderResponse:
                 rb_wins=row["rb_wins"],
                 rb_losses=row["rb_losses"],
                 rb_draws=row["rb_draws"],
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.get("/mexicano-highscore", response_model=MexicanoHighscoreResponse)
+def get_mexicano_highscore() -> MexicanoHighscoreResponse:
+    with read_services_scope() as services:
+        rows = services["player_stats_service"].get_mexicano_highscore_leaderboard()
+    return MexicanoHighscoreResponse(
+        entries=[
+            MexicanoHighscoreEntryResponse(
+                rank=row["rank"],
+                player_id=row["player_id"],
+                display_name=row["display_name"],
+                mexicano_best_event_score=row["mexicano_best_event_score"],
             )
             for row in rows
         ]

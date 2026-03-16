@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import TokenData, require_admin, services_scope
+from app.api.deps import TokenData, require_admin, services_scope, read_services_scope
 from app.api.schemas.players import CreatePlayerRequest, PlayerResponse
-from app.api.schemas.stats import PlayerStatsResponse
+from app.api.schemas.stats import OnFireResponse, PlayerStatsResponse
 from app.services.name_format import format_display_name
 
 router = APIRouter(prefix="/players", tags=["players"])
@@ -33,6 +33,13 @@ def create_player(
         return _player_response(player)
 
 
+@router.get("/on-fire", response_model=OnFireResponse)
+def get_on_fire_players() -> OnFireResponse:
+    with read_services_scope() as services:
+        player_ids = services["player_stats_service"].get_on_fire_player_ids()
+    return OnFireResponse(player_ids=player_ids)
+
+
 @router.get("/{player_id}/stats", response_model=PlayerStatsResponse)
 def get_player_stats(player_id: str) -> PlayerStatsResponse:
     with services_scope() as services:
@@ -52,6 +59,8 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             rb_wins=stats["rb_wins"],
             rb_losses=stats["rb_losses"],
             rb_draws=stats["rb_draws"],
+            event_wins=stats["event_wins"],
+            mexicano_best_event_score=stats["mexicano_best_event_score"],
         )
 
 

@@ -8,6 +8,8 @@ import type {
   InProgressEventSummary,
   Leaderboard,
   LeaderboardEntry,
+  MexicanoHighscore,
+  MexicanoHighscoreEntry,
   PlayerStats,
   RankedBoxLadder,
   RankedBoxLadderEntry,
@@ -301,6 +303,8 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
     rbWins: data.rb_wins ?? 0,
     rbLosses: data.rb_losses ?? 0,
     rbDraws: data.rb_draws ?? 0,
+    eventWins: data.event_wins ?? 0,
+    mexicanoBestEventScore: data.mexicano_best_event_score ?? 0,
   }
 }
 
@@ -352,9 +356,32 @@ export async function getRankedBoxLadder(): Promise<RankedBoxLadder> {
   return { entries }
 }
 
+function normalizeMexicanoHighscoreEntry(raw: any, rank: number): MexicanoHighscoreEntry {
+  return {
+    rank: raw.rank ?? rank,
+    playerId: raw.player_id,
+    displayName: raw.display_name,
+    mexicanoBestEventScore: raw.mexicano_best_event_score ?? 0,
+  }
+}
+
+export async function getMexicanoHighscore(): Promise<MexicanoHighscore> {
+  const data = await request<any>("/leaderboards/mexicano-highscore")
+  const entries: MexicanoHighscoreEntry[] = Array.isArray(data.entries)
+    ? data.entries.map((e: any, i: number) => normalizeMexicanoHighscoreEntry(e, i + 1))
+    : []
+  return { entries }
+}
+
+export async function getOnFirePlayerIds(): Promise<string[]> {
+  const data = await request<any>("/players/on-fire")
+  return Array.isArray(data.player_ids) ? data.player_ids : []
+}
+
 // ---------------------------------------------------------------------------
 // Team Mexicano — Teams API
 // ---------------------------------------------------------------------------
+
 
 export type TeamPair = { player1Id: string; player2Id: string }
 export type TeamRecord = { id: string; eventId: string; player1Id: string; player2Id: string }

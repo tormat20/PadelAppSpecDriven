@@ -178,6 +178,8 @@ export type PlayerStats = {
   rbWins: number
   rbLosses: number
   rbDraws: number
+  eventWins: number
+  mexicanoBestEventScore: number
 }
 
 // ── Leaderboards ──────────────────────────────────────────────────────────────
@@ -211,4 +213,17 @@ export type RankedBoxLadderEntry = {
 
 export type RankedBoxLadder = {
   entries: RankedBoxLadderEntry[]
+}
+
+// ── Mexicano Highscore Ladder (all-time best single-event score) ──────────────
+
+export type MexicanoHighscoreEntry = {
+  rank: number
+  playerId: string
+  displayName: string
+  mexicanoBestEventScore: number
+}
+
+export type MexicanoHighscore = {
+  entries: MexicanoHighscoreEntry[]
 }
