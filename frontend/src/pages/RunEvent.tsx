@@ -11,6 +11,7 @@ import { getMirroredBadgePair } from "../features/run-event/resultEntry"
 import { SubstituteModal } from "../features/run-event/SubstituteModal"
 import { finishEvent, getCurrentRound, getEvent, getOnFirePlayerIds, searchPlayers, submitResult } from "../lib/api"
 import type { EventRecord, RunEventTeamBadgeView } from "../lib/types"
+import { shortDisplayNames } from "../lib/playerNames"
 
 export const RUN_PAGE_ACTIONS = ["Next Match", "Finish", "Go to Summary"] as const
 
@@ -111,15 +112,19 @@ export default function RunEventPage() {
     const players = (typedEvent.playerIds ?? [])
       .map((id: string) => ({ id, displayName: playerNameById[id] ?? id }))
     setAssignedPlayers(players)
+
+    // Build short display names (disambiguate shared first names within this event)
+    const shortNameById = shortDisplayNames(players)
+
     setRoundData({
       ...roundRes,
-      matches: mapMatchPlayersToDisplayNames(roundRes.matches, playerNameById),
+      matches: mapMatchPlayersToDisplayNames(roundRes.matches, shortNameById),
     })
 
-    // Fetch on-fire player IDs and map to display names (non-critical, silently ignored)
+    // Fetch on-fire player IDs and map to short display names (non-critical, silently ignored)
     getOnFirePlayerIds()
       .then((ids) => {
-        const names = new Set(ids.map((id) => playerNameById[id]).filter(Boolean) as string[])
+        const names = new Set(ids.map((id) => shortNameById[id] ?? playerNameById[id]).filter(Boolean) as string[])
         setOnFireNames(names)
       })
       .catch(() => {})
