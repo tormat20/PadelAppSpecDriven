@@ -174,16 +174,22 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const handleTextareaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     e.preventDefault()
 
-    // Try HTML first (richer / unambiguous bold-tag strategy)
+    // Try plain text first — the Matchi plain-text format is unambiguous and
+    // captures ALL participants including those without a bold tag in the HTML
+    // (single-line "jammed" entries like "Mohammad Shirviehpourshirvieh@gmail.com").
+    // The HTML parser only finds bold-tagged names, so if used first it silently
+    // drops ~10 participants and the plain-text fallback never runs.
+    // Fall back to HTML only when plain text yields nothing (e.g. a rich paste
+    // source that strips text/plain).
     const htmlData = e.clipboardData.getData("text/html")
     const textData = e.clipboardData.getData("text/plain")
 
     let participants: { name: string; email: string }[] = []
-    if (htmlData) {
-      participants = parseBookingHtml(htmlData)
-    }
-    if (participants.length === 0 && textData) {
+    if (textData) {
       participants = parseBookingText(textData)
+    }
+    if (participants.length === 0 && htmlData) {
+      participants = parseBookingHtml(htmlData)
     }
 
     if (participants.length === 0) return

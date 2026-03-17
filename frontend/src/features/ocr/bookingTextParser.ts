@@ -232,9 +232,77 @@ function extractDomain(s: string, atIdx: number): string | null {
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns true if the raw text looks like a tab-separated (Excel) export.
+ * We consider it tab-separated when ≥ 1 non-empty line contains a tab character.
+ */
+function isTabSeparated(rawText: string): boolean {
+  const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean)
+  const tabLines = lines.filter((l) => l.includes("\t")).length
+  return tabLines > 0 && tabLines >= Math.ceil(lines.length / 2)
+}
+
+/**
+ * Parse a tab-separated plain-text export (e.g. from Excel / Matchi CSV export).
+ *
+ * Each row is one participant. The first non-empty tab field is the name; the
+ * first field containing `@` is the email. Boilerplate rows and rows with no
+ * email field are skipped. Deduplicates by lowercase email.
+ */
+function parseTabSeparatedText(rawText: string): ParsedParticipant[] {
+  const seen = new Set<string>()
+  const results: ParsedParticipant[] = []
+
+  for (const rawLine of rawText.split("\n")) {
+    const line = rawLine.trim()
+    if (!line) continue
+
+    const fields = line.split("\t").map((f) => f.trim())
+
+    // Skip header rows and boilerplate rows
+    if (fields.every((f) => isBoilerplate(f) || !f)) continue
+
+    // Name = first non-empty field that has no @
+    const nameField = fields.find((f) => f && !f.includes("@"))
+    if (!nameField) continue
+
+    // Email = first field that contains @
+    const emailField = fields.find((f) => f.includes("@"))
+    if (!emailField) continue
+
+    // Extract a clean email address from the email field (in case the field
+    // has extra text around the email, e.g. due to a jammed name+email cell)
+    const atIdx = emailField.indexOf("@")
+    const domain = extractDomain(emailField, atIdx)
+    if (!domain) continue
+
+    // Scan backward from @ for the local part
+    const LOCAL_CHAR = /[a-zA-Z0-9._%+\-]/
+    let start = atIdx - 1
+    while (start > 0 && LOCAL_CHAR.test(emailField[start - 1])) start--
+    const local = emailField.slice(start, atIdx)
+    if (!local) continue
+
+    const email = local + "@" + domain
+    const emailKey = email.toLowerCase()
+    if (seen.has(emailKey)) continue
+
+    seen.add(emailKey)
+    results.push({ name: nameField, email })
+  }
+
+  return results
+}
+
+/**
  * Parses a plain-text copy-paste from the booking system.
  *
- * Algorithm:
+ * Automatically detects whether the input is tab-separated (Excel export) or
+ * the Matchi jammed-name format, and delegates accordingly.
+ *
+ * Tab-separated algorithm:
+ *  - Split into rows; first non-@ field = name, first @-containing field = email.
+ *
+ * Jammed-name algorithm:
  *  1. Split into lines, skip empty lines and boilerplate.
  *  2. For each line containing an `@`:
  *     a. Use `findEmailInLine` with the previous non-boilerplate line as context.
@@ -242,6 +310,11 @@ function extractDomain(s: string, atIdx: number): string | null {
  *  3. Lines without `@` are stored as the candidate standalone name line.
  */
 export function parseBookingText(rawText: string): ParsedParticipant[] {
+  // Delegate to tab-separated parser when appropriate
+  if (isTabSeparated(rawText)) {
+    return parseTabSeparatedText(rawText)
+  }
+
   const lines = rawText.split("\n").map((l) => l.trim())
 
   const seen = new Set<string>()
@@ -288,18 +361,87 @@ export function parseBookingText(rawText: string): ParsedParticipant[] {
 // ---------------------------------------------------------------------------
 
 /**
+ * Extract all `<td>` cell text values from a `<tr>` row string.
+ * Returns an array of trimmed text strings (one per cell).
+ */
+function extractTdCells(row: string): string[] {
+  const cells: string[] = []
+  const TD_RE = /<td[^>]*>([\s\S]*?)<\/td>/gi
+  let m: RegExpExecArray | null
+  while ((m = TD_RE.exec(row)) !== null) {
+    cells.push(stripTags(m[1]).trim())
+  }
+  return cells
+}
+
+/**
+ * Parses Excel table HTML (from copy-paste out of Microsoft Excel or Google
+ * Sheets). Rows are `<tr>` elements; cells are `<td>` elements. The first
+ * non-empty non-@ cell is treated as the name; the first cell containing `@`
+ * is the email source.
+ */
+function parseTableHtml(html: string): ParsedParticipant[] {
+  const seen = new Set<string>()
+  const results: ParsedParticipant[] = []
+
+  const TR_RE = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+  let trMatch: RegExpExecArray | null
+
+  while ((trMatch = TR_RE.exec(html)) !== null) {
+    const cells = extractTdCells(trMatch[1])
+    if (cells.length < 2) continue
+
+    // Skip header rows (e.g. "Name", "Email" column labels) and boilerplate
+    const nameCell = cells.find((c) => c && !c.includes("@") && !isBoilerplate(c))
+    if (!nameCell) continue
+
+    const emailCell = cells.find((c) => c.includes("@"))
+    if (!emailCell) continue
+
+    const atIdx = emailCell.indexOf("@")
+    const domain = extractDomain(emailCell, atIdx)
+    if (!domain) continue
+
+    const LOCAL_CHAR = /[a-zA-Z0-9._%+\-]/
+    let start = atIdx - 1
+    while (start > 0 && LOCAL_CHAR.test(emailCell[start - 1])) start--
+    const local = emailCell.slice(start, atIdx)
+    if (!local) continue
+
+    const email = local + "@" + domain
+    const emailKey = email.toLowerCase()
+    if (seen.has(emailKey)) continue
+
+    seen.add(emailKey)
+    results.push({ name: nameCell, email })
+  }
+
+  return results
+}
+
+/**
  * Parses the `text/html` clipboard payload from the booking system.
  *
- * Strategy (regex-based, works without DOMParser):
- *  1. Find all `<b>` and `<strong>` elements — these are the participant names.
- *  2. For each bold element, look at the text following the closing tag and
- *     extract an email using `findEmail`.
- *  3. Deduplicate by lowercase email.
+ * Two strategies (tried in order):
  *
- * Uses a lookahead `(?=[\s>])` after the tag name to avoid matching `<br>`,
- * `<body>`, etc. as bold elements.
+ * 1. **Table strategy** (Excel, Google Sheets): if the HTML contains `<table`
+ *    elements, parse `<tr>`/`<td>` structure — first non-@ cell is the name,
+ *    first @-containing cell is the email.
+ *
+ * 2. **Bold-tag strategy** (Matchi web copy-paste): find all `<b>`/`<strong>`
+ *    elements for names and extract the email from the 300 chars following each
+ *    closing tag.
+ *
+ * Deduplicates by lowercase email in both strategies.
  */
 export function parseBookingHtml(html: string): ParsedParticipant[] {
+  // Strategy 1: table-based (Excel / Sheets)
+  if (/<table[\s>]/i.test(html)) {
+    const tableResults = parseTableHtml(html)
+    if (tableResults.length > 0) return tableResults
+  }
+
+  // Strategy 2: bold-tag (Matchi web)
   const seen = new Set<string>()
   const results: ParsedParticipant[] = []
 
