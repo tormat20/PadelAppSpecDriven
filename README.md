@@ -2,6 +2,62 @@
 
 Monorepo with backend (FastAPI + DuckDB) and frontend (React + TypeScript + Vite).
 
+---
+
+## Docker — run on any machine
+
+> **Requires:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free). Nothing else.
+
+### 1. One-time setup — generate a secret key
+
+The app needs a JWT secret to sign login tokens. Run this once and save the result in a file called `.env` in the repo root:
+
+**macOS / Linux:**
+```bash
+echo "PADEL_JWT_SECRET_KEY=$(openssl rand -hex 32)" > .env
+```
+
+**Windows (PowerShell):**
+```powershell
+"PADEL_JWT_SECRET_KEY=$(openssl rand -hex 32)" | Out-File -Encoding utf8 .env
+```
+
+> If you don't have `openssl`, just paste any long random string (40+ characters) as the value.
+
+### 2. Start the app
+
+```bash
+docker compose up --build
+```
+
+Open **http://localhost** in your browser. That's it.
+
+- First build takes ~2 minutes (downloads images, installs dependencies).
+- Subsequent starts are fast — layers are cached.
+- Your data (players, events, results) is stored in a Docker volume and survives restarts.
+
+### 3. Create an admin account (first run only)
+
+```bash
+docker compose exec backend python -m app.scripts.seed_admin
+```
+
+The script will prompt for an email and password.
+
+### 4. Stop
+
+```bash
+docker compose down          # stop containers, keep data
+docker compose down -v       # stop containers AND wipe the database
+```
+
+### Double-click launcher
+
+You can also start the app by double-clicking a file — no terminal needed.
+See [`launch/`](./launch/) for platform-specific launcher scripts.
+
+---
+
 ## Backend
 
 ```bash

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Padel Host
+Comment=Start the Padel Host app via Docker Compose
+# Icon can be replaced with an absolute path to a .png, e.g.:
+# Icon=/path/to/PadelAppSpecDriven/launch/icon.png
+Icon=utilities-terminal
+Exec=bash -c "cd \"$(dirname '%k')/..\"; bash launch/padel-host-linux.sh"
+Terminal=true
+Categories=Application;

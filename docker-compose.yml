@@ -1,0 +1,64 @@
+# Padel Host — Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+# Quick start:
+#   docker compose up --build
+#   open http://localhost
+#
+# First run — create an admin account:
+#   docker compose exec backend python -m app.scripts.seed_admin
+#
+# Stop and keep data:
+#   docker compose down
+#
+# Stop and wipe the database:
+#   docker compose down -v
+
+services:
+
+  # ── Frontend (Nginx + built React app) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Backend (FastAPI + DuckDB) ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"   # exposed so you can hit the API directly if needed
+    volumes:
+      # Named volume — the DuckDB file lives here and survives restarts
+      - padel_data:/app/data
+    environment:
+      # Point DuckDB at the volume directory
+      PADEL_DB_PATH: /app/data/padel.duckdb
+      # Allow requests from the Nginx frontend (same machine, port 80)
+      PADEL_CORS_ORIGINS: '["http://localhost","http://127.0.0.1"]'
+      # JWT secret — set this in a .env file at the repo root, e.g.:
+      #   echo "PADEL_JWT_SECRET_KEY=$(openssl rand -hex 32)" > .env
+      PADEL_JWT_SECRET_KEY: ${PADEL_JWT_SECRET_KEY}
+    # Fall back to backend/.env for local development (provides JWT secret etc.)
+    env_file:
+      - path: ./backend/.env
+        required: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  padel_data:
+    # Named volume managed by Docker — data persists across `docker compose down`
+    # Use `docker compose down -v` to also remove the volume (wipes database).
