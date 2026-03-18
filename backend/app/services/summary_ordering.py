@@ -43,6 +43,29 @@ def _compute_mexicano_tiebreakers(
     return wins_by_player, best_match_by_player
 
 
+def _compute_americano_wins(matches: list) -> dict[str, int]:
+    """Return wins_by_player from completed Americano matches.
+
+    A win is defined as: the player's team is the winner_team of the match
+    (i.e. winner_team is not None and matches the player's side).
+    """
+    wins_by_player: dict[str, int] = {}
+
+    for match in matches:
+        winner = match.winner_team  # 1, 2, or None (draw / incomplete)
+
+        team1_ids = [match.team1_player1_id, match.team1_player2_id]
+        team2_ids = [match.team2_player1_id, match.team2_player2_id]
+
+        for pid in team1_ids:
+            wins_by_player[pid] = wins_by_player.get(pid, 0) + (1 if winner == 1 else 0)
+
+        for pid in team2_ids:
+            wins_by_player[pid] = wins_by_player.get(pid, 0) + (1 if winner == 2 else 0)
+
+    return wins_by_player
+
+
 class SummaryOrderingService:
     def order_progress_rows(
         self,
@@ -64,6 +87,18 @@ class SummaryOrderingService:
                 ),
             )
             ranked = self._assign_competition_rank_mexicano(ordered, totals_by_player, wins, best)
+        elif event_type == EventType.AMERICANO and matches:
+            wins = _compute_americano_wins(matches)
+            ordered = sorted(
+                rows,
+                key=lambda row: (
+                    -totals_by_player.get(row["playerId"], 0),
+                    -wins.get(row["playerId"], 0),
+                    row["displayName"].lower(),
+                    row["playerId"],
+                ),
+            )
+            ranked = self._assign_competition_rank_americano(ordered, totals_by_player, wins)
         else:
             ordered = sorted(
                 rows,
@@ -102,15 +137,17 @@ class SummaryOrderingService:
             return ranked, SummaryOrderingMetadata(ordering_mode="final-mexicano-total-desc")
 
         if event_type == EventType.AMERICANO:
+            wins = _compute_americano_wins(matches)
             ordered = sorted(
                 rows,
                 key=lambda row: (
                     -totals_by_player.get(row["playerId"], 0),
+                    -wins.get(row["playerId"], 0),
                     row["displayName"].lower(),
                     row["playerId"],
                 ),
             )
-            ranked = self._assign_competition_rank(ordered, totals_by_player)
+            ranked = self._assign_competition_rank_americano(ordered, totals_by_player, wins)
             return ranked, SummaryOrderingMetadata(ordering_mode="final-americano-total-desc")
 
         if event_type == EventType.WINNERS_COURT:
@@ -257,6 +294,39 @@ class SummaryOrderingService:
                 -totals_by_player.get(pid, 0),
                 -wins_by_player.get(pid, 0),
                 -best_match_by_player.get(pid, 0),
+            )
+            if previous_key is None or key != previous_key:
+                current_rank = index
+                previous_rank = current_rank
+                previous_key = key
+            else:
+                current_rank = previous_rank
+
+            ranked_row = dict(row)
+            ranked_row["rank"] = current_rank
+            ranked.append(ranked_row)
+
+        return ranked
+
+    def _assign_competition_rank_americano(
+        self,
+        rows: list[dict],
+        totals_by_player: dict[str, int],
+        wins_by_player: dict[str, int],
+    ) -> list[dict]:
+        """Assign competition rank for Americano using total → wins as tiebreakers.
+
+        Players with identical total and wins share the same rank.
+        """
+        ranked: list[dict] = []
+        previous_key: tuple | None = None
+        previous_rank = 0
+
+        for index, row in enumerate(rows, start=1):
+            pid = row["playerId"]
+            key = (
+                -totals_by_player.get(pid, 0),
+                -wins_by_player.get(pid, 0),
             )
             if previous_key is None or key != previous_key:
                 current_rank = index

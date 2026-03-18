@@ -22,6 +22,17 @@ export function getProgressCellDisplay(value: string | null | undefined): string
   return value && value.trim() ? value : "-"
 }
 
+/**
+ * Returns true when a summary cell value should be rendered bold.
+ * Applies to Mexicano/Americano numeric scores strictly above 12
+ * (i.e. the team scored more than 12 points — a win in Mexicano).
+ */
+export function isCellBold(value: string | null | undefined): boolean {
+  if (!value) return false
+  const n = Number(value)
+  return Number.isFinite(n) && n > 12
+}
+
 export function getSummaryBackPath(eventId: string): string {
   return `/events/${eventId}/run`
 }
@@ -185,14 +196,18 @@ export default function SummaryPage() {
               </thead>
               <tbody>
                 {orderedRows.map((row, index) => (
-                  <tr key={row.playerId}>
-                    <td className="summary-rank-cell">{getRowRank(row, index)}</td>
-                    <td>{row.displayName}</td>
-                    {row.cells.map((cell) => (
-                      <td key={cell.columnId}>{getProgressCellDisplay(cell.value)}</td>
-                    ))}
-                  </tr>
-                ))}
+                   <tr key={row.playerId}>
+                     <td className="summary-rank-cell">{getRowRank(row, index)}</td>
+                     <td>{row.displayName}</td>
+                     {row.cells.map((cell) => (
+                       <td key={cell.columnId}>
+                         {isCellBold(cell.value)
+                           ? <b>{getProgressCellDisplay(cell.value)}</b>
+                           : getProgressCellDisplay(cell.value)}
+                       </td>
+                     ))}
+                   </tr>
+                 ))}
               </tbody>
             </table>
           </div>
@@ -259,19 +274,23 @@ export default function SummaryPage() {
               </thead>
               <tbody>
                 {orderedRows.map((row, index) => (
-                  <tr key={row.playerId}>
-                    <td className="summary-rank-cell">{getRowRank(row, index)}</td>
-                    <td className="summary-player-cell">
-                      <span className="summary-player-name">
-                        <span className="summary-player-label">{row.displayName}</span>
-                        {showCrown && isPlayerCrowned(crownedPlayers, row.playerId) ? <CrownIcon /> : null}
-                      </span>
-                    </td>
-                  {row.cells.map((cell) => (
-                    <td key={cell.columnId}>{getProgressCellDisplay(cell.value)}</td>
-                  ))}
-                </tr>
-              ))}
+                   <tr key={row.playerId}>
+                     <td className="summary-rank-cell">{getRowRank(row, index)}</td>
+                     <td className="summary-player-cell">
+                       <span className="summary-player-name">
+                         <span className="summary-player-label">{row.displayName}</span>
+                         {showCrown && isPlayerCrowned(crownedPlayers, row.playerId) ? <CrownIcon /> : null}
+                       </span>
+                     </td>
+                   {row.cells.map((cell) => (
+                     <td key={cell.columnId}>
+                       {isCellBold(cell.value)
+                         ? <b>{getProgressCellDisplay(cell.value)}</b>
+                         : getProgressCellDisplay(cell.value)}
+                     </td>
+                   ))}
+                 </tr>
+               ))}
             </tbody>
           </table>
         </div>
