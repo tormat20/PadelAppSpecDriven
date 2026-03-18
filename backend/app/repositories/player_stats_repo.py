@@ -148,3 +148,14 @@ class PlayerStatsRepository:
         """Return player IDs whose last_win_at is within the past 7 days."""
         rows = self.conn.execute(load_sql("player_stats/get_on_fire_player_ids.sql")).fetchall()
         return [row[0] for row in rows]
+
+    def reset_all_stats(self) -> None:
+        """Clear all accumulated stats so events can be re-applied from scratch."""
+        for table in (
+            "player_stats",
+            "monthly_player_stats",
+            "player_stats_event_log",
+            "global_rankings",
+        ):
+            self.conn.execute(f"DELETE FROM {table}")
+        self.conn.execute("UPDATE players SET global_ranking_score = 0")

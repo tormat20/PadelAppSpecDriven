@@ -27,6 +27,7 @@ export type EventRecord = {
   currentRoundNumber: number | null
   totalRounds: number
   roundDurationMinutes: number
+  eventDurationMinutes?: number
   isTeamMexicano?: boolean
 }
 
@@ -37,6 +38,7 @@ export type CreateEventPayload = {
   eventType: EventType
   eventDate: string
   eventTime24h: string
+  eventDurationMinutes: 60 | 90 | 120
   createAction: CreateActionType
   selectedCourts: number[]
   playerIds: string[]
@@ -49,6 +51,7 @@ export type UpdateEventPayload = {
   eventType?: EventType
   eventDate?: string
   eventTime24h?: string
+  eventDurationMinutes?: 60 | 90 | 120
   selectedCourts?: number[]
   playerIds?: string[]
   isTeamMexicano?: boolean

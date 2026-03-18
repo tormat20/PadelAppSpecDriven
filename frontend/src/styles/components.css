@@ -241,7 +241,30 @@
 .event-schedule-row {
   display: grid;
   gap: var(--space-2);
-  grid-template-columns: minmax(180px, 1fr) 150px;
+  grid-template-columns: minmax(180px, 1fr) 150px minmax(220px, 1fr);
+}
+
+.event-duration-control {
+  align-items: center;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.event-duration-label {
+  color: var(--color-ink-muted);
+  font-size: 0.82rem;
+}
+
+.event-duration-slider {
+  accent-color: var(--color-accent);
+  width: 100%;
+}
+
+.event-duration-marks {
+  color: var(--color-ink-muted);
+  display: flex;
+  font-size: 0.75rem;
+  justify-content: space-between;
 }
 
 .today-date-link {
@@ -743,10 +766,11 @@
 }
 
 .result-modal-backdrop {
-  align-items: center;
   background: rgba(5, 16, 27, 0.64);
   display: grid;
   inset: 0;
+  overflow-y: auto;
+  place-items: center;
   padding: var(--space-4);
   position: fixed;
   z-index: 40;
@@ -2164,4 +2188,134 @@
 
 .toggle-switch--on .toggle-switch__thumb {
   left: calc(100% - 1.45rem);
+}
+
+/* ─── Danger button ──────────────────────────────────────────── */
+
+.button--danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: #fff;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.button--danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.button--danger:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.button--danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── ConfirmDialog panel ────────────────────────────────────── */
+
+.confirm-dialog {
+  max-width: 400px;
+  max-height: min(88vh, 560px);
+  overflow-y: auto;
+  padding: var(--space-5);
+  text-align: left;
+}
+
+.confirm-dialog__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-ink-strong);
+  margin: 0 0 var(--space-2);
+}
+
+.confirm-dialog__message {
+  font-size: 0.9rem;
+  color: var(--color-ink-muted);
+  margin: 0 0 var(--space-4);
+  line-height: 1.5;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* ─── Settings danger action layout ─────────────────────────── */
+
+.settings-section-description {
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.settings-danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-status-message {
+  margin-top: var(--space-3);
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+/* ─── Search player edit mode ────────────────────────────────── */
+
+.player-search-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.player-search-count {
+  font-size: 0.8rem;
+}
+
+.player-search-edit-btn {
+  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+}
+
+.player-search-row--edit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  cursor: default;
+}
+
+.player-search-remove-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-search-remove-btn:hover {
+  background: var(--color-danger);
+  color: #fff;
 }

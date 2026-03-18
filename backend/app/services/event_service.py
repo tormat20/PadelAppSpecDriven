@@ -37,6 +37,12 @@ class EventService:
     def _required_player_count(courts: list[int]) -> int:
         return len(courts) * 4
 
+    @staticmethod
+    def _validate_event_duration_minutes(event_duration_minutes: int) -> int:
+        if event_duration_minutes not in (60, 90, 120):
+            raise ValueError("eventDurationMinutes must be one of: 60, 90, 120")
+        return event_duration_minutes
+
     def evaluate_setup(
         self,
         event_type: EventType,
@@ -92,11 +98,13 @@ class EventService:
         event_type: EventType,
         event_date,
         event_time24h: str,
+        event_duration_minutes: int,
         create_action: str,
         selected_courts: list[int],
         player_ids: list[str],
         is_team_mexicano: bool = False,
     ):
+        event_duration_minutes = self._validate_event_duration_minutes(event_duration_minutes)
         action = create_action or "auto"
         if action == "auto":
             action = "create_event" if selected_courts or player_ids else "create_event_slot"
@@ -126,6 +134,7 @@ class EventService:
             EventStatus.LOBBY,
             round_count,
             round_duration,
+            event_duration_minutes,
             None,
             event_time24h,
             setup_status,
@@ -209,6 +218,7 @@ class EventService:
         event_type: EventType | None,
         event_date,
         event_time24h: str | None,
+        event_duration_minutes: int | None,
         selected_courts: list[int] | None,
         player_ids: list[str] | None,
         is_team_mexicano: bool | None = None,
@@ -233,6 +243,11 @@ class EventService:
         next_type = event_type or current.event_type
         next_date = event_date or current.event_date
         next_time = event_time24h if event_time24h is not None else current.event_time
+        next_duration_minutes = (
+            self._validate_event_duration_minutes(event_duration_minutes)
+            if event_duration_minutes is not None
+            else current.event_duration_minutes
+        )
         next_is_team_mexicano = (
             is_team_mexicano if is_team_mexicano is not None else current.is_team_mexicano
         )
@@ -268,6 +283,7 @@ class EventService:
             event_type=next_type,
             event_date=next_date,
             event_time=next_time,
+            event_duration_minutes=next_duration_minutes,
             setup_status=next_setup_status,
             is_team_mexicano=next_is_team_mexicano,
         )

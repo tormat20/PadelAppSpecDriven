@@ -55,6 +55,7 @@ export default function CreateEventPage() {
   const [eventName, setEventName] = useState("")
   const [eventDate, setEventDate] = useState("")
   const [eventTime24h, setEventTime24h] = useState("")
+  const [eventDurationMinutes, setEventDurationMinutes] = useState<60 | 90 | 120>(90)
   const [eventType, setEventType] = useState<EventType>("WinnersCourt")
   const [isTeamMexicano, setIsTeamMexicano] = useState(false)
   const [courts, setCourts] = useState<number[]>([])
@@ -135,6 +136,7 @@ export default function CreateEventPage() {
         setEventName(event.eventName)
         setEventDate(event.eventDate)
         setEventTime24h(event.eventTime24h ?? "")
+        setEventDurationMinutes((event.eventDurationMinutes as 60 | 90 | 120 | undefined) ?? 90)
         setEventType(event.eventType)
         setIsTeamMexicano(event.isTeamMexicano ?? false)
         setCourts(event.selectedCourts)
@@ -200,6 +202,7 @@ export default function CreateEventPage() {
             eventType,
             eventDate,
             eventTime24h,
+            eventDurationMinutes,
             selectedCourts: [],
             playerIds: [],
             isTeamMexicano: teamMexicanoActive,
@@ -211,6 +214,7 @@ export default function CreateEventPage() {
             eventType,
             eventDate,
             eventTime24h,
+            eventDurationMinutes,
             createAction: "create_event_slot",
             selectedCourts: [],
             playerIds: [],
@@ -301,6 +305,7 @@ export default function CreateEventPage() {
           eventType,
           eventDate,
           eventTime24h,
+          eventDurationMinutes,
           selectedCourts: [],
           playerIds: [],
           isTeamMexicano: teamMexicanoActive,
@@ -311,6 +316,7 @@ export default function CreateEventPage() {
           eventType,
           eventDate,
           eventTime24h,
+          eventDurationMinutes,
           createAction: "create_event_slot",
           selectedCourts: [],
           playerIds: [],
@@ -410,6 +416,7 @@ export default function CreateEventPage() {
             <li className="summary-row"><span className="muted">Mode</span><span>{getEventModeLabel(eventType)}</span></li>
             <li className="summary-row"><span className="muted">Date</span><span>{eventDate || "—"}</span></li>
             <li className="summary-row"><span className="muted">Time</span><span>{eventTime24h || "—"}</span></li>
+            <li className="summary-row"><span className="muted">Duration</span><span>{eventDurationMinutes} min</span></li>
             <li className="summary-row"><span className="muted">Players</span><span>{assignedPlayers.length}</span></li>
           </ul>
           {lifecycleStatus === "ongoing" ? (
@@ -473,6 +480,25 @@ export default function CreateEventPage() {
           onChange={(e) => setEventTime24h(e.target.value)}
           aria-label="Event time"
         />
+        <div className="event-duration-control" aria-label="Event duration">
+          <label htmlFor="event-duration-range" className="event-duration-label">Duration: {eventDurationMinutes} min</label>
+          <input
+            id="event-duration-range"
+            className="event-duration-slider"
+            type="range"
+            min={60}
+            max={120}
+            step={30}
+            value={eventDurationMinutes}
+            onChange={(e) => setEventDurationMinutes(Number(e.target.value) as 60 | 90 | 120)}
+            aria-label="Event duration in minutes"
+          />
+          <div className="event-duration-marks" aria-hidden="true">
+            <span>60</span>
+            <span>90</span>
+            <span>120</span>
+          </div>
+        </div>
       </div>
       {/* T011: Set manuallyEditedName on every keystroke in the name field */}
       <input
@@ -702,6 +728,10 @@ export default function CreateEventPage() {
         <li className="summary-row">
           <span className="muted">Time</span>
           <span>{eventTime24h || "—"}</span>
+        </li>
+        <li className="summary-row">
+          <span className="muted">Duration</span>
+          <span>{eventDurationMinutes} min</span>
         </li>
         <li className="summary-row">
           <span className="muted">Courts</span>

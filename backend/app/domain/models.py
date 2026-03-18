@@ -28,6 +28,7 @@ class Event:
     status: EventStatus
     round_count: int
     round_duration_minutes: int
+    event_duration_minutes: int
     current_round_number: int | None
     event_time: str | None
     setup_status: SetupStatus

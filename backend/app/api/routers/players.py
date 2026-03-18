@@ -71,3 +71,15 @@ def get_player(player_id: str) -> PlayerResponse:
         if not player:
             raise HTTPException(status_code=404, detail="Player not found")
         return _player_response(player)
+
+
+@router.delete("/{player_id}", status_code=200)
+def delete_player(
+    player_id: str,
+    _: TokenData = Depends(require_admin),
+) -> dict:
+    with services_scope() as services:
+        found = services["player_service"].delete_player(player_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Player not found.")
+    return {"status": "ok"}

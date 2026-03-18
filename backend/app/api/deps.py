@@ -38,7 +38,7 @@ def services_scope():
         event_teams_repo = EventTeamsRepository(conn)
         substitutions_repo = SubstitutionsRepository(conn)
 
-        player_service = PlayerService(players_repo)
+        player_service = PlayerService(players_repo, player_stats_repo)
         event_service = EventService(
             events_repo,
             rounds_repo,

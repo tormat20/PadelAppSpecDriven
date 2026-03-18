@@ -28,3 +28,40 @@ class PlayersRepository:
         return [
             Player(id=r[0], display_name=r[1], global_ranking_score=r[2], email=r[3]) for r in rows
         ]
+
+    def delete(self, player_id: str) -> None:
+        """Delete a single player and all their dependent rows in FK-safe order."""
+        self.conn.execute(
+            "DELETE FROM event_substitutions WHERE departing_player_id = ? OR substitute_player_id = ?",
+            [player_id, player_id],
+        )
+        self.conn.execute(
+            "DELETE FROM event_teams WHERE player1_id = ? OR player2_id = ?",
+            [player_id, player_id],
+        )
+        for table in (
+            "event_players",
+            "event_scores",
+            "player_round_scores",
+            "global_rankings",
+            "player_stats",
+            "monthly_player_stats",
+        ):
+            self.conn.execute(f"DELETE FROM {table} WHERE player_id = ?", [player_id])
+        self.conn.execute("DELETE FROM players WHERE id = ?", [player_id])
+
+    def delete_all(self) -> None:
+        """Delete every player and all their dependent rows in FK-safe order."""
+        for table in (
+            "event_substitutions",
+            "event_teams",
+            "event_players",
+            "event_scores",
+            "player_round_scores",
+            "global_rankings",
+            "player_stats",
+            "monthly_player_stats",
+            "player_stats_event_log",
+            "players",
+        ):
+            self.conn.execute(f"DELETE FROM {table}")

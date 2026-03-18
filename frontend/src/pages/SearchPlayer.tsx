@@ -2,13 +2,18 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
-import { searchPlayers } from "../lib/api"
+import { searchPlayers, deletePlayer } from "../lib/api"
 import type { PlayerApiRecord } from "../lib/api"
+import ConfirmDialog from "../components/ConfirmDialog"
 
-function filterPlayers(players: PlayerApiRecord[], query: string): PlayerApiRecord[] {
+export function filterPlayers(players: PlayerApiRecord[], query: string): PlayerApiRecord[] {
   const q = query.trim().toLowerCase()
   if (!q) return players
-  return players.filter((p) => p.displayName.toLowerCase().includes(q))
+  return players.filter(
+    (p) =>
+      p.displayName.toLowerCase().includes(q) ||
+      (p.email ?? "").toLowerCase().includes(q),
+  )
 }
 
 export default function SearchPlayerPage() {
@@ -17,6 +22,10 @@ export default function SearchPlayerPage() {
   const [catalog, setCatalog] = useState<PlayerApiRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [isEditing, setIsEditing] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -33,6 +42,21 @@ export default function SearchPlayerPage() {
 
   const filtered = filterPlayers(catalog, query)
 
+  async function handleDeleteConfirmed() {
+    if (!deletingId) return
+    setIsDeleting(true)
+    try {
+      await deletePlayer(deletingId)
+      setCatalog((prev) => prev.filter((p) => p.id !== deletingId))
+      setDeletingId(null)
+      setDeleteError("")
+    } catch {
+      setDeleteError("Could not delete player. Please try again.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <section className="page-shell">
       <header className="page-header panel">
@@ -42,7 +66,7 @@ export default function SearchPlayerPage() {
 
       <section className="panel">
         <label htmlFor="player-search-input" className="player-search-label">
-          Search by name
+          Search by name or email
         </label>
         <input
           id="player-search-input"
@@ -50,8 +74,8 @@ export default function SearchPlayerPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type a player name…"
-          aria-label="Search players by name"
+          placeholder="Type a player name or email…"
+          aria-label="Search players by name or email"
           autoComplete="off"
         />
       </section>
@@ -78,9 +102,45 @@ export default function SearchPlayerPage() {
 
       {!loading && !error && filtered.length > 0 && (
         <section className="panel">
+          <div className="player-search-panel-header">
+            <span className="player-search-count muted">
+              {filtered.length} player{filtered.length !== 1 ? "s" : ""}
+            </span>
+            <button
+              type="button"
+              className={withInteractiveSurface("button-secondary player-search-edit-btn")}
+              onClick={() => setIsEditing((v) => !v)}
+            >
+              {isEditing ? "Done" : "Edit"}
+            </button>
+          </div>
+          {deleteError && (
+            <p className="warning-text" role="alert">{deleteError}</p>
+          )}
           <ul className="player-search-list" role="list">
             {filtered.map((player) => (
               <li key={player.id} className="player-search-item">
+                {isEditing ? (
+                  <div className={withInteractiveSurface("player-search-row player-search-row--edit")}>
+                    <span className="player-search-name-group">
+                      <span className="player-search-name">{player.displayName}</span>
+                      {player.email && (
+                        <span className="player-search-email muted">{player.email}</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className={withInteractiveSurface("player-search-remove-btn")}
+                      aria-label={`Remove ${player.displayName}`}
+                      onClick={() => {
+                        setDeleteError("")
+                        setDeletingId(player.id)
+                      }}
+                    >
+                      −
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     className={withInteractiveSurface("player-search-row")}
@@ -94,22 +154,41 @@ export default function SearchPlayerPage() {
                       )}
                     </span>
                     <span className="player-search-arrow" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <path
-                        d="M3 13L13 3M13 3H6M13 3V10"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path
+                          d="M3 13L13 3M13 3H6M13 3V10"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      {deletingId && (() => {
+        const player = catalog.find((p) => p.id === deletingId)
+        return (
+          <ConfirmDialog
+            title={`Remove ${player?.displayName ?? "this player"}?`}
+            message="This will permanently delete this player and all their data."
+            confirmLabel="Yes, remove"
+            variant="danger"
+            isLoading={isDeleting}
+            onConfirm={handleDeleteConfirmed}
+            onCancel={() => {
+              setDeletingId(null)
+              setDeleteError("")
+            }}
+          />
+        )
+      })()}
 
       <section className="panel">
         <div className="action-row">

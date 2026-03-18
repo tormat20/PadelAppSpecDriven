@@ -70,6 +70,7 @@ def _to_event_response(
         currentRoundNumber=event.current_round_number,
         totalRounds=event.round_count,
         roundDurationMinutes=event.round_duration_minutes,
+        eventDurationMinutes=event.event_duration_minutes,
         isTeamMexicano=event.is_team_mexicano,
     )
 
@@ -108,6 +109,7 @@ def create_event(
                 payload.eventType,
                 payload.eventDate,
                 payload.eventTime24h,
+                payload.eventDurationMinutes,
                 payload.createAction,
                 payload.selectedCourts,
                 payload.playerIds,
@@ -160,6 +162,7 @@ def update_event(
                 event_type=payload.eventType,
                 event_date=payload.eventDate,
                 event_time24h=payload.eventTime24h,
+                event_duration_minutes=payload.eventDurationMinutes,
                 selected_courts=payload.selectedCourts,
                 player_ids=payload.playerIds,
                 is_team_mexicano=payload.isTeamMexicano,

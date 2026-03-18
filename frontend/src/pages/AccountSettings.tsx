@@ -7,10 +7,45 @@
  *  - User preferences
  */
 
+import { useState } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import ConfirmDialog from "../components/ConfirmDialog"
+import { withInteractiveSurface } from "../features/interaction/surfaceClass"
+import { resetAllPlayerStats, deleteAllPlayers } from "../lib/api"
+
+type DialogMode = "reset-stats" | "delete-all" | null
 
 export default function AccountSettingsPage() {
   const { user, isAdmin } = useAuth()
+  const [confirmDialog, setConfirmDialog] = useState<DialogMode>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [statusMessage, setStatusMessage] = useState("")
+
+  async function handleResetStats() {
+    setIsSubmitting(true)
+    try {
+      await resetAllPlayerStats()
+      setConfirmDialog(null)
+      setStatusMessage("All player stats have been reset.")
+    } catch {
+      setStatusMessage("Something went wrong. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteAll() {
+    setIsSubmitting(true)
+    try {
+      await deleteAllPlayers()
+      setConfirmDialog(null)
+      setStatusMessage("All players have been removed.")
+    } catch {
+      setStatusMessage("Something went wrong. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="settings-page">
@@ -47,6 +82,64 @@ export default function AccountSettingsPage() {
           <p className="settings-coming-soon">
             Court setup — number of courts, court names and availability — coming soon.
           </p>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="settings-section">
+          <h2 className="settings-section-title">Player Management</h2>
+          <p className="settings-section-description">
+            Destructive operations — these cannot be undone.
+          </p>
+          <div className="settings-danger-actions">
+            <button
+              type="button"
+              className={withInteractiveSurface("button-secondary")}
+              onClick={() => {
+                setStatusMessage("")
+                setConfirmDialog("reset-stats")
+              }}
+            >
+              Reset Player Stats
+            </button>
+            <button
+              type="button"
+              className={withInteractiveSurface("button--danger")}
+              onClick={() => {
+                setStatusMessage("")
+                setConfirmDialog("delete-all")
+              }}
+            >
+              Remove All Players
+            </button>
+          </div>
+          {statusMessage && (
+            <p className="settings-status-message" role="status">
+              {statusMessage}
+            </p>
+          )}
+          {confirmDialog === "reset-stats" && (
+            <ConfirmDialog
+              title="Reset All Player Stats?"
+              message="This will clear all stats for every player. Players themselves will not be removed."
+              confirmLabel="Yes, reset"
+              variant="default"
+              isLoading={isSubmitting}
+              onConfirm={handleResetStats}
+              onCancel={() => setConfirmDialog(null)}
+            />
+          )}
+          {confirmDialog === "delete-all" && (
+            <ConfirmDialog
+              title="Remove All Players?"
+              message="This will permanently delete all players and all associated data. This cannot be undone."
+              confirmLabel="Yes, delete all"
+              variant="danger"
+              isLoading={isSubmitting}
+              onConfirm={handleDeleteAll}
+              onCancel={() => setConfirmDialog(null)}
+            />
+          )}
         </div>
       )}
 

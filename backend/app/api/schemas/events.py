@@ -11,6 +11,7 @@ class CreateEventRequest(BaseModel):
     eventType: EventType
     eventDate: date
     eventTime24h: str = Field(default="00:00", min_length=5, max_length=5)
+    eventDurationMinutes: int = Field(default=90, ge=60, le=120)
     createAction: Literal["create_event", "create_event_slot", "auto"] = Field(default="auto")
     selectedCourts: list[int] = Field(default_factory=list)
     playerIds: list[str] = Field(default_factory=list)
@@ -23,6 +24,7 @@ class UpdateEventSetupRequest(BaseModel):
     eventType: EventType | None = None
     eventDate: date | None = None
     eventTime24h: str | None = Field(default=None, min_length=5, max_length=5)
+    eventDurationMinutes: int | None = Field(default=None, ge=60, le=120)
     selectedCourts: list[int] | None = None
     playerIds: list[str] | None = None
     isTeamMexicano: bool | None = None
@@ -51,6 +53,7 @@ class EventResponse(BaseModel):
     currentRoundNumber: int | None
     totalRounds: int
     roundDurationMinutes: int
+    eventDurationMinutes: int
     isTeamMexicano: bool
 
 

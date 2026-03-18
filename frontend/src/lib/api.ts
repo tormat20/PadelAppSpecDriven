@@ -159,6 +159,24 @@ export async function searchPlayersByPrefix(prefix: string): Promise<PlayerApiRe
   return searchPlayers(prefix)
 }
 
+export async function deletePlayer(playerId: string): Promise<void> {
+  await request<{ status: string }>(`/players/${encodeURIComponent(playerId)}`, {
+    method: "DELETE",
+  })
+}
+
+export async function resetAllPlayerStats(): Promise<void> {
+  await request<{ status: string }>("/admin/players/reset-stats", {
+    method: "POST",
+  })
+}
+
+export async function deleteAllPlayers(): Promise<void> {
+  await request<{ status: string }>("/admin/players", {
+    method: "DELETE",
+  })
+}
+
 export async function createOrReusePlayer(
   displayName: string,
   catalog: PlayerApiRecord[],

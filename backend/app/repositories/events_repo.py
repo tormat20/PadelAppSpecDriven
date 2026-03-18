@@ -18,6 +18,7 @@ class EventsRepository:
         status: EventStatus,
         round_count: int,
         round_duration_minutes: int,
+        event_duration_minutes: int,
         current_round_number: int | None,
         event_time: str | None,
         setup_status: SetupStatus,
@@ -34,6 +35,7 @@ class EventsRepository:
                 status.value,
                 round_count,
                 round_duration_minutes,
+                event_duration_minutes,
                 current_round_number,
                 event_time,
                 setup_status.value,
@@ -58,11 +60,12 @@ class EventsRepository:
             status=EventStatus(row[4]),
             round_count=row[5],
             round_duration_minutes=row[6],
-            current_round_number=row[7],
-            event_time=row[8],
-            setup_status=SetupStatus(row[9]),
-            version=row[10],
-            is_team_mexicano=bool(row[11]),
+            event_duration_minutes=row[7],
+            current_round_number=row[8],
+            event_time=row[9],
+            setup_status=SetupStatus(row[10]),
+            version=row[11],
+            is_team_mexicano=bool(row[12]),
         )
 
     def list_all(self) -> list[Event]:
@@ -76,11 +79,12 @@ class EventsRepository:
                 status=EventStatus(row[4]),
                 round_count=row[5],
                 round_duration_minutes=row[6],
-                current_round_number=row[7],
-                event_time=row[8],
-                setup_status=SetupStatus(row[9]),
-                version=row[10],
-                is_team_mexicano=bool(row[11]),
+                event_duration_minutes=row[7],
+                current_round_number=row[8],
+                event_time=row[9],
+                setup_status=SetupStatus(row[10]),
+                version=row[11],
+                is_team_mexicano=bool(row[12]),
             )
             for row in rows
         ]
@@ -147,6 +151,7 @@ class EventsRepository:
         event_type: EventType,
         event_date: date,
         event_time: str | None,
+        event_duration_minutes: int,
         setup_status: SetupStatus,
         is_team_mexicano: bool = False,
     ) -> None:
@@ -157,6 +162,7 @@ class EventsRepository:
                 event_type.value,
                 event_date.isoformat(),
                 event_time,
+                event_duration_minutes,
                 setup_status.value,
                 is_team_mexicano,
                 event_id,
@@ -197,11 +203,12 @@ class EventsRepository:
                 status=EventStatus(row[4]),
                 round_count=row[5],
                 round_duration_minutes=row[6],
-                current_round_number=row[7],
-                event_time=row[8],
-                setup_status=SetupStatus(row[9]),
-                version=row[10],
-                is_team_mexicano=bool(row[11]),
+                event_duration_minutes=row[7],
+                current_round_number=row[8],
+                event_time=row[9],
+                setup_status=SetupStatus(row[10]),
+                version=row[11],
+                is_team_mexicano=bool(row[12]),
             )
             for row in rows
         ]
