@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import TokenData, require_admin, services_scope, read_services_scope
-from app.api.schemas.players import CreatePlayerRequest, PlayerResponse
+from app.api.schemas.players import CreatePlayerRequest, PlayerResponse, UpdatePlayerRequest
 from app.api.schemas.stats import OnFireResponse, PlayerStatsResponse
 from app.services.name_format import format_display_name
 
@@ -71,6 +71,26 @@ def get_player(player_id: str) -> PlayerResponse:
         if not player:
             raise HTTPException(status_code=404, detail="Player not found")
         return _player_response(player)
+
+
+@router.patch("/{player_id}", response_model=PlayerResponse)
+def update_player(
+    player_id: str,
+    payload: UpdatePlayerRequest,
+    _: TokenData = Depends(require_admin),
+) -> PlayerResponse:
+    with services_scope() as services:
+        try:
+            player = services["player_service"].update_player(
+                player_id,
+                payload.displayName,
+                payload.email,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return _player_response(player)
 
 
 @router.delete("/{player_id}", status_code=200)

@@ -6,6 +6,11 @@ class CreatePlayerRequest(BaseModel):
     email: str | None = None
 
 
+class UpdatePlayerRequest(BaseModel):
+    displayName: str = Field(min_length=2, max_length=60)
+    email: str | None = None
+
+
 class PlayerResponse(BaseModel):
     id: str
     displayName: str

@@ -22,6 +22,14 @@ class PlayersRepository:
             return None
         return Player(id=row[0], display_name=row[1], global_ranking_score=row[2], email=row[3])
 
+    def get_by_display_name(self, display_name: str) -> Player | None:
+        row = self.conn.execute(
+            load_sql("players/get_by_display_name.sql"), [display_name]
+        ).fetchone()
+        if not row:
+            return None
+        return Player(id=row[0], display_name=row[1], global_ranking_score=row[2], email=row[3])
+
     def search(self, query: str | None) -> list[Player]:
         term = "%" if not query else f"%{query}%"
         rows = self.conn.execute(load_sql("players/search.sql"), [term]).fetchall()
@@ -65,3 +73,7 @@ class PlayersRepository:
             "players",
         ):
             self.conn.execute(f"DELETE FROM {table}")
+
+    def update(self, player_id: str, display_name: str, email: str | None = None) -> Player | None:
+        self.conn.execute(load_sql("players/update.sql"), [display_name, email, player_id])
+        return self.get(player_id)

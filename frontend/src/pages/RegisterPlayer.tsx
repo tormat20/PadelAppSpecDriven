@@ -5,6 +5,7 @@ import OcrImportPanel from "../components/ocr/OcrImportPanel"
 import { findDuplicateByName } from "../features/create-event/playerSearch"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { createPlayer, searchPlayers } from "../lib/api"
+import type { PlayerApiRecord } from "../lib/api"
 
 /**
  * Returns a user-facing error string if the display name is invalid or
@@ -27,7 +28,7 @@ export function getRegisterPlayerError(
 export default function RegisterPlayerPage() {
   const navigate = useNavigate()
   const [name, setName] = useState("")
-  const [catalog, setCatalog] = useState<{ id: string; displayName: string }[]>([])
+  const [catalog, setCatalog] = useState<PlayerApiRecord[]>([])
   const [submitError, setSubmitError] = useState("")
   const [successName, setSuccessName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -35,6 +36,15 @@ export default function RegisterPlayerPage() {
   useEffect(() => {
     searchPlayers("").then(setCatalog).catch(() => setCatalog([]))
   }, [])
+
+  const refreshCatalog = async () => {
+    try {
+      const players = await searchPlayers("")
+      setCatalog(players)
+    } catch {
+      setCatalog([])
+    }
+  }
 
   // Inline duplicate check — shown while typing, cleared on empty input
   const existingPlayer = name.trim() ? findDuplicateByName(catalog, name.trim()) : null
@@ -107,6 +117,7 @@ export default function RegisterPlayerPage() {
         <OcrImportPanel
           catalog={catalog}
           mode="register"
+          onPlayerCreated={() => void refreshCatalog()}
           onConfirmRoster={() => {}}
           onConfirmRegister={async (names) => {
             const registered: string[] = []

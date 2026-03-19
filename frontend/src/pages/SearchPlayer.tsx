@@ -2,9 +2,10 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
-import { searchPlayers, deletePlayer } from "../lib/api"
+import { searchPlayers, deletePlayer, updatePlayer } from "../lib/api"
 import type { PlayerApiRecord } from "../lib/api"
 import ConfirmDialog from "../components/ConfirmDialog"
+import PlayerEditDialog from "../components/PlayerEditDialog"
 
 export function filterPlayers(players: PlayerApiRecord[], query: string): PlayerApiRecord[] {
   const q = query.trim().toLowerCase()
@@ -24,8 +25,10 @@ export default function SearchPlayerPage() {
   const [error, setError] = useState("")
   const [isEditing, setIsEditing] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -54,6 +57,21 @@ export default function SearchPlayerPage() {
       setDeleteError("Could not delete player. Please try again.")
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  async function handleSaveEdit(payload: { displayName: string; email: string | null }) {
+    if (!editingId) return
+    setIsSavingEdit(true)
+    try {
+      const updated = await updatePlayer(editingId, payload)
+      setCatalog((prev) => prev.map((p) => (p.id === editingId ? updated : p)))
+      setEditingId(null)
+      setDeleteError("")
+    } catch {
+      setDeleteError("Could not update player. Please try again.")
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -130,6 +148,16 @@ export default function SearchPlayerPage() {
                     </span>
                     <button
                       type="button"
+                      className={withInteractiveSurface("button-secondary player-search-inline-edit-btn")}
+                      onClick={() => {
+                        setDeleteError("")
+                        setEditingId(player.id)
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
                       className={withInteractiveSurface("player-search-remove-btn")}
                       aria-label={`Remove ${player.displayName}`}
                       onClick={() => {
@@ -186,6 +214,21 @@ export default function SearchPlayerPage() {
               setDeletingId(null)
               setDeleteError("")
             }}
+          />
+        )
+      })()}
+
+      {editingId && (() => {
+        const player = catalog.find((p) => p.id === editingId)
+        if (!player) return null
+        return (
+          <PlayerEditDialog
+            title={`Edit ${player.displayName}`}
+            initialDisplayName={player.displayName}
+            initialEmail={player.email}
+            isSaving={isSavingEdit}
+            onSave={(payload) => void handleSaveEdit(payload)}
+            onCancel={() => setEditingId(null)}
           />
         )
       })()}

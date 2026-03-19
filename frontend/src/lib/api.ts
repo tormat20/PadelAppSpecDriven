@@ -165,6 +165,19 @@ export async function deletePlayer(playerId: string): Promise<void> {
   })
 }
 
+export async function updatePlayer(
+  playerId: string,
+  payload: { displayName: string; email?: string | null },
+): Promise<PlayerApiRecord> {
+  return request<PlayerApiRecord>(`/players/${encodeURIComponent(playerId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      displayName: payload.displayName,
+      ...(payload.email !== undefined ? { email: payload.email } : {}),
+    }),
+  })
+}
+
 export async function resetAllPlayerStats(): Promise<void> {
   await request<{ status: string }>("/admin/players/reset-stats", {
     method: "POST",

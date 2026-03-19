@@ -12,7 +12,7 @@ export type OcrMatchResult = {
   /**
    * The matched catalog player, or null if no case-insensitive match was found.
    */
-  matchedPlayer: { id: string; displayName: string } | null
+  matchedPlayer: { id: string; displayName: string; email?: string | null } | null
 }
 
 /**
@@ -88,7 +88,7 @@ export function parseOcrNames(rawText: string): string[] {
  */
 export function matchNamesToCatalog(
   names: string[],
-  catalog: { id: string; displayName: string }[],
+  catalog: { id: string; displayName: string; email?: string | null }[],
 ): OcrMatchResult[] {
   return names.map((rawName) => ({
     rawName,

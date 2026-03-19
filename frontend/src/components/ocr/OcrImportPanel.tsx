@@ -5,8 +5,9 @@ import { createWorker } from "tesseract.js"
 import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
 import { matchNamesToCatalog, parseOcrNames } from "../../features/ocr/ocrImport"
 import { parseBookingHtml, parseBookingText } from "../../features/ocr/bookingTextParser"
-import { createOrReusePlayer } from "../../lib/api"
+import { createOrReusePlayer, deletePlayer, updatePlayer } from "../../lib/api"
 import type { OcrMatchResult } from "../../features/ocr/ocrImport"
+import PlayerEditDialog from "../PlayerEditDialog"
 
 type OcrStatus = "idle" | "processing" | "results" | "error"
 type Tab = "image" | "text"
@@ -65,8 +66,11 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const [registering, setRegistering] = useState<Set<string>>(new Set())
   // rawName → resolved player for names individually registered via "Add New Player"
   const [individuallyRegistered, setIndividuallyRegistered] = useState<
-    Map<string, { id: string; displayName: string }>
+    Map<string, { id: string; displayName: string; email?: string | null }>
   >(new Map())
+  const [isEditingInSystem, setIsEditingInSystem] = useState(false)
+  const [editingRawName, setEditingRawName] = useState<string | null>(null)
+  const [isUpdatingPlayer, setIsUpdatingPlayer] = useState(false)
   const workerRef = useRef<TesseractWorker | null>(null)
   // Holds a file that arrived before the worker was ready
   const queuedFileRef = useRef<File | null>(null)
@@ -112,6 +116,8 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       setDismissed(new Set())
       setOcrError("")
       setIndividuallyRegistered(new Map())
+      setIsEditingInSystem(false)
+      setEditingRawName(null)
       try {
         const ret = await workerRef.current.recognize(file)
         const names = parseOcrNames(ret.data.text)
@@ -256,6 +262,8 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
     setDismissed(new Set())
     setOcrError("")
     setIndividuallyRegistered(new Map())
+    setIsEditingInSystem(false)
+    setEditingRawName(null)
     queuedFileRef.current = null
   }
 
@@ -278,6 +286,110 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
         next.delete(r.rawName)
         return next
       })
+    }
+  }
+
+  const getResolvedPlayer = (r: OcrMatchResult) => r.matchedPlayer ?? individuallyRegistered.get(r.rawName) ?? null
+
+  const handleAddAllPlayers = async () => {
+    const namesToAdd = newResults.map((r) => r.rawName)
+    if (namesToAdd.length === 0) return
+
+    setRegistering((prev) => {
+      const next = new Set(prev)
+      for (const name of namesToAdd) next.add(name)
+      return next
+    })
+
+    try {
+      for (const r of newResults) {
+        try {
+          const { player } = await createOrReusePlayer(r.rawName, liveCatalog, r.email)
+          setIndividuallyRegistered((prev) => new Map(prev).set(r.rawName, player))
+          setChecked((prev) => new Set(prev).add(r.rawName))
+        } catch {
+          // keep going
+        } finally {
+          setRegistering((prev) => {
+            const next = new Set(prev)
+            next.delete(r.rawName)
+            return next
+          })
+        }
+      }
+      onPlayerCreated?.()
+    } finally {
+      setRegistering(new Set())
+    }
+  }
+
+  const handleDeleteInSystemPlayer = async (rawName: string) => {
+    const target = results.find((r) => r.rawName === rawName)
+    const resolved = target ? getResolvedPlayer(target) : null
+    if (!resolved) return
+
+    try {
+      await deletePlayer(resolved.id)
+      setResults((prev) =>
+        prev.map((row) => {
+          const player = getResolvedPlayer(row)
+          if (player?.id !== resolved.id) return row
+          return { ...row, matchedPlayer: null }
+        }),
+      )
+      setIndividuallyRegistered((prev) => {
+        const next = new Map(prev)
+        for (const [key, player] of next.entries()) {
+          if (player.id === resolved.id) next.delete(key)
+        }
+        return next
+      })
+      onPlayerCreated?.()
+    } catch {
+      // no-op, keep current row unchanged
+    }
+  }
+
+  const editingResult = editingRawName ? results.find((r) => r.rawName === editingRawName) ?? null : null
+  const editingPlayer = editingResult ? getResolvedPlayer(editingResult) : null
+
+  const handleSavePlayerEdit = async (payload: { displayName: string; email: string | null }) => {
+    if (!editingPlayer || !editingRawName) return
+    setIsUpdatingPlayer(true)
+    try {
+      const updated = await updatePlayer(editingPlayer.id, {
+        displayName: payload.displayName,
+        email: payload.email,
+      })
+
+      setResults((prev) =>
+        prev.map((row) => {
+          const player = getResolvedPlayer(row)
+          if (player?.id !== editingPlayer.id) return row
+          return {
+            ...row,
+            matchedPlayer: updated,
+            email: updated.email ?? row.email,
+          }
+        }),
+      )
+
+      setIndividuallyRegistered((prev) => {
+        const next = new Map(prev)
+        for (const [key, player] of next.entries()) {
+          if (player.id === editingPlayer.id) {
+            next.set(key, { id: updated.id, displayName: updated.displayName })
+          }
+        }
+        return next
+      })
+
+      setEditingRawName(null)
+      onPlayerCreated?.()
+    } catch {
+      // keep dialog open; user can retry
+    } finally {
+      setIsUpdatingPlayer(false)
     }
   }
 
@@ -311,8 +423,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   }
 
   // A name is "in the system" if it was originally matched OR individually registered
-  const isInSystem = (r: OcrMatchResult) =>
-    r.matchedPlayer !== null || individuallyRegistered.has(r.rawName)
+  const isInSystem = (r: OcrMatchResult) => getResolvedPlayer(r) !== null
 
   const inSystemResults = results.filter((r) => isInSystem(r) && !dismissed.has(r.rawName))
   const newResults = results.filter((r) => !isInSystem(r) && !dismissed.has(r.rawName))
@@ -449,7 +560,19 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
             <div className="ocr-columns">
               {/* Left column — in system (originally matched OR individually registered) */}
               <div className="ocr-column">
-                <p className="section-title">Already in system</p>
+                <div className="section-header">
+                  <p className="section-title">Already in system</p>
+                  <button
+                    type="button"
+                    className={withInteractiveSurface("button-secondary ocr-header-btn")}
+                    onClick={() => {
+                      setIsEditingInSystem((v) => !v)
+                      setEditingRawName(null)
+                    }}
+                  >
+                    {isEditingInSystem ? "Done" : "Edit"}
+                  </button>
+                </div>
                 <div className="player-listbox">
                   {inSystemResults.length === 0 ? (
                     <p className="muted player-listbox-empty">None found</p>
@@ -457,32 +580,55 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     inSystemResults.map((r) => {
                       const isAlreadyRegistered = mode === "register"
                       const isChecked = checked.has(r.rawName)
+                      const resolved = getResolvedPlayer(r)
+                      const nameLabel = resolved?.displayName ?? r.rawName
+                      const emailLabel = resolved?.email ?? r.email
                       return (
                         <div
                           key={r.rawName}
                           className="ocr-in-system-row"
                         >
-                          {!isAlreadyRegistered && (
+                          {isEditingInSystem ? (
+                            <>
+                              <button
+                                type="button"
+                                className={withInteractiveSurface("button-secondary ocr-row-edit-btn")}
+                                onClick={() => setEditingRawName(r.rawName)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className={withInteractiveSurface("row-action row-action-remove")}
+                                aria-label={`Remove ${nameLabel}`}
+                                onClick={() => void handleDeleteInSystemPlayer(r.rawName)}
+                              >
+                                −
+                              </button>
+                            </>
+                          ) : (
+                            !isAlreadyRegistered && (
                             <button
                               type="button"
                               className={withInteractiveSurface("row-action row-action-remove")}
-                              aria-label={`Remove ${r.rawName}`}
+                              aria-label={`Remove ${nameLabel}`}
                               onClick={() => dismissPlayer(r.rawName)}
                             >
                               −
                             </button>
+                            )
                           )}
                           <button
                             type="button"
                             className={withInteractiveSurface("player-listbox-option ocr-in-system-name")}
                             aria-pressed={isChecked}
-                            disabled={isAlreadyRegistered}
+                            disabled={isAlreadyRegistered || isEditingInSystem}
                             onClick={() => !isAlreadyRegistered && toggleChecked(r.rawName)}
                             data-active={isChecked}
                           >
-                            <span className="ocr-player-name">{r.rawName}</span>
-                            {r.email && (
-                              <span className="ocr-player-email muted">{r.email}</span>
+                            <span className="ocr-player-name">{nameLabel}</span>
+                            {emailLabel && (
+                              <span className="ocr-player-email muted">{emailLabel}</span>
                             )}
                             {isAlreadyRegistered
                               ? <span className="tag">Registered</span>
@@ -498,7 +644,17 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
 
               {/* Right column — not yet in system */}
               <div className="ocr-column">
-                <p className="section-title">New players</p>
+                <div className="section-header">
+                  <p className="section-title">New players</p>
+                  <button
+                    type="button"
+                    className={withInteractiveSurface("button-secondary ocr-header-btn")}
+                    onClick={() => void handleAddAllPlayers()}
+                    disabled={newResults.length === 0 || registering.size > 0}
+                  >
+                    Add All
+                  </button>
+                </div>
                 <div className="player-listbox">
                   {newResults.length === 0 ? (
                     <p className="muted player-listbox-empty">None found</p>
@@ -559,6 +715,17 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     : "Register All"}
               </button>
             </div>
+
+            {editingPlayer && (
+              <PlayerEditDialog
+                title="Edit player"
+                initialDisplayName={editingPlayer.displayName}
+                initialEmail={editingPlayer.email}
+                isSaving={isUpdatingPlayer}
+                onCancel={() => setEditingRawName(null)}
+                onSave={(payload) => void handleSavePlayerEdit(payload)}
+              />
+            )}
           </>
         )}
       </div>
