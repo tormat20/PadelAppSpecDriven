@@ -120,6 +120,12 @@ cd backend
 $env:PYTHONPATH="."; uv run python -m app.scripts.seed_admin
 ```
 
+
+```linux
+cd backend
+PYTHONPATH="." uv run python -m app.scripts.seed_admin
+```
+
 The script will prompt for an email and password (minimum 8 characters). The user is created with `role=admin` and is immediately able to log in.
 
 ---
@@ -146,3 +152,10 @@ http://localhost:5173/create-account
 ```
 
 They enter an email and password and are automatically assigned `role=user`. No admin action required.
+
+
+PADEL_JWT_SECRET_KEY=3c22ed4af48603c77404eca9628dd05c87e508c3db55a9b6550f6686ee983500
+PADEL_JWT_ALGORITHM=HS256
+PADEL_JWT_EXPIRE_MINUTES=480
+PADEL_CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+PADEL_DB_PATH=padel.duckdb
