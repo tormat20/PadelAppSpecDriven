@@ -1,8 +1,68 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from app.domain.enums import EventType
+
+
+def compute_consecutive_momentum(matches_with_round: list[tuple[int, Any]]) -> dict[str, str]:
+    """Return per-player momentum badge state from ordered outcomes.
+
+    Uses event-local chronological outcomes. A player is:
+    - "fire" after >=3 consecutive wins
+    - "snowflake" after >=3 consecutive losses
+    - "none" otherwise
+    """
+    outcomes: dict[str, list[str]] = {}
+
+    for _round_number, match in sorted(
+        matches_with_round, key=lambda x: (x[0], getattr(x[1], "court_number", 0))
+    ):
+        winner_team = getattr(match, "winner_team", None)
+        is_draw = bool(getattr(match, "is_draw", False))
+        if winner_team is None and not is_draw:
+            continue
+
+        team1 = [getattr(match, "team1_player1_id", ""), getattr(match, "team1_player2_id", "")]
+        team2 = [getattr(match, "team2_player1_id", ""), getattr(match, "team2_player2_id", "")]
+
+        # Draws are neutral: they do not advance or break active streaks.
+        if is_draw:
+            continue
+
+        winners = team1 if winner_team == 1 else team2
+        losers = team2 if winner_team == 1 else team1
+        for pid in winners:
+            outcomes.setdefault(pid, []).append("W")
+        for pid in losers:
+            outcomes.setdefault(pid, []).append("L")
+
+    momentum: dict[str, str] = {}
+    for pid, seq in outcomes.items():
+        if len(seq) < 3:
+            momentum[pid] = "none"
+            continue
+
+        consecutive = 0
+        marker = ""
+        for value in reversed(seq):
+            if marker == "":
+                marker = value
+                consecutive = 1
+            elif value == marker:
+                consecutive += 1
+            else:
+                break
+
+        if marker == "W" and consecutive >= 3:
+            momentum[pid] = "fire"
+        elif marker == "L" and consecutive >= 3:
+            momentum[pid] = "snowflake"
+        else:
+            momentum[pid] = "none"
+
+    return momentum
 
 
 ORDERING_VERSION = "v1"

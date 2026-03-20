@@ -23,11 +23,11 @@ export function getProgressCellDisplay(value: string | null | undefined): string
 }
 
 /**
- * Returns true when a summary cell value should be rendered bold.
+ * Returns true when a summary cell value should be rendered underlined.
  * Applies to Mexicano/Americano numeric scores strictly above 12
  * (i.e. the team scored more than 12 points — a win in Mexicano).
  */
-export function isCellBold(value: string | null | undefined): boolean {
+export function isCellUnderlined(value: string | null | undefined): boolean {
   if (!value) return false
   const n = Number(value)
   return Number.isFinite(n) && n > 12
@@ -201,8 +201,8 @@ export default function SummaryPage() {
                      <td>{row.displayName}</td>
                      {row.cells.map((cell) => (
                        <td key={cell.columnId}>
-                         {isCellBold(cell.value)
-                           ? <b>{getProgressCellDisplay(cell.value)}</b>
+                         {isCellUnderlined(cell.value)
+                           ? <u>{getProgressCellDisplay(cell.value)}</u>
                            : getProgressCellDisplay(cell.value)}
                        </td>
                      ))}
@@ -284,8 +284,8 @@ export default function SummaryPage() {
                      </td>
                    {row.cells.map((cell) => (
                      <td key={cell.columnId}>
-                       {isCellBold(cell.value)
-                         ? <b>{getProgressCellDisplay(cell.value)}</b>
+                       {isCellUnderlined(cell.value)
+                         ? <u>{getProgressCellDisplay(cell.value)}</u>
                          : getProgressCellDisplay(cell.value)}
                      </td>
                    ))}

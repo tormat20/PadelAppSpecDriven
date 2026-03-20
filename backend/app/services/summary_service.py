@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.errors import DomainError
 from app.domain.enums import EventStatus, EventType, MatchStatus, ResultType
@@ -10,7 +10,7 @@ from app.repositories.players_repo import PlayersRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.services.name_format import format_display_name
 from app.services.event_lifecycle import derive_lifecycle_status
-from app.services.summary_ordering import SummaryOrderingService
+from app.services.summary_ordering import SummaryOrderingService, compute_consecutive_momentum
 from app.services.round_service import RoundService
 
 if TYPE_CHECKING:
@@ -173,6 +173,7 @@ class SummaryService:
         totals_by_player: dict[str, int] = {player_id: 0 for player_id in player_ids}
         player_rows = []
         all_matches: list = []
+        matches_with_round: list[tuple[int, Any]] = []
         for player_id in player_ids:
             player = self.players_repo.get(player_id)
             display_name = format_display_name(player.display_name) if player else player_id
@@ -182,7 +183,9 @@ class SummaryService:
                 matches = self.matches_repo.list_by_round(round_obj.id)
                 if player_id == player_ids[0]:
                     all_matches.extend(matches)
+                    matches_with_round.extend([(round_obj.round_number, m) for m in matches])
                 value = "-"
+                is_winner = False
                 for match in matches:
                     if player_id in {
                         match.team1_player1_id,
@@ -191,13 +194,26 @@ class SummaryService:
                         match.team2_player2_id,
                     }:
                         value = self._match_value_for_player(match, player_id)
+                        is_winner = self._is_winner_for_player(match, player_id)
                         totals_by_player[player_id] += self._match_numeric_value_for_player(
                             match, player_id
                         )
                         break
-                cells.append({"columnId": f"round-{round_obj.round_number}", "value": value})
+                cells.append(
+                    {
+                        "columnId": f"round-{round_obj.round_number}",
+                        "value": value,
+                        "isWinner": is_winner,
+                    }
+                )
 
-            cells.append({"columnId": "total", "value": str(totals_by_player.get(player_id, 0))})
+            cells.append(
+                {
+                    "columnId": "total",
+                    "value": str(totals_by_player.get(player_id, 0)),
+                    "isWinner": False,
+                }
+            )
 
             player_rows.append(
                 {
@@ -207,6 +223,10 @@ class SummaryService:
                 }
             )
 
+        momentum_by_player = compute_consecutive_momentum(matches_with_round)
+        for row in player_rows:
+            row["momentumBadge"] = momentum_by_player.get(row["playerId"], "none")
+
         ordered_rows, ordering_metadata = self.summary_ordering.order_progress_rows(
             player_rows,
             totals_by_player,
@@ -214,13 +234,40 @@ class SummaryService:
             event_type=event.event_type,
         )
 
+        score_rows = []
+        for round_number, match in matches_with_round:
+            score_rows.append(
+                {
+                    "matchId": getattr(match, "id", ""),
+                    "roundNumber": round_number,
+                    "courtNumber": getattr(match, "court_number", 0),
+                    "team1Score": getattr(match, "team1_score", None),
+                    "team2Score": getattr(match, "team2_score", None),
+                    "winnerTeam": getattr(match, "winner_team", None),
+                    "isDraw": bool(getattr(match, "is_draw", False)),
+                    "editable": True,
+                    "lastEditedAt": getattr(match, "updated_at", None),
+                }
+            )
+
         return {
             "event_id": event_id,
             "columns": columns,
             "player_rows": ordered_rows,
+            "score_rows": score_rows,
             "ordering_mode": ordering_metadata.ordering_mode,
             "ordering_version": ordering_metadata.ordering_version,
         }
+
+    def _is_winner_for_player(self, match, player_id: str) -> bool:
+        if match.status != MatchStatus.COMPLETED:
+            return False
+        if match.winner_team is None:
+            return False
+        player_team = self._player_team(match, player_id)
+        if player_team is None:
+            return False
+        return match.winner_team == player_team
 
     def _match_value_for_player(self, match, player_id: str) -> str:
         if match.status != MatchStatus.COMPLETED:

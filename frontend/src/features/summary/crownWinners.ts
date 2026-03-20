@@ -1,5 +1,6 @@
 export const CROWN_ICON_SRC = "/images/icons/crown-color.png"
 export const CROWN_ICON_ALT = "Crowned winner"
+export const RECENT_WINNER_CROWN_ALT = "Recent winner"
 
 export function toCrownedPlayerSet(playerIds: string[] | undefined): Set<string> {
   if (!Array.isArray(playerIds)) return new Set<string>()

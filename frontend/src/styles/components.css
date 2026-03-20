@@ -1655,7 +1655,7 @@
   }
 }
 
-.leaderboard-fire-icon {
+.leaderboard-crown-icon {
   display: inline-block;
   height: 0.95rem;
   margin-left: 0.2rem;
@@ -1664,7 +1664,9 @@
   width: 0.95rem;
 }
 
-.court-fire-icon {
+.court-crown-icon,
+.court-fire-icon,
+.court-snowflake-icon {
   display: inline-block;
   height: 0.95rem;
   margin-left: 0.2rem;
@@ -2359,4 +2361,51 @@
 .player-search-remove-btn:hover {
   background: var(--color-danger);
   color: #fff;
+}
+
+/* ─── Run Event inline summary ───────────────────────────────── */
+
+.run-action-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.run-action-row {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 680px) {
+  .run-action-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.inline-summary-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.inline-summary-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.inline-summary-title {
+  margin: 0;
+}
+
+.inline-summary-grid {
+  overflow-x: auto;
+}
+
+.inline-summary-badge {
+  margin-left: var(--space-1);
+}
+
+.inline-summary-winner {
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
 }

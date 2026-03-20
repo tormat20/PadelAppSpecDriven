@@ -1,8 +1,9 @@
 from collections import defaultdict
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.core.errors import DomainError
-from app.domain.enums import EventType, RoundStatus
+from app.domain.enums import EventType, MatchStatus, RoundStatus
 from app.domain.scoring import winners_court_score, ranked_box_delta, mexicano_score
 from app.repositories.event_teams_repo import EventTeamsRepository
 from app.repositories.events_repo import EventsRepository
@@ -33,6 +34,54 @@ class RoundService:
         self.mexicano_service = MexicanoService()
         self.rb_service = RankedBoxService()
 
+    def go_previous_round(self, event_id: str) -> dict:
+        event = self.events_repo.get(event_id)
+        if not event:
+            raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+
+        lifecycle_status = derive_lifecycle_status(event)
+        if lifecycle_status != "ongoing":
+            raise DomainError(
+                "EVENT_NOT_ONGOING",
+                "Event is not running right now.",
+                status_code=409,
+            )
+
+        current_round = self.rounds_repo.get_current_round(event_id)
+        if not current_round:
+            raise DomainError(
+                "ROUND_NOT_FOUND",
+                "No active round found for this event.",
+                status_code=404,
+            )
+
+        if current_round.round_number <= 1:
+            return {
+                "status": "blocked",
+                "warningMessage": "Round 1 is the first round. You cannot go back further.",
+                "roundView": None,
+            }
+
+        previous_round_number = current_round.round_number - 1
+        previous_round = self.rounds_repo.get_round_by_number(event_id, previous_round_number)
+        if not previous_round:
+            raise DomainError(
+                "ROUND_NOT_FOUND",
+                "Previous round could not be loaded.",
+                status_code=404,
+            )
+
+        self.rounds_repo.delete_from_round_number(event_id, current_round.round_number)
+        self.rounds_repo.set_status(previous_round.id, RoundStatus.RUNNING)
+        self.events_repo.set_status(event_id, event.status, previous_round.round_number)
+        self._rebuild_event_score_projections(event_id)
+
+        return {
+            "status": "ok",
+            "warningMessage": None,
+            "roundView": self.get_current_round_view(event_id),
+        }
+
     def get_current_round_view(self, event_id: str) -> dict:
         round_obj = self.rounds_repo.get_current_round(event_id)
         if not round_obj:
@@ -53,15 +102,87 @@ class RoundService:
         if not match:
             raise ValueError("Match not found")
 
+        self._apply_result(match, mode, payload, allow_rankedbox_updates=True)
+
+    def correct_result(
+        self,
+        match_id: str,
+        mode: str,
+        payload: dict[str, object],
+        edited_by_user_id: str,
+        expected_updated_at: str | None = None,
+    ) -> dict[str, str]:
+        match = self.matches_repo.get(match_id)
+        if not match:
+            raise ValueError("Match not found")
+
+        if expected_updated_at and match.updated_at and expected_updated_at != match.updated_at:
+            raise DomainError(
+                "RESULT_CONFLICT",
+                "Result was updated by another user. Refresh and try again.",
+                status_code=409,
+            )
+
+        if mode == "RankedBox" and match.status == MatchStatus.COMPLETED:
+            raise DomainError(
+                "RESULT_EDIT_NOT_SUPPORTED",
+                "RankedBox completed results are not editable.",
+                status_code=409,
+            )
+
+        before_payload = {
+            "winnerTeam": match.winner_team,
+            "isDraw": bool(match.is_draw),
+            "team1Score": match.team1_score,
+            "team2Score": match.team2_score,
+            "status": match.status.value,
+        }
+
+        self._apply_result(match, mode, payload, allow_rankedbox_updates=False)
+        updated = self.matches_repo.get(match_id)
+        edited_at = datetime.now(timezone.utc).isoformat()
+        after_payload = {
+            "winnerTeam": updated.winner_team if updated else None,
+            "isDraw": bool(updated.is_draw) if updated else False,
+            "team1Score": updated.team1_score if updated else None,
+            "team2Score": updated.team2_score if updated else None,
+            "status": updated.status.value if updated else "Completed",
+        }
+        self.matches_repo.insert_result_correction(
+            event_id=match.event_id,
+            match_id=match_id,
+            edited_by_user_id=edited_by_user_id,
+            before_payload=before_payload,
+            after_payload=after_payload,
+            status="applied",
+        )
+
+        self._invalidate_downstream_rounds_after_correction(match)
+
+        return {
+            "status": "applied",
+            "matchId": match_id,
+            "editedAt": edited_at,
+        }
+
+    def _apply_result(
+        self,
+        match,
+        mode: str,
+        payload: dict[str, object],
+        allow_rankedbox_updates: bool,
+    ) -> None:
+
         winner_team: int | None = None
         is_draw = False
         team1_score: int | None = None
         team2_score: int | None = None
 
         if mode == "WinnersCourt":
-            winner_team = payload.get("winningTeam")
-            if winner_team not in (1, 2):
+            raw_winner = payload.get("winningTeam")
+            if not isinstance(raw_winner, int) or raw_winner not in (1, 2):
                 raise ValueError("WinnersCourt requires a winning team")
+            winner_team = raw_winner
             winners_court_score(winner_team)
         elif mode in ("Mexicano", "Americano"):
             raw_team1 = payload.get("team1Score")
@@ -85,14 +206,59 @@ class RoundService:
                 is_draw = True
             else:
                 winner_team = 1 if outcome == "Team1Win" else 2
-            self.rankings_repo.apply_update(match.team1_player1_id, d1)
-            self.rankings_repo.apply_update(match.team1_player2_id, d1)
-            self.rankings_repo.apply_update(match.team2_player1_id, d2)
-            self.rankings_repo.apply_update(match.team2_player2_id, d2)
+            if allow_rankedbox_updates:
+                self.rankings_repo.apply_update(match.team1_player1_id, d1)
+                self.rankings_repo.apply_update(match.team1_player2_id, d1)
+                self.rankings_repo.apply_update(match.team2_player1_id, d2)
+                self.rankings_repo.apply_update(match.team2_player2_id, d2)
         else:
             raise ValueError("Unsupported mode")
 
-        self.matches_repo.set_result(match_id, winner_team, is_draw, team1_score, team2_score)
+        self.matches_repo.set_result(match.id, winner_team, is_draw, team1_score, team2_score)
+
+    def _invalidate_downstream_rounds_after_correction(self, match) -> None:
+        event = self.events_repo.get(match.event_id)
+        if not event:
+            return
+
+        corrected_round = self._round_for_match(match.event_id, match.round_id)
+        if not corrected_round:
+            return
+
+        from_round = corrected_round.round_number + 1
+        if self.rounds_repo.list_round_numbers(match.event_id):
+            self.rounds_repo.delete_from_round_number(match.event_id, from_round)
+
+        self.rounds_repo.set_status(corrected_round.id, RoundStatus.RUNNING)
+        self.events_repo.set_status(match.event_id, event.status, corrected_round.round_number)
+        self._rebuild_event_score_projections(match.event_id)
+
+    def _round_for_match(self, event_id: str, round_id: str):
+        for round_obj in self.rounds_repo.list_rounds(event_id):
+            if round_obj.id == round_id:
+                return round_obj
+        return None
+
+    def _rebuild_event_score_projections(self, event_id: str) -> None:
+        event = self.events_repo.get(event_id)
+        if not event:
+            return
+
+        self.matches_repo.clear_event_score_projections(event_id)
+        if event.event_type not in (EventType.MEXICANO, EventType.AMERICANO):
+            return
+
+        player_ids = self.events_repo.list_player_ids(event_id)
+        if not player_ids:
+            return
+
+        if event.event_type == EventType.MEXICANO and not event.is_team_mexicano:
+            ordered_players, totals = self._rank_players_for_mexicano(event_id, player_ids)
+            self._upsert_event_scores(event_id, ordered_players, totals)
+            return
+
+        totals = self._calculate_player_totals(event_id, player_ids)
+        self._upsert_event_scores(event_id, player_ids, totals)
 
     def next_round(self, event_id: str) -> dict:
         event = self.events_repo.get(event_id)

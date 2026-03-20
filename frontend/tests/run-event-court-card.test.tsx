@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
+import { renderToStaticMarkup } from "react-dom/server"
 
 import { COURT_IMAGE_SRC, CourtGrid } from "../src/components/courts/CourtGrid"
+import InlineSummaryPanel from "../src/components/run-event/InlineSummaryPanel"
 import { mapMatchPlayersToDisplayNames } from "../src/pages/RunEvent"
 
 describe("RunEvent court card rendering with image context", () => {
@@ -54,5 +56,30 @@ describe("RunEvent court card rendering with image context", () => {
 
     expect(mapped[0].team1).toEqual(["Alice", "Bob"])
     expect(mapped[0].team2).toEqual(["Carla", "Daniel"])
+  })
+
+  it("keeps inline summary table-only without recorded-scores block", () => {
+    const html = renderToStaticMarkup(
+      <InlineSummaryPanel
+        summary={{
+          eventId: "e1",
+          isExpanded: true,
+          columns: [{ id: "total", label: "Total" }],
+          playerRows: [
+            {
+              rank: 1,
+              playerId: "p1",
+              displayName: "Alice",
+              cells: [{ columnId: "total", value: "3" }],
+            },
+          ],
+          scoreRows: [],
+        }}
+        onClose={() => undefined}
+      />,
+    )
+
+    expect(html).toContain("View Summary")
+    expect(html).not.toContain("Recorded Scores")
   })
 })

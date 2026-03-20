@@ -23,8 +23,10 @@ type CourtGridProps = {
   onTeamGroupClick?: (matchId: string, teamNumber: 1 | 2) => void
   onTeamGroupHover?: (matchId: string, teamNumber: 1 | 2 | null) => void
   renderMatchFooter?: (matchId: string) => ReactNode
-  /** Set of player display-names that have a hot streak (won in the last 7 days). */
+  /** Set of player display-names that should render a status badge next to the name. */
   onFireNames?: Set<string>
+  onColdNames?: Set<string>
+  badgeVariant?: "crown" | "fire"
 }
 
 export function selectTeamGrouping(
@@ -56,7 +58,38 @@ export function CourtGrid({
   onTeamGroupHover,
   renderMatchFooter,
   onFireNames,
+  onColdNames,
+  badgeVariant = "crown",
 }: CourtGridProps) {
+  const badgeSrc = badgeVariant === "fire" ? "/images/icons/fire.svg" : "/images/icons/crown-color.png"
+  const badgeAlt = badgeVariant === "fire" ? "Hot streak" : "Recent winner"
+  const badgeTitle = badgeVariant === "fire" ? "Hot streak" : "Won an event in the last 7 days"
+  const badgeClass = badgeVariant === "fire" ? "court-fire-icon" : "court-crown-icon"
+
+  const statusIconForName = (name: string) => {
+    if (onColdNames?.has(name)) {
+      return (
+        <img
+          src="/images/icons/snowflake.svg"
+          alt="Cold streak"
+          className="court-snowflake-icon"
+          title="Cold streak"
+        />
+      )
+    }
+    if (onFireNames?.has(name)) {
+      return (
+        <img
+          src={badgeSrc}
+          alt={badgeAlt}
+          className={badgeClass}
+          title={badgeTitle}
+        />
+      )
+    }
+    return null
+  }
+
   return (
     <div className="grid-columns-2">
       {[...matches].sort((a, b) => b.courtNumber - a.courtNumber).map((match) => (
@@ -76,14 +109,7 @@ export function CourtGrid({
               {getTeamNames(match).team1.map((name) => (
                 <span key={name} className="team-player-name">
                   {name}
-                  {onFireNames?.has(name) && (
-                    <img
-                      src="/images/icons/fire.svg"
-                      alt="Hot streak"
-                      className="court-fire-icon"
-                      title="Won an event in the last 7 days"
-                    />
-                  )}
+                  {statusIconForName(name)}
                 </span>
               ))}
             </div>
@@ -105,14 +131,7 @@ export function CourtGrid({
               {getTeamNames(match).team2.map((name) => (
                 <span key={name} className="team-player-name">
                   {name}
-                  {onFireNames?.has(name) && (
-                    <img
-                      src="/images/icons/fire.svg"
-                      alt="Hot streak"
-                      className="court-fire-icon"
-                      title="Won an event in the last 7 days"
-                    />
-                  )}
+                  {statusIconForName(name)}
                 </span>
               ))}
             </div>

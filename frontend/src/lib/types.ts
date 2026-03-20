@@ -129,6 +129,7 @@ export type ProgressSummaryColumn = {
 export type ProgressSummaryPlayerCell = {
   columnId: string
   value: string
+  isWinner?: boolean
 }
 
 export type SummaryRoundCell = ProgressSummaryPlayerCell
@@ -137,7 +138,57 @@ export type ProgressSummaryPlayerRow = {
   rank: number
   playerId: string
   displayName: string
+  momentumBadge?: "none" | "fire" | "snowflake"
   cells: ProgressSummaryPlayerCell[]
+}
+
+export type InlineSummaryScoreRow = {
+  matchId: string
+  roundNumber: number
+  courtNumber: number
+  team1Score: number | null
+  team2Score: number | null
+  winnerTeam: number | null
+  isDraw: boolean
+  editable: boolean
+  lastEditedAt?: string | null
+}
+
+export type InlineSummaryView = {
+  eventId: string
+  isExpanded: boolean
+  columns: ProgressSummaryColumn[]
+  playerRows: ProgressSummaryPlayerRow[]
+  scoreRows: InlineSummaryScoreRow[]
+}
+
+export type ScoreCorrectionPayload =
+  | { mode: "WinnersCourt"; winningTeam: 1 | 2 }
+  | { mode: "Mexicano" | "Americano"; team1Score: number; team2Score: number }
+  | { mode: "RankedBox"; outcome: "Team1Win" | "Team2Win" | "Draw" }
+
+export type ScoreCorrectionResponse = {
+  status: "applied"
+  matchId: string
+  editedAt: string
+}
+
+export type PreviousRoundStatus = "ok" | "blocked"
+
+export type PreviousRoundResponse = {
+  status: PreviousRoundStatus
+  warningMessage: string | null
+  roundView: {
+    eventId: string
+    roundNumber: number
+    matches: Array<{
+      matchId: string
+      courtNumber: number
+      team1: string[]
+      team2: string[]
+      status: MatchStatus
+    }>
+  } | null
 }
 
 export type FinalEventSummary = {
@@ -163,6 +214,7 @@ export type InProgressEventSummary = {
   orderingVersion: string
   columns: ProgressSummaryColumn[]
   playerRows: ProgressSummaryPlayerRow[]
+  scoreRows?: InlineSummaryScoreRow[]
 }
 
 export type EventSummaryResponse = FinalEventSummary | InProgressEventSummary

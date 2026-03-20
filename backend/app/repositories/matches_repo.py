@@ -1,3 +1,6 @@
+import json
+from uuid import uuid4
+
 from app.domain.enums import MatchStatus, ResultType
 from app.domain.models import Match, RoundPlanMatch
 from app.repositories.base import load_sql
@@ -35,6 +38,13 @@ class MatchesRepository:
         rows = self.conn.execute(load_sql("matches/list_by_round.sql"), [round_id]).fetchall()
         return [self._to_match(r) for r in rows]
 
+    def list_by_event(self, event_id: str) -> list[tuple[int, Match]]:
+        rows = self.conn.execute(load_sql("matches/list_by_event.sql"), [event_id]).fetchall()
+        result: list[tuple[int, Match]] = []
+        for row in rows:
+            result.append((int(row[15]), self._to_match(row)))
+        return result
+
     def get(self, match_id: str) -> Match | None:
         row = self.conn.execute(load_sql("matches/get_by_id.sql"), [match_id]).fetchone()
         if not row:
@@ -60,6 +70,34 @@ class MatchesRepository:
         ).fetchone()
         return int(row[0]) if row else 0
 
+    def insert_result_correction(
+        self,
+        event_id: str,
+        match_id: str,
+        edited_by_user_id: str,
+        before_payload: dict[str, object],
+        after_payload: dict[str, object],
+        status: str,
+        reason: str | None = None,
+    ) -> None:
+        self.conn.execute(
+            load_sql("matches/insert_correction.sql"),
+            [
+                str(uuid4()),
+                event_id,
+                match_id,
+                edited_by_user_id,
+                json.dumps(before_payload),
+                json.dumps(after_payload),
+                status,
+                reason,
+            ],
+        )
+
+    def clear_event_score_projections(self, event_id: str) -> None:
+        self.conn.execute("DELETE FROM event_scores WHERE event_id = ?", [event_id])
+        self.conn.execute("DELETE FROM player_round_scores WHERE event_id = ?", [event_id])
+
     def _to_match(self, row) -> Match:
         return Match(
             id=row[0],
@@ -76,4 +114,5 @@ class MatchesRepository:
             team1_score=row[11],
             team2_score=row[12],
             status=MatchStatus(row[13]),
+            updated_at=str(row[14]) if len(row) > 14 and row[14] is not None else None,
         )

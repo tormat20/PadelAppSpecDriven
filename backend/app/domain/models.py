@@ -60,6 +60,7 @@ class Match:
     team1_score: int | None
     team2_score: int | None
     status: MatchStatus
+    updated_at: str | None = None
 
 
 @dataclass(slots=True)

@@ -33,13 +33,27 @@ class ProgressColumnItem(BaseModel):
 class ProgressCellItem(BaseModel):
     columnId: str
     value: str
+    isWinner: bool = False
 
 
 class ProgressPlayerRow(BaseModel):
     rank: int
     playerId: str
     displayName: str
+    momentumBadge: str = "none"
     cells: list[ProgressCellItem]
+
+
+class InlineScoreRow(BaseModel):
+    matchId: str
+    roundNumber: int
+    courtNumber: int
+    team1Score: int | None = None
+    team2Score: int | None = None
+    winnerTeam: int | None = None
+    isDraw: bool = False
+    editable: bool = True
+    lastEditedAt: str | None = None
 
 
 class ProgressSummaryResponse(BaseModel):
@@ -50,6 +64,7 @@ class ProgressSummaryResponse(BaseModel):
     orderingVersion: str = "v1"
     columns: list[ProgressColumnItem]
     playerRows: list[ProgressPlayerRow]
+    scoreRows: list[InlineScoreRow] = Field(default_factory=list)
 
 
 EventSummaryResponse = FinalSummaryResponse | ProgressSummaryResponse

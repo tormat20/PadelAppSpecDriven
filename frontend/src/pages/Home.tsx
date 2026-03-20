@@ -174,9 +174,9 @@ function LeaderboardSection({ title, board, error, scoreLabel, scoreKey, onRetry
                   {entry.displayName}
                   {onFireIds?.has(entry.playerId) && (
                     <img
-                      src="/images/icons/fire.svg"
-                      alt="Hot streak"
-                      className="leaderboard-fire-icon"
+                      src="/images/icons/crown-color.png"
+                      alt="Recent winner"
+                      className="leaderboard-crown-icon"
                       title="Won an event in the last 7 days"
                     />
                   )}
@@ -249,9 +249,9 @@ function RankedLadderSection({ ladder, error, onRetry, onFireIds }: RankedLadder
                   {entry.displayName}
                   {onFireIds?.has(entry.playerId) && (
                     <img
-                      src="/images/icons/fire.svg"
-                      alt="Hot streak"
-                      className="leaderboard-fire-icon"
+                      src="/images/icons/crown-color.png"
+                      alt="Recent winner"
+                      className="leaderboard-crown-icon"
                       title="Won an event in the last 7 days"
                     />
                   )}
@@ -324,9 +324,9 @@ function MexicanoHighscoreSection({ highscore, error, onRetry, onFireIds }: Mexi
                   {entry.displayName}
                   {onFireIds?.has(entry.playerId) && (
                     <img
-                      src="/images/icons/fire.svg"
-                      alt="Hot streak"
-                      className="leaderboard-fire-icon"
+                      src="/images/icons/crown-color.png"
+                      alt="Recent winner"
+                      className="leaderboard-crown-icon"
                       title="Won an event in the last 7 days"
                     />
                   )}

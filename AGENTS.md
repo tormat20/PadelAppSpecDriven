@@ -28,6 +28,11 @@ Auto-generated from all feature plans. Last updated: 2026-02-26
 - Backend DuckDB via existing REST API (`createEvent`, `updateEvent`); `localStorage` draft for player list (017-create-event-stepper)
 - TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (already installed) (018-nav-ui-polish)
 - No new persistence — player creation uses the existing `POST /api/v1/players` endpoint via `createPlayer()` in `lib/api.ts`; event-slot view state (filter, sort, mode blobs) continues to use `localStorage` under existing keys (018-nav-ui-polish)
+- Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, DuckDB (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend) (033-player-management-reset)
+- DuckDB via existing repositories — no new tables, no migration (033-player-management-reset)
+- Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend) (034-streak-summary-edit)
+- DuckDB event/round/match/result persistence; existing event summary projection data (034-streak-summary-edit)
+- DuckDB event/round/match/result persistence with existing run-state fields and correction audit table (035-previous-round-correction)
 
 - TypeScript 5.x, React 18, Node.js 20+ for tooling + React, React Router, Vite, Vitest (001-frontend-visual-redesign)
 
@@ -47,9 +52,9 @@ npm test && npm run lint
 TypeScript 5.x, React 18, Node.js 20+ for tooling: Follow standard conventions
 
 ## Recent Changes
-- 018-nav-ui-polish: Added TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (already installed)
-- 017-create-event-stepper: Added TypeScript 5.9, React 18.3 + React Router DOM 6, Vite 5, Vitest 2, `motion` (new, to be `npm install`ed)
-- 016-event-state-restart: Added TypeScript 5.x + React 18 (frontend), Python 3.12 + FastAPI (backend) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed SQL repositories
+- 035-previous-round-correction: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
+- 034-streak-summary-edit: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
+- 033-player-management-reset: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, DuckDB (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
 
 
 ## Git Workflow

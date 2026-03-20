@@ -3,17 +3,27 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { CourtGrid, selectTeamGrouping } from "../components/courts/CourtGrid"
 import { ResultModal } from "../components/matches/ResultModal"
+import InlineSummaryPanel from "../components/run-event/InlineSummaryPanel"
 import Stepper from "../components/stepper/Stepper"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
 import { getMirroredBadgePair } from "../features/run-event/resultEntry"
 import { SubstituteModal } from "../features/run-event/SubstituteModal"
-import { finishEvent, getCurrentRound, getEvent, getOnFirePlayerIds, searchPlayers, submitResult } from "../lib/api"
-import type { EventRecord, RunEventTeamBadgeView } from "../lib/types"
+import {
+  finishEvent,
+  getCurrentRound,
+  getEvent,
+  getOngoingInlineSummary,
+  previousRound,
+  PREVIOUS_ROUND_BOUNDARY_WARNING,
+  searchPlayers,
+  submitResult,
+} from "../lib/api"
+import type { EventRecord, InlineSummaryView, RunEventTeamBadgeView } from "../lib/types"
 import { shortDisplayNames } from "../lib/playerNames"
 
-export const RUN_PAGE_ACTIONS = ["Next Match", "Finish", "Go to Summary"] as const
+export const RUN_PAGE_ACTIONS = ["Previous Round", "Next Match", "View Summary", "Finish Event"] as const
 
 type RunMatch = {
   matchId: string
@@ -84,7 +94,33 @@ export default function RunEventPage() {
   const [modalContext, setModalContext] = useState<{ matchId: string; selectedSide: TeamSide } | null>(null)
   const [showSubstituteModal, setShowSubstituteModal] = useState(false)
   const [assignedPlayers, setAssignedPlayers] = useState<{ id: string; displayName: string }[]>([])
-  const [onFireNames, setOnFireNames] = useState<Set<string>>(new Set())
+  const [hotStreakNames, setHotStreakNames] = useState<Set<string>>(new Set())
+  const [coldStreakNames, setColdStreakNames] = useState<Set<string>>(new Set())
+  const [showInlineSummary, setShowInlineSummary] = useState(false)
+  const [inlineSummary, setInlineSummary] = useState<InlineSummaryView | null>(null)
+  const [inlineSummaryError, setInlineSummaryError] = useState("")
+  const [previousRoundWarning, setPreviousRoundWarning] = useState("")
+
+  const applyMomentumNames = (
+    summary: InlineSummaryView,
+    shortById: Record<string, string>,
+    fallbackById: Record<string, string>,
+  ) => {
+    const hotNames = new Set(
+      summary.playerRows
+        .filter((row) => row.momentumBadge === "fire")
+        .map((row) => shortById[row.playerId] ?? fallbackById[row.playerId] ?? row.displayName)
+        .filter(Boolean),
+    )
+    const coldNames = new Set(
+      summary.playerRows
+        .filter((row) => row.momentumBadge === "snowflake")
+        .map((row) => shortById[row.playerId] ?? fallbackById[row.playerId] ?? row.displayName)
+        .filter(Boolean),
+    )
+    setHotStreakNames(hotNames)
+    setColdStreakNames(coldNames)
+  }
 
   const load = async () => {
     setLoadError("")
@@ -120,14 +156,31 @@ export default function RunEventPage() {
       ...roundRes,
       matches: mapMatchPlayersToDisplayNames(roundRes.matches, shortNameById),
     })
+    setCompleted(
+      Object.fromEntries(
+        roundRes.matches.map((match: any) => [match.matchId, match.status === "Completed"]),
+      ),
+    )
 
-    // Fetch on-fire player IDs and map to short display names (non-critical, silently ignored)
-    getOnFirePlayerIds()
-      .then((ids) => {
-        const names = new Set(ids.map((id) => shortNameById[id] ?? playerNameById[id]).filter(Boolean) as string[])
-        setOnFireNames(names)
+    getOngoingInlineSummary(eventId)
+      .then((summary) => {
+        applyMomentumNames(summary, shortNameById, playerNameById)
       })
-      .catch(() => {})
+      .catch(() => {
+        setHotStreakNames(new Set())
+        setColdStreakNames(new Set())
+      })
+
+    if (showInlineSummary) {
+      getOngoingInlineSummary(eventId)
+        .then((summary) => {
+          setInlineSummary(summary)
+          setInlineSummaryError("")
+        })
+        .catch((err) => {
+          setInlineSummaryError(err instanceof Error ? err.message : "Could not load inline summary.")
+        })
+    }
   }
 
   // On initial mount, the RunEvent page may open in a new tab immediately after
@@ -185,6 +238,7 @@ export default function RunEventPage() {
   }
 
   const next = async () => {
+    setPreviousRoundWarning("")
     await goToNextRound(eventId)
     setCompleted({})
     setSubmittedPayloads({})
@@ -194,14 +248,20 @@ export default function RunEventPage() {
     await load()
   }
 
-  const onAdvanceClick = async () => {
-    if (isFinalRound) {
-      await finishEvent(eventId)
-      navigate(`/events/${eventId}/summary`)
+  const previous = async () => {
+    const response = await previousRound(eventId)
+    if (response.status === "blocked") {
+      setPreviousRoundWarning(response.warningMessage ?? PREVIOUS_ROUND_BOUNDARY_WARNING)
       return
     }
 
-    await next()
+    setPreviousRoundWarning("")
+    setCompleted({})
+    setSubmittedPayloads({})
+    setSelectedTeamGroupings({})
+    setHoveredTeamGroupings({})
+    setModalContext(null)
+    await load()
   }
 
   const onTeamSideClick = (matchId: string, teamNumber: TeamSide) => {
@@ -271,7 +331,9 @@ export default function RunEventPage() {
               return { ...current, [matchId]: teamNumber }
             })
           }}
-          onFireNames={onFireNames}
+          onFireNames={hotStreakNames}
+          onColdNames={coldStreakNames}
+          badgeVariant="fire"
         />
       </section>
 
@@ -288,30 +350,73 @@ export default function RunEventPage() {
       />
 
       <section className="panel grid-columns-2">
-        {isMexicano ? (
-          <>
-            <button className={withInteractiveSurface("button")} onClick={() => void next()} disabled={!isComplete}>
+        <div className="run-action-panel">
+          <div className="run-action-row">
+            <button
+              className={withInteractiveSurface("button-secondary")}
+              onClick={() => void previous()}
+              aria-label={RUN_PAGE_ACTIONS[0]}
+            >
               {RUN_PAGE_ACTIONS[0]}
             </button>
             <button
-              className={withInteractiveSurface("button-secondary")}
-              onClick={async () => { await finishEvent(eventId); navigate(`/events/${eventId}/summary`) }}
-              disabled={!isComplete}
+              className={withInteractiveSurface("button")}
+              onClick={() => void next()}
+              disabled={!isComplete || (!isMexicano && isFinalRound)}
+              aria-label={RUN_PAGE_ACTIONS[1]}
             >
               {RUN_PAGE_ACTIONS[1]}
             </button>
-          </>
-        ) : (
-          <>
-            <button className={withInteractiveSurface("button")} onClick={() => void onAdvanceClick()} disabled={!isComplete}>
-              {isFinalRound ? RUN_PAGE_ACTIONS[1] : RUN_PAGE_ACTIONS[0]}
+          </div>
+
+          <div className="run-action-row">
+            <button
+              className={withInteractiveSurface("button-secondary")}
+              onClick={() => {
+                const next = !showInlineSummary
+                setShowInlineSummary(next)
+                if (next) {
+                  void getOngoingInlineSummary(eventId)
+                    .then((summary) => {
+                      setInlineSummary(summary)
+                      setInlineSummaryError("")
+                    })
+                    .catch((err) => {
+                      setInlineSummaryError(
+                        err instanceof Error ? err.message : "Could not load inline summary.",
+                      )
+                    })
+                }
+              }}
+              aria-label={RUN_PAGE_ACTIONS[2]}
+            >
+              {showInlineSummary ? "Hide Summary" : RUN_PAGE_ACTIONS[2]}
             </button>
-            <button className={withInteractiveSurface("button-secondary")} onClick={() => navigate(`/events/${eventId}/summary`)}>
-              {RUN_PAGE_ACTIONS[2]}
+            <button
+              className={withInteractiveSurface("button-secondary")}
+              onClick={async () => {
+                await finishEvent(eventId)
+                navigate(`/events/${eventId}/summary`)
+              }}
+              disabled={isMexicano ? !isComplete : !isComplete || !isFinalRound}
+              aria-label={RUN_PAGE_ACTIONS[3]}
+            >
+              {RUN_PAGE_ACTIONS[3]}
             </button>
-          </>
-        )}
+          </div>
+
+          {previousRoundWarning && <p className="warning-text">{previousRoundWarning}</p>}
+        </div>
       </section>
+
+      {inlineSummaryError && <section className="panel"><p className="warning-text">{inlineSummaryError}</p></section>}
+
+      {showInlineSummary && inlineSummary && (
+        <InlineSummaryPanel
+          summary={inlineSummary}
+          onClose={() => setShowInlineSummary(false)}
+        />
+      )}
 
       {eventData?.lifecycleStatus === "ongoing" && (
         <section className="panel">

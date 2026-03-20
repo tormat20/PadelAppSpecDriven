@@ -5,18 +5,24 @@ import type {
   EventSummaryResponse,
   EventType,
   FinalEventSummary,
+  InlineSummaryView,
   InProgressEventSummary,
   Leaderboard,
   LeaderboardEntry,
   MexicanoHighscore,
   MexicanoHighscoreEntry,
   PlayerStats,
+  PreviousRoundResponse,
   RankedBoxLadder,
   RankedBoxLadderEntry,
+  ScoreCorrectionPayload,
+  ScoreCorrectionResponse,
   UpdateEventPayload,
 } from "./types"
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000") + "/api/v1"
+
+export const PREVIOUS_ROUND_BOUNDARY_WARNING = "Round 1 is the first round. You cannot go back further."
 
 // ---------------------------------------------------------------------------
 // Auth token helpers — stored in localStorage under key "auth_token"
@@ -263,6 +269,16 @@ export async function nextRound(eventId: string): Promise<any> {
   return request(`/events/${eventId}/next`, { method: "POST" })
 }
 
+export async function previousRound(eventId: string): Promise<PreviousRoundResponse> {
+  const response = await request<PreviousRoundResponse>(`/events/${eventId}/previous`, {
+    method: "POST",
+  })
+  if (response.status === "blocked" && !response.warningMessage) {
+    return { ...response, warningMessage: PREVIOUS_ROUND_BOUNDARY_WARNING }
+  }
+  return response
+}
+
 export async function finishEvent(eventId: string): Promise<any> {
   return request(`/events/${eventId}/finish`, { method: "POST" })
 }
@@ -279,7 +295,17 @@ function normalizeProgressSummaryResponse(payload: any, eventId: string): InProg
         rank: typeof row?.rank === "number" ? row.rank : index + 1,
         playerId: row?.playerId ?? "",
         displayName: row?.displayName ?? "",
-        cells: Array.isArray(row?.cells) ? row.cells : [],
+        momentumBadge:
+          row?.momentumBadge === "fire" || row?.momentumBadge === "snowflake"
+            ? row.momentumBadge
+            : "none",
+        cells: Array.isArray(row?.cells)
+          ? row.cells.map((cell: any) => ({
+              columnId: cell?.columnId ?? "",
+              value: String(cell?.value ?? ""),
+              isWinner: Boolean(cell?.isWinner),
+            }))
+          : [],
       }))
     : []
 
@@ -291,6 +317,7 @@ function normalizeProgressSummaryResponse(payload: any, eventId: string): InProg
     orderingVersion: payload?.orderingVersion ?? "v1",
     columns: Array.isArray(payload?.columns) ? payload.columns : [],
     playerRows: rows,
+    scoreRows: Array.isArray(payload?.scoreRows) ? payload.scoreRows : [],
   }
 }
 
@@ -300,7 +327,17 @@ function normalizeFinalSummaryResponse(payload: any, eventId: string): FinalEven
         rank: typeof row?.rank === "number" ? row.rank : index + 1,
         playerId: row?.playerId ?? "",
         displayName: row?.displayName ?? "",
-        cells: Array.isArray(row?.cells) ? row.cells : [],
+        momentumBadge:
+          row?.momentumBadge === "fire" || row?.momentumBadge === "snowflake"
+            ? row.momentumBadge
+            : "none",
+        cells: Array.isArray(row?.cells)
+          ? row.cells.map((cell: any) => ({
+              columnId: cell?.columnId ?? "",
+              value: String(cell?.value ?? ""),
+              isWinner: Boolean(cell?.isWinner),
+            }))
+          : [],
       }))
     : []
 
@@ -461,4 +498,27 @@ export async function getEventSummary(eventId: string): Promise<EventSummaryResp
     const legacySummary = await finishEvent(eventId)
     return normalizeFinalSummaryResponse(legacySummary, eventId)
   }
+}
+
+export async function getOngoingInlineSummary(eventId: string): Promise<InlineSummaryView> {
+  const summary = await getEventSummary(eventId)
+  const progressRows = summary.playerRows
+  const scoreRows = summary.mode === "progress" ? (summary.scoreRows ?? []) : []
+  return {
+    eventId,
+    isExpanded: true,
+    columns: summary.columns,
+    playerRows: progressRows,
+    scoreRows,
+  }
+}
+
+export async function correctMatchResult(
+  matchId: string,
+  payload: ScoreCorrectionPayload,
+): Promise<ScoreCorrectionResponse> {
+  return request<ScoreCorrectionResponse>(`/matches/${matchId}/result`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  })
 }

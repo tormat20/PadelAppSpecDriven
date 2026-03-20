@@ -11,6 +11,11 @@ describe("RunEvent helpers", () => {
   })
 
   it("exposes stable run page action labels", () => {
-    expect(RUN_PAGE_ACTIONS).toEqual(["Next Match", "Finish", "Go to Summary"])
+    expect(RUN_PAGE_ACTIONS).toEqual([
+      "Previous Round",
+      "Next Match",
+      "View Summary",
+      "Finish Event",
+    ])
   })
 })

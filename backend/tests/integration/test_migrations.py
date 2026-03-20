@@ -26,4 +26,6 @@ def test_migrations_apply_once(tmp_path):
         "012_americano_event_type.sql",
         "013_player_email.sql",
         "014_player_stats_wins_highscore.sql",
+        "015_event_duration_minutes.sql",
+        "016_match_result_corrections.sql",
     ]

@@ -311,6 +311,7 @@ def get_event_summary(event_id: str) -> EventSummaryResponse:
                 orderingVersion=progress["ordering_version"],
                 columns=progress["columns"],
                 playerRows=progress["player_rows"],
+                scoreRows=progress.get("score_rows", []),
             )
         except DomainError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
