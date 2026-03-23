@@ -169,6 +169,28 @@ class EventsRepository:
             ],
         )
 
+    def update_setup_for_popup(
+        self,
+        event_id: str,
+        event_name: str,
+        event_type: EventType,
+        event_date: date,
+        event_time: str | None,
+        event_duration_minutes: int,
+        setup_status: SetupStatus,
+        is_team_mexicano: bool = False,
+    ) -> None:
+        self.update_setup(
+            event_id=event_id,
+            event_name=event_name,
+            event_type=event_type,
+            event_date=event_date,
+            event_time=event_time,
+            event_duration_minutes=event_duration_minutes,
+            setup_status=setup_status,
+            is_team_mexicano=is_team_mexicano,
+        )
+
     def delete_event(self, event_id: str) -> bool:
         existing = self.get(event_id)
         if existing is None:

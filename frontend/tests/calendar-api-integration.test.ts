@@ -10,6 +10,7 @@ import {
 import { templateById } from "../src/components/calendar/calendarTemplateTypes"
 import { normalizeCalendarEvent } from "../src/components/calendar/normalizeCalendarEvent"
 import { buildStagedCalendarChangeSet } from "../src/components/calendar/useStagedCalendarChanges"
+import { toPopupSaveErrorMessage } from "../src/components/calendar/popupSaveErrorMap"
 import type { CalendarEventViewModel } from "../src/components/calendar/calendarEventModel"
 
 // Helper to format a Date as YYYY-MM-DD (matches what CalendarPage sends)
@@ -213,5 +214,95 @@ describe("listEventsByDateRange API integration", () => {
     expect(generateCalendarEventName("2026-03-09", "11:30", "Americano")).toBe("Monday Lunch Americano")
     expect(generateCalendarEventName("2026-03-09", "14:30", "Winners Court")).toBe("Monday Afternoon Winners Court")
     expect(generateCalendarEventName("2026-03-09", "18:00", "Ranked Box")).toBe("Monday Evening Ranked Box")
+  })
+
+  it("reconciles persisted popup-save events without leaving staged updates", () => {
+    const baseline: CalendarEventViewModel[] = [
+      {
+        id: "evt-popup",
+        eventName: "Popup target",
+        eventType: "Americano",
+        eventDate: "2026-03-09",
+        eventTime24h: "09:00",
+        status: "Lobby",
+        setupStatus: "ready",
+        missingRequirements: [],
+        warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+        version: 1,
+        selectedCourts: [1],
+        playerIds: [],
+        currentRoundNumber: null,
+        totalRounds: 3,
+        roundDurationMinutes: 30,
+        durationMinutes: 90,
+        isTeamMexicano: false,
+      },
+    ]
+    const persisted = [{ ...baseline[0], eventTime24h: "11:30", selectedCourts: [1, 2], version: 2 }]
+
+    const changeSet = buildStagedCalendarChangeSet(persisted, persisted)
+    expect(changeSet.dirty).toBe(false)
+    expect(changeSet.updates).toHaveLength(0)
+  })
+
+  it("keeps unrelated staged updates after popup-save reconciliation", () => {
+    const baseline: CalendarEventViewModel[] = [
+      {
+        id: "evt-popup",
+        eventName: "Popup target",
+        eventType: "Americano",
+        eventDate: "2026-03-09",
+        eventTime24h: "09:00",
+        status: "Lobby",
+        setupStatus: "ready",
+        missingRequirements: [],
+        warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+        version: 1,
+        selectedCourts: [1],
+        playerIds: [],
+        currentRoundNumber: null,
+        totalRounds: 3,
+        roundDurationMinutes: 30,
+        durationMinutes: 90,
+        isTeamMexicano: false,
+      },
+      {
+        id: "evt-staged",
+        eventName: "Staged target",
+        eventType: "WinnersCourt",
+        eventDate: "2026-03-09",
+        eventTime24h: "10:00",
+        status: "Lobby",
+        setupStatus: "ready",
+        missingRequirements: [],
+        warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+        version: 3,
+        selectedCourts: [2],
+        playerIds: [],
+        currentRoundNumber: null,
+        totalRounds: 3,
+        roundDurationMinutes: 30,
+        durationMinutes: 90,
+        isTeamMexicano: false,
+      },
+    ]
+
+    const reconciledBaseline = [{ ...baseline[0], eventTime24h: "11:30", version: 2 }, baseline[1]]
+    const reconciledWorking = [
+      reconciledBaseline[0],
+      { ...baseline[1], eventTime24h: "12:00" },
+    ]
+
+    const changeSet = buildStagedCalendarChangeSet(reconciledBaseline, reconciledWorking)
+    expect(changeSet.dirty).toBe(true)
+    expect(changeSet.updates).toHaveLength(1)
+    expect(changeSet.updates[0]).toMatchObject({ eventId: "evt-staged", eventTime24h: "12:00" })
+  })
+
+  it("maps popup save version conflicts to retry guidance", () => {
+    const message = toPopupSaveErrorMessage(
+      new api.ApiError("conflict", 409, "EVENT_VERSION_CONFLICT"),
+    )
+    expect(message).toBe("This event was updated by another organizer. Refresh and retry.")
   })
 })

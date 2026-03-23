@@ -146,3 +146,41 @@ def test_delete_all_events_removes_all_created_events(client):
     listed = client.get("/api/v1/events")
     assert listed.status_code == 200
     assert listed.json() == []
+
+
+def test_popup_save_returns_version_conflict_when_expected_version_is_stale(client):
+    created = client.post(
+        "/api/v1/events",
+        json={
+            "eventName": "Versioned popup",
+            "eventType": "WinnersCourt",
+            "eventDate": "2026-03-10",
+            "eventTime24h": "10:00",
+            "createAction": "create_event_slot",
+            "selectedCourts": [],
+            "playerIds": [],
+        },
+    )
+    assert created.status_code == 201
+    event = created.json()
+
+    updated = client.patch(
+        f"/api/v1/events/{event['id']}",
+        json={
+            "expectedVersion": event["version"],
+            "eventName": "Versioned popup updated",
+        },
+    )
+    assert updated.status_code == 200
+    current_version = updated.json()["version"]
+
+    stale_popup_save = client.post(
+        f"/api/v1/events/{event['id']}/popup-save",
+        json={
+            "expectedVersion": event["version"],
+            "eventTime24h": "11:00",
+        },
+    )
+    assert stale_popup_save.status_code == 409
+    assert stale_popup_save.json()["detail"]["code"] == "EVENT_VERSION_CONFLICT"
+    assert stale_popup_save.json()["detail"]["currentVersion"] == current_version

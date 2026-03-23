@@ -16,6 +16,7 @@ describe("isDrawerDirty", () => {
     eventTime24h: "09:00",
     durationMinutes: 90,
     courts: [1, 2],
+    isTeamMexicano: false,
   }
 
   it("returns false when original and current are identical", () => {
@@ -101,6 +102,7 @@ describe("drawer close confirmation behavior", () => {
     eventTime24h: "09:00",
     durationMinutes: 90,
     courts: [1, 2],
+    isTeamMexicano: false,
   }
 
   it("requires discard confirmation only in edit mode when dirty", () => {

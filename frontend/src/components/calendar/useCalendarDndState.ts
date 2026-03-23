@@ -43,6 +43,14 @@ export function useCalendarDndState(initialEvents: CalendarEventViewModel[]) {
     setEvents((current) => current.map((event) => (event.id === eventId ? { ...event, ...patch } : event)))
   }, [])
 
+  const replaceEvent = useCallback((previousEventId: string, nextEvent: CalendarEventViewModel) => {
+    setEvents((current) => {
+      const hasPrevious = current.some((event) => event.id === previousEventId)
+      if (!hasPrevious) return [nextEvent, ...current]
+      return current.map((event) => (event.id === previousEventId ? nextEvent : event))
+    })
+  }, [])
+
   const createEvent = useCallback((event: CalendarEventViewModel) => {
     setEvents((current) => [event, ...current])
   }, [])
@@ -70,6 +78,7 @@ export function useCalendarDndState(initialEvents: CalendarEventViewModel[]) {
     moveEvent,
     updateDuration,
     updateEventFields,
+    replaceEvent,
     createEvent,
     removeEvent,
     beginInteraction,

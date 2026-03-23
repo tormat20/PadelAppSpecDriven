@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import EventBlock, { formatEventTimeRange } from "../src/components/calendar/EventBlock"
+import EventBlock, { formatEventMomentLabel, formatEventTimeRange } from "../src/components/calendar/EventBlock"
 import { getCalendarEventTypeLabel } from "../src/components/calendar/eventRecordMapping"
 import type { CalendarEventViewModel } from "../src/components/calendar/calendarEventModel"
 import { isInBottomResizeZone, RESIZE_ZONE_HEIGHT_PX } from "../src/components/calendar/interactionMode"
@@ -230,6 +230,10 @@ describe("EventBlock — duration/time helpers", () => {
   it("returns Unscheduled for missing start time", () => {
     expect(formatEventTimeRange(null, 60)).toBe("Unscheduled")
   })
+
+  it("derives weekday + bucket label for event moment", () => {
+    expect(formatEventMomentLabel("2026-03-09", "12:00")).toBe("Monday Lunch")
+  })
 })
 
 describe("EventBlock — interaction polish", () => {
@@ -280,7 +284,7 @@ describe("EventBlock — interaction polish", () => {
 })
 
 describe("EventBlock — content tiers", () => {
-  it("60-minute block omits time range and duration label", () => {
+  it("60-minute block shows time range but omits duration label", () => {
     const block = EventBlock({
       event: makeEvent({ durationMinutes: 60 }),
       top: 0,
@@ -290,7 +294,7 @@ describe("EventBlock — content tiers", () => {
       onDragEnd: vi.fn(),
       onClick: vi.fn(),
     })
-    expect(JSON.stringify(block)).not.toContain("calendar-event-block__time-range")
+    expect(JSON.stringify(block)).toContain("calendar-event-block__time-range")
     expect(JSON.stringify(block)).not.toContain("calendar-event-block__duration")
     expect(JSON.stringify(block)).not.toContain("calendar-event-block__duration-control")
   })

@@ -295,6 +295,32 @@ class EventService:
 
         return self.get_event_details(event_id)
 
+    def persist_popup_edit(
+        self,
+        event_id: str,
+        expected_version: int,
+        event_name: str | None,
+        event_type: EventType | None,
+        event_date,
+        event_time24h: str | None,
+        event_duration_minutes: int | None,
+        selected_courts: list[int] | None,
+        player_ids: list[str] | None,
+        is_team_mexicano: bool | None,
+    ) -> dict:
+        return self.update_event_setup(
+            event_id=event_id,
+            expected_version=expected_version,
+            event_name=event_name,
+            event_type=event_type,
+            event_date=event_date,
+            event_time24h=event_time24h,
+            event_duration_minutes=event_duration_minutes,
+            selected_courts=selected_courts,
+            player_ids=player_ids,
+            is_team_mexicano=is_team_mexicano,
+        )
+
     def start_event(self, event_id: str):
         event = self.events_repo.get(event_id)
         if not event:
