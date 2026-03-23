@@ -8,18 +8,24 @@ import EventTemplatePanel from "../components/calendar/EventTemplatePanel"
 import { getDragEventId, getTemplateDropId, resolveDropTarget, setDragEventId } from "../components/calendar/calendarDnd"
 import type { CalendarEventViewModel } from "../components/calendar/calendarEventModel"
 import {
-  createCalendarEventFromTemplate,
   generateCalendarEventName,
+  getCalendarEventTypeLabel,
+  mapEventRecordToCalendarEvent,
 } from "../components/calendar/eventRecordMapping"
 import { useCalendarDndState } from "../components/calendar/useCalendarDndState"
 import { resolveInteractionMode } from "../components/calendar/interactionMode"
 import { durationFromResizeDelta } from "../components/calendar/resizeMath"
 import { templateById } from "../components/calendar/calendarTemplateTypes"
 import { normalizeCalendarEvents } from "../components/calendar/normalizeCalendarEvent"
-import { useStagedCalendarChanges } from "../components/calendar/useStagedCalendarChanges"
-import { useUnsavedCalendarGuard } from "../components/calendar/useUnsavedCalendarGuard"
-import { listEventsByDateRange, saveStagedCalendarChanges } from "../lib/api"
-import type { EventRecord } from "../lib/types"
+import {
+  createEvent,
+  deleteEvent,
+  listEventsByDateRange,
+  saveCalendarEventImmediately,
+  startEvent,
+  updateEvent,
+} from "../lib/api"
+import type { EventRecord, UpdateEventPayload } from "../lib/types"
 import type { SaveSessionState } from "../components/calendar/stagedChangeTypes"
 
 // ---------------------------------------------------------------------------
@@ -274,12 +280,6 @@ export default function CalendarPage() {
   const [activeResizeEventId, setActiveResizeEventId] = useState<string | null>(null)
   const [resizeStartY, setResizeStartY] = useState<number | null>(null)
   const [resizeStartDuration, setResizeStartDuration] = useState<60 | 90 | 120 | null>(null)
-  const [saveSession, setSaveSession] = useState<SaveSessionState>({
-    status: "idle",
-    errorMessage: "",
-    pendingCount: 0,
-    lastSavedAt: null,
-  })
 
   const {
     events,
@@ -288,28 +288,12 @@ export default function CalendarPage() {
     moveEvent,
     updateDuration,
     updateEventFields,
-    createEvent,
+    replaceEvent,
+    createEvent: createLocalEvent,
     removeEvent,
     beginInteraction,
     endInteraction,
   } = useCalendarDndState([])
-
-  const { baseline, initialize, replaceWorking, changeSet } = useStagedCalendarChanges()
-
-  useUnsavedCalendarGuard(changeSet.dirty)
-
-  useEffect(() => {
-    replaceWorking(events)
-  }, [events, replaceWorking])
-
-  useEffect(() => {
-    setSaveSession((current) => ({
-      ...current,
-      pendingCount: changeSet.creates.length + changeSet.updates.length + changeSet.deletes.length,
-      status: changeSet.dirty && current.status === "success" ? "idle" : current.status,
-      errorMessage: changeSet.dirty ? "" : current.errorMessage,
-    }))
-  }, [changeSet.creates.length, changeSet.deletes.length, changeSet.dirty, changeSet.updates.length])
 
   const loadWeek = useCallback(async () => {
     setLoading(true)
@@ -322,15 +306,13 @@ export default function CalendarPage() {
       const records = await listEventsByDateRange(from, to)
       const normalized = normalizeCalendarEvents(records)
       replaceAll(normalized)
-      initialize(normalized)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load calendar events.")
       replaceAll([])
-      initialize([])
     } finally {
       setLoading(false)
     }
-  }, [initialize, replaceAll, weekStart])
+  }, [replaceAll, weekStart])
 
   useEffect(() => {
     let cancelled = false
@@ -353,9 +335,6 @@ export default function CalendarPage() {
   )
 
   const goWeek = (offset: number) => {
-    if (changeSet.dirty && !window.confirm("You have unsaved calendar changes. Discard and switch weeks?")) {
-      return
-    }
     setWeekStart((current) => {
       const next = new Date(current)
       next.setDate(next.getDate() + offset * 7)
@@ -364,6 +343,58 @@ export default function CalendarPage() {
     setViewMode("week")
     setSelectedDayDate(null)
   }
+
+  const [deleteDropHover, setDeleteDropHover] = useState(false)
+  const [suppressBlockClick, setSuppressBlockClick] = useState(false)
+
+  const persistEventUpdate = useCallback(
+    async (eventId: string, patch: Omit<UpdateEventPayload, "expectedVersion">, replacedEventId?: string) => {
+      const targetId = replacedEventId ?? eventId
+      const current = byId.get(targetId)
+      if (!current) return
+
+      const isLocalOnlyEvent = targetId.startsWith("template-")
+      const persistedRecord = isLocalOnlyEvent
+        ? await (async () => {
+            const created = await createEvent({
+              eventName: patch.eventName ?? current.eventName,
+              eventType: patch.eventType ?? current.eventType,
+              eventDate: patch.eventDate ?? current.eventDate,
+              eventTime24h: patch.eventTime24h ?? current.eventTime24h ?? "00:00",
+              eventDurationMinutes: patch.eventDurationMinutes ?? current.durationMinutes,
+              createAction: "create_event_slot",
+              selectedCourts: patch.selectedCourts ?? current.selectedCourts,
+              playerIds: patch.playerIds ?? current.playerIds,
+              isTeamMexicano: patch.isTeamMexicano ?? current.isTeamMexicano,
+            })
+
+            return updateEvent(created.id, {
+              expectedVersion: created.version,
+              ...patch,
+            })
+          })()
+        : await updateEvent(targetId, {
+            expectedVersion: current.version,
+            ...patch,
+          })
+
+      const persisted = mapEventRecordToCalendarEvent(persistedRecord)
+      if (isLocalOnlyEvent) {
+        replaceEvent(targetId, persisted)
+      } else {
+        updateEventFields(persisted.id, persisted)
+      }
+
+      if (
+        drawerState.open &&
+        (drawerState.mode === "edit" || drawerState.mode === "readonly") &&
+        drawerState.event.id === targetId
+      ) {
+        setDrawerState({ open: true, mode: "edit", event: persisted })
+      }
+    },
+    [byId, drawerState, replaceEvent, updateEventFields],
+  )
 
   const onBlockDragStart = (event: CalendarEventViewModel, e: React.DragEvent) => {
     beginInteraction(event.id, "move")
@@ -403,7 +434,21 @@ export default function CalendarPage() {
     if (draggedEventId) {
       const dropDate = new Date(weekStart)
       dropDate.setDate(dropDate.getDate() + target.dayIndex)
-      moveEvent(draggedEventId, formatDateISO(dropDate), target.resolvedTime24h)
+      const nextDate = formatDateISO(dropDate)
+      moveEvent(draggedEventId, nextDate, target.resolvedTime24h)
+
+      const movedEvent = byId.get(draggedEventId)
+      if (movedEvent) {
+        const eventTypeLabel = getCalendarEventTypeLabel(movedEvent)
+        void persistEventUpdate(draggedEventId, {
+          eventDate: nextDate,
+          eventTime24h: target.resolvedTime24h,
+          eventName: generateCalendarEventName(nextDate, target.resolvedTime24h, eventTypeLabel),
+        }).catch((err) => {
+          setError(err instanceof Error ? err.message : "Could not save calendar move.")
+          void loadWeek()
+        })
+      }
     }
 
     const templateId = getTemplateDropId(e)
@@ -411,7 +456,26 @@ export default function CalendarPage() {
       const template = templateById(templateId)
       const dropDate = new Date(weekStart)
       dropDate.setDate(dropDate.getDate() + target.dayIndex)
-      createEvent(createCalendarEventFromTemplate(template, formatDateISO(dropDate), target.resolvedTime24h))
+      const eventDate = formatDateISO(dropDate)
+      const eventName = generateCalendarEventName(eventDate, target.resolvedTime24h, template.displayLabel)
+
+      void createEvent({
+        eventName,
+        eventType: template.eventType,
+        eventDate,
+        eventTime24h: target.resolvedTime24h,
+        eventDurationMinutes: 90,
+        createAction: "create_event_slot",
+        selectedCourts: [],
+        playerIds: [],
+        isTeamMexicano: template.isTeamMexicano,
+      })
+        .then((record) => {
+          createLocalEvent(mapEventRecordToCalendarEvent(record))
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Could not create calendar event.")
+        })
     }
 
     endInteraction()
@@ -445,6 +509,19 @@ export default function CalendarPage() {
   const onResizeEnd = (eventId: string, e: React.PointerEvent<HTMLDivElement>) => {
     if (activeResizeEventId !== eventId) return
     e.currentTarget.releasePointerCapture?.(e.pointerId)
+    setSuppressBlockClick(true)
+    window.setTimeout(() => setSuppressBlockClick(false), 0)
+
+    const resized = byId.get(eventId)
+    if (resized) {
+      void persistEventUpdate(eventId, {
+        eventDurationMinutes: resized.durationMinutes,
+      }).catch((err) => {
+        setError(err instanceof Error ? err.message : "Could not save event duration.")
+        void loadWeek()
+      })
+    }
+
     setActiveResizeEventId(null)
     setResizeStartY(null)
     setResizeStartDuration(null)
@@ -456,53 +533,33 @@ export default function CalendarPage() {
       ? drawerState.event
       : null
 
-  const savePendingCount = saveSession.pendingCount
+  const onDeleteDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+    const eventId = getDragEventId(e)
+    if (!eventId) return
+    e.preventDefault()
+    setDeleteDropHover(true)
+  }
 
-  const saveStatusLabel = getSaveStatusLabel(saveSession, changeSet.dirty, savePendingCount)
+  const onDeleteDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    setDeleteDropHover(false)
+    const eventId = getDragEventId(e)
+    if (!eventId) return
 
-  const handleSaveChanges = useCallback(async () => {
-    if (!changeSet.dirty || saveSession.status === "saving") return
-
-    setSaveSession((current) => ({
-      ...current,
-      status: "saving",
-      errorMessage: "",
-    }))
-
-    try {
-      await saveStagedCalendarChanges({
-        creates: changeSet.creates,
-        updates: changeSet.updates,
-        deletes: changeSet.deletes,
-      })
-      await loadWeek()
-      const savedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      setSaveSession((current) => ({
-        ...current,
-        status: "success",
-        errorMessage: "",
-        lastSavedAt: savedAt,
-      }))
-    } catch (err) {
-      setSaveSession((current) => ({
-        ...current,
-        status: "error",
-        errorMessage: err instanceof Error ? err.message : "Could not save calendar changes.",
-      }))
+    if (eventId.startsWith("template-")) {
+      removeEvent(eventId)
+      return
     }
-  }, [changeSet.creates, changeSet.deletes, changeSet.dirty, changeSet.updates, loadWeek, saveSession.status])
 
-  const handleRedoChanges = useCallback(() => {
-    if (!changeSet.dirty || saveSession.status === "saving") return
-    replaceAll(baseline)
-    replaceWorking(baseline)
-    setSaveSession((current) => ({
-      ...current,
-      status: "idle",
-      errorMessage: "",
-      pendingCount: 0,
-    }))
-  }, [baseline, changeSet.dirty, replaceAll, replaceWorking, saveSession.status])
+    void deleteEvent(eventId)
+      .then(() => {
+        removeEvent(eventId)
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Could not delete event.")
+        void loadWeek()
+      })
+  }
 
   return (
     <section className="page-shell calendar-page-shell" aria-label="Calendar page">
@@ -519,28 +576,8 @@ export default function CalendarPage() {
         </div>
         <div className="calendar-save-row">
           <span className="muted" role="status" aria-live="polite">
-            {saveStatusLabel}
+            All calendar changes save immediately
           </span>
-          <div className="calendar-save-row__actions">
-            <button
-              className="button-secondary calendar-save-row__action"
-              onClick={handleRedoChanges}
-              type="button"
-              disabled={!changeSet.dirty || saveSession.status === "saving"}
-            >
-              Redo Changes
-            </button>
-            <button
-              className="button-secondary calendar-save-row__action"
-              onClick={() => {
-                void handleSaveChanges()
-              }}
-              type="button"
-              disabled={!changeSet.dirty || saveSession.status === "saving"}
-            >
-              {saveSession.status === "saving" ? "Saving Changes..." : "Save Changes"}
-            </button>
-          </div>
         </div>
       </header>
 
@@ -554,7 +591,12 @@ export default function CalendarPage() {
       )}
 
       <div className="calendar-layout-grid">
-        <EventTemplatePanel />
+        <EventTemplatePanel
+          deleteDropHover={deleteDropHover}
+          onDeleteDrop={onDeleteDrop}
+          onDeleteDragOver={onDeleteDragOver}
+          onDeleteDragLeave={() => setDeleteDropHover(false)}
+        />
         <div className="panel">
           {loading ? (
             <p className="muted">Loading weekly events…</p>
@@ -564,8 +606,14 @@ export default function CalendarPage() {
               weekStart={weekStart}
               ghostBlock={ghostBlock}
               draggingEventId={draggingEventId}
-              onBlockClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
-              onBlockNameClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+              onBlockClick={(event) => {
+                if (suppressBlockClick) return
+                setDrawerState({ open: true, mode: "edit", event })
+              }}
+              onBlockNameClick={(event) => {
+                if (suppressBlockClick) return
+                setDrawerState({ open: true, mode: "edit", event })
+              }}
               onDayHeaderClick={(date) => {
                 setSelectedDayDate(new Date(date))
                 setViewMode("day")
@@ -596,34 +644,84 @@ export default function CalendarPage() {
 
       <EventDrawer
         state={drawerState}
-        onSave={async (payload) => {
+        onSave={async (payload, options) => {
           if (!selectedEditableEvent) return
-          const patch: Partial<CalendarEventViewModel> = {}
-          if (payload.eventName !== undefined) patch.eventName = payload.eventName
-          if (payload.eventType !== undefined) patch.eventType = payload.eventType
-          if (payload.eventDate !== undefined) patch.eventDate = payload.eventDate
-          if (payload.eventTime24h !== undefined) patch.eventTime24h = payload.eventTime24h
-          if (payload.selectedCourts !== undefined) patch.selectedCourts = payload.selectedCourts
+          const shouldClose = options?.closeOnSuccess ?? false
+          const isLocalOnlyEvent = selectedEditableEvent.id.startsWith("template-")
 
-          const changedSchedulingIdentity =
-            payload.eventType !== undefined || payload.eventDate !== undefined || payload.eventTime24h !== undefined
+          const persistedRecord = isLocalOnlyEvent
+            ? await (async () => {
+                const resolved = {
+                  eventName: payload.eventName ?? selectedEditableEvent.eventName,
+                  eventType: payload.eventType ?? selectedEditableEvent.eventType,
+                  eventDate: payload.eventDate ?? selectedEditableEvent.eventDate,
+                  eventTime24h: payload.eventTime24h ?? selectedEditableEvent.eventTime24h ?? "00:00",
+                  eventDurationMinutes: payload.eventDurationMinutes ?? selectedEditableEvent.durationMinutes,
+                  selectedCourts: payload.selectedCourts ?? selectedEditableEvent.selectedCourts,
+                  playerIds: payload.playerIds ?? selectedEditableEvent.playerIds,
+                  isTeamMexicano: payload.isTeamMexicano ?? selectedEditableEvent.isTeamMexicano,
+                }
 
-          if (changedSchedulingIdentity && payload.eventName === undefined) {
-            const nextDate = payload.eventDate ?? selectedEditableEvent.eventDate
-            const nextTime = payload.eventTime24h ?? selectedEditableEvent.eventTime24h ?? "07:00"
-            const nextTypeLabel =
-              (payload.eventType ?? selectedEditableEvent.eventType) === "Mexicano" &&
-              selectedEditableEvent.isTeamMexicano
-                ? "Team Mexicano"
-                : payload.eventType ?? selectedEditableEvent.eventType
-            patch.eventName = generateCalendarEventName(nextDate, nextTime, nextTypeLabel)
+                const created = await createEvent({
+                  eventName: resolved.eventName,
+                  eventType: resolved.eventType,
+                  eventDate: resolved.eventDate,
+                  eventTime24h: resolved.eventTime24h,
+                  eventDurationMinutes: resolved.eventDurationMinutes,
+                  createAction: "create_event_slot",
+                  selectedCourts: [],
+                  playerIds: [],
+                  isTeamMexicano: resolved.isTeamMexicano,
+                })
+
+                return updateEvent(created.id, {
+                  expectedVersion: created.version,
+                  eventName: resolved.eventName,
+                  eventType: resolved.eventType,
+                  eventDate: resolved.eventDate,
+                  eventTime24h: resolved.eventTime24h,
+                  eventDurationMinutes: resolved.eventDurationMinutes,
+                  selectedCourts: resolved.selectedCourts,
+                  playerIds: resolved.playerIds,
+                  isTeamMexicano: resolved.isTeamMexicano,
+                })
+              })()
+            : await saveCalendarEventImmediately(selectedEditableEvent.id, {
+                ...payload,
+                expectedVersion: selectedEditableEvent.version,
+              })
+
+          const persisted = mapEventRecordToCalendarEvent(persistedRecord)
+          if (isLocalOnlyEvent) {
+            replaceEvent(selectedEditableEvent.id, persisted)
+          } else {
+            updateEventFields(persisted.id, persisted)
           }
 
-          updateEventFields(selectedEditableEvent.id, patch)
-          setDrawerState({ open: false })
+          if (shouldClose) {
+            setDrawerState({ open: false })
+          } else {
+            setDrawerState({ open: true, mode: "edit", event: persisted })
+          }
+
+          return persisted
         }}
         onDelete={async (eventId) => {
+          if (eventId.startsWith("template-")) {
+            removeEvent(eventId)
+            setDrawerState({ open: false })
+            return
+          }
+          await deleteEvent(eventId)
           removeEvent(eventId)
+          setDrawerState({ open: false })
+        }}
+        onStart={async (eventId) => {
+          await startEvent(eventId)
+          const win = window.open(`/events/${eventId}/run`, "_blank")
+          if (win === null) {
+            window.location.assign(`/events/${eventId}/run`)
+          }
           setDrawerState({ open: false })
         }}
         onClose={() => {

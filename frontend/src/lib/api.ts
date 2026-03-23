@@ -246,6 +246,16 @@ export async function updateEvent(id: string, payload: UpdateEventPayload): Prom
   return request(`/events/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
 }
 
+export async function saveCalendarEventImmediately(
+  id: string,
+  payload: UpdateEventPayload,
+): Promise<EventRecord> {
+  return request(`/events/${id}/popup-save`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function deleteEvent(id: string): Promise<void> {
   await request(`/events/${id}`, { method: "DELETE" })
 }

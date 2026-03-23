@@ -30,6 +30,10 @@ class UpdateEventSetupRequest(BaseModel):
     isTeamMexicano: bool | None = None
 
 
+class PopupImmediateSaveRequest(UpdateEventSetupRequest):
+    pass
+
+
 class PlanningWarningsResponse(BaseModel):
     pastDateTime: bool
     duplicateSlot: bool

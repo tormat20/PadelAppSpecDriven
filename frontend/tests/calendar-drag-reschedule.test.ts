@@ -12,6 +12,7 @@ import { resolveInteractionMode } from "../src/components/calendar/interactionMo
 import { createBeforeUnloadHandler } from "../src/components/calendar/useUnsavedCalendarGuard"
 import WeekGrid from "../src/components/calendar/WeekGrid"
 import type { CalendarEventViewModel } from "../src/components/calendar/calendarEventModel"
+import { buildStagedCalendarChangeSet } from "../src/components/calendar/useStagedCalendarChanges"
 
 // ---------------------------------------------------------------------------
 // Helper to build a minimal DOMRect-like object
@@ -126,13 +127,13 @@ describe("resolveDropTarget", () => {
 })
 
 describe("applyCalendarScheduleUpdate", () => {
-  it("updates only date and time fields", () => {
+  it("updates date/time and adapts event name to the new time category", () => {
     const base = {
       id: "evt1",
-      eventName: "Morning",
+      eventName: "Monday Lunch Americano",
       eventType: "Americano" as const,
       eventDate: "2026-03-09",
-      eventTime24h: "09:00",
+      eventTime24h: "12:00",
       status: "Lobby" as const,
       setupStatus: "ready" as const,
       missingRequirements: [],
@@ -147,11 +148,37 @@ describe("applyCalendarScheduleUpdate", () => {
       isTeamMexicano: false,
     }
 
-    const next = applyCalendarScheduleUpdate(base, "2026-03-11", "11:30")
+    const next = applyCalendarScheduleUpdate(base, "2026-03-11", "08:00")
     expect(next.eventDate).toBe("2026-03-11")
-    expect(next.eventTime24h).toBe("11:30")
+    expect(next.eventTime24h).toBe("08:00")
+    expect(next.eventName).toBe("Wednesday Morning Americano")
     expect(next.eventType).toBe("Americano")
     expect(next.id).toBe("evt1")
+  })
+
+  it("uses Evening bucket when moved outside Morning/Lunch/Afternoon windows", () => {
+    const base = {
+      id: "evt2",
+      eventName: "Monday Lunch Winners Court",
+      eventType: "WinnersCourt" as const,
+      eventDate: "2026-03-09",
+      eventTime24h: "12:00",
+      status: "Lobby" as const,
+      setupStatus: "ready" as const,
+      missingRequirements: [],
+      warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+      version: 1,
+      selectedCourts: [1],
+      playerIds: [],
+      currentRoundNumber: null,
+      totalRounds: 3,
+      roundDurationMinutes: 20,
+      durationMinutes: 60 as const,
+      isTeamMexicano: false,
+    }
+
+    const next = applyCalendarScheduleUpdate(base, "2026-03-09", "06:30")
+    expect(next.eventName).toBe("Monday Evening Winners Court")
   })
 })
 
@@ -230,5 +257,49 @@ describe("template drag payload", () => {
       },
     } as any
     expect(getTemplateDropId(event)).toBeNull()
+  })
+})
+
+describe("redo safety after popup persistence", () => {
+  it("does not revert popup-persisted values when redoing staged changes", () => {
+    const popupPersistedEvent: CalendarEventViewModel = {
+      id: "evt-popup",
+      eventName: "Popup saved",
+      eventType: "Mexicano",
+      eventDate: "2026-03-09",
+      eventTime24h: "11:30",
+      status: "Lobby",
+      setupStatus: "ready",
+      missingRequirements: [],
+      warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+      version: 2,
+      selectedCourts: [1, 2],
+      playerIds: [],
+      currentRoundNumber: null,
+      totalRounds: 3,
+      roundDurationMinutes: 30,
+      durationMinutes: 90,
+      isTeamMexicano: false,
+    }
+
+    const stagedEvent: CalendarEventViewModel = {
+      ...popupPersistedEvent,
+      id: "evt-staged",
+      eventName: "Staged only",
+      eventTime24h: "09:00",
+      version: 4,
+    }
+
+    const baselineAfterPopup = [popupPersistedEvent, stagedEvent]
+    const workingWithStagedMove = [popupPersistedEvent, { ...stagedEvent, eventTime24h: "10:30" }]
+
+    const dirtyBeforeRedo = buildStagedCalendarChangeSet(baselineAfterPopup, workingWithStagedMove)
+    expect(dirtyBeforeRedo.dirty).toBe(true)
+
+    const redoWorking = baselineAfterPopup
+    const dirtyAfterRedo = buildStagedCalendarChangeSet(baselineAfterPopup, redoWorking)
+
+    expect(redoWorking.find((event) => event.id === "evt-popup")?.eventTime24h).toBe("11:30")
+    expect(dirtyAfterRedo.dirty).toBe(false)
   })
 })

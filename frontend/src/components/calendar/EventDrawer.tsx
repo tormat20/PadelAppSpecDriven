@@ -1,37 +1,40 @@
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "motion/react"
-import type { EventRecord, EventType, UpdateEventPayload } from "../../lib/types"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { AnimatePresence, motion } from "motion/react"
+
+import { CourtSelector } from "../courts/CourtSelector"
+import { PlayerSelector } from "../players/PlayerSelector"
+import Stepper from "../stepper/Stepper"
+import type { AssignedPlayer } from "../../features/create-event/draftPlayers"
+import { getRequiredPlayerCount, isCreateEventDisabled, isStrictCreateEventDisabled } from "../../features/create-event/validation"
+import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
+import { searchPlayers } from "../../lib/api"
+import { getEventModeLabel } from "../../lib/eventMode"
+import type { UpdateEventPayload } from "../../lib/types"
 import type { DrawerState } from "../../pages/Calendar"
-import { deriveDurationMinutes } from "../../pages/Calendar"
-import type { DurationOption } from "./calendarEventModel"
+import type { CalendarEventViewModel, DurationOption } from "./calendarEventModel"
 import { normalizeDurationMinutes } from "./duration"
+import type { PopupEditorFormValues } from "./popupEditorTypes"
+import {
+  POPUP_EDITOR_DELETE_CONFIRM,
+  POPUP_EDITOR_DELETE_ERROR_FALLBACK,
+  POPUP_EDITOR_DELETE_LABEL,
+  POPUP_EDITOR_DISCARD_CONFIRM,
+  POPUP_EDITOR_TITLE_EDIT,
+} from "./popupEditorCopy"
+import { toPopupSaveErrorMessage } from "./popupSaveErrorMap"
+import { getEventTypeVisualClass } from "./eventTypeVisualMap"
 
-// ---------------------------------------------------------------------------
-// DrawerFormValues — the shape of editable fields in the drawer
-// ---------------------------------------------------------------------------
-
-export type DrawerFormValues = {
-  eventName: string
-  eventType: EventType
-  eventDate: string
-  eventTime24h: string
-  durationMinutes: number
-  courts: number[]
+export type DrawerFormValues = PopupEditorFormValues & {
+  isTeamMexicano: boolean
 }
 
-// ---------------------------------------------------------------------------
-// isDrawerDirty — returns true when any field has changed from original
-// ---------------------------------------------------------------------------
-
-export function isDrawerDirty(
-  original: DrawerFormValues,
-  current: DrawerFormValues
-): boolean {
+export function isDrawerDirty(original: DrawerFormValues, current: DrawerFormValues): boolean {
   if (original.eventName !== current.eventName) return true
   if (original.eventType !== current.eventType) return true
   if (original.eventDate !== current.eventDate) return true
   if (original.eventTime24h !== current.eventTime24h) return true
   if (original.durationMinutes !== current.durationMinutes) return true
+  if (original.isTeamMexicano !== current.isTeamMexicano) return true
   if (original.courts.length !== current.courts.length) return true
   for (let i = 0; i < original.courts.length; i++) {
     if (original.courts[i] !== current.courts[i]) return true
@@ -39,41 +42,10 @@ export function isDrawerDirty(
   return false
 }
 
-// ---------------------------------------------------------------------------
-// EventDrawer props
-// ---------------------------------------------------------------------------
-
-type EventDrawerProps = {
-  state: DrawerState
-  onSave: (payload: UpdateEventPayload) => Promise<void>
-  onDelete: (eventId: string, version: number) => Promise<void>
-  onClose: () => void
-  onDurationChange?: (eventId: string, durationMinutes: DurationOption) => void
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const EVENT_TYPES: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox", "Americano"]
-
-function eventToFormValues(event: EventRecord & { durationMinutes?: number }): DrawerFormValues {
-  return {
-    eventName: event.eventName,
-    eventType: event.eventType,
-    eventDate: event.eventDate,
-    eventTime24h: event.eventTime24h ?? "",
-    durationMinutes: event.durationMinutes ?? deriveDurationMinutes(event),
-    courts: [...event.selectedCourts],
-  }
-}
-
-const DURATION_PRESETS = [60, 90, 120] as const
-
 type DrawerMode = "edit" | "readonly" | "create"
 
 export function getDrawerTitle(mode: DrawerMode): string {
-  return mode === "edit" ? "Edit Event" : mode === "create" ? "New Event" : "Event Details"
+  return mode === "edit" ? POPUP_EDITOR_TITLE_EDIT : mode === "create" ? "New Event" : "Event Details"
 }
 
 export function shouldConfirmDiscard(
@@ -84,111 +56,221 @@ export function shouldConfirmDiscard(
   return mode === "edit" && isDrawerDirty(originalForm, form)
 }
 
-// ---------------------------------------------------------------------------
-// EventDrawer component
-// ---------------------------------------------------------------------------
+type EventDrawerProps = {
+  state: DrawerState
+  onSave: (
+    payload: UpdateEventPayload,
+    options?: { closeOnSuccess?: boolean },
+  ) => Promise<CalendarEventViewModel | void>
+  onDelete: (eventId: string, version: number) => Promise<void>
+  onStart: (eventId: string) => Promise<void>
+  onClose: () => void
+  onDurationChange?: (eventId: string, durationMinutes: DurationOption) => void
+}
 
-export default function EventDrawer({ state, onSave, onDelete, onClose, onDurationChange }: EventDrawerProps) {
+const EVENT_TYPES = [
+  { id: "WinnersCourt", label: "Winners Court", copy: "Win/loss court movement" },
+  { id: "Mexicano", label: "Mexicano", copy: "24-point score regrouping" },
+  { id: "Americano", label: "Americano", copy: "Pre-set Whist schedule, 24-point scoring" },
+  { id: "RankedBox", label: "Ranked Box", copy: "3-round box rotations" },
+] as const
+
+function eventToFormValues(event: {
+  eventName: string
+  eventType: "WinnersCourt" | "Mexicano" | "RankedBox" | "Americano"
+  eventDate: string
+  eventTime24h: string | null
+  durationMinutes: number
+  selectedCourts: number[]
+  isTeamMexicano: boolean
+}): DrawerFormValues {
+  return {
+    eventName: event.eventName,
+    eventType: event.eventType,
+    eventDate: event.eventDate,
+    eventTime24h: event.eventTime24h ?? "",
+    durationMinutes: normalizeDurationMinutes(event.durationMinutes),
+    courts: [...event.selectedCourts],
+    isTeamMexicano: Boolean(event.isTeamMexicano),
+  }
+}
+
+function idsFromPlayers(players: AssignedPlayer[]): string[] {
+  return players.map((player) => player.id)
+}
+
+function initialStepForEvent(event: CalendarEventViewModel): 0 | 1 | 2 {
+  const selectedCourts = event.selectedCourts.length
+  const players = event.playerIds.length
+  const requiredPlayers = selectedCourts * 4
+
+  if (event.setupStatus === "ready") return 2
+  if (selectedCourts === 0) return 0
+  if (players > 0 && requiredPlayers > 0 && players === requiredPlayers) return 2
+  return 1
+}
+
+function areSameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+export default function EventDrawer({ state, onSave, onDelete, onStart, onClose }: EventDrawerProps) {
   const isOpen = state.open
   const mode = isOpen ? state.mode : null
-  const event =
-    isOpen && state.open && (state.mode === "edit" || state.mode === "readonly")
-      ? state.event
-      : null
+  const event = isOpen && (state.mode === "edit" || state.mode === "readonly") ? state.event : null
 
-  // Form values
   const [form, setForm] = useState<DrawerFormValues>({
     eventName: "",
     eventType: "Mexicano",
     eventDate: "",
     eventTime24h: "",
-    durationMinutes: 60,
+    durationMinutes: 90,
     courts: [],
+    isTeamMexicano: false,
   })
   const [originalForm, setOriginalForm] = useState<DrawerFormValues>(form)
-
-  // Custom duration input
-  const [isCustomDuration, setIsCustomDuration] = useState(false)
-
-  // Submission state
+  const [assignedPlayers, setAssignedPlayers] = useState<AssignedPlayer[]>([])
+  const [originalPlayerIds, setOriginalPlayerIds] = useState<string[]>([])
+  const [currentStep, setCurrentStep] = useState<0 | 1 | 2>(0)
+  const [direction, setDirection] = useState<1 | -1>(1)
+  const [inlineError, setInlineError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [inlineError, setInlineError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
+  const wasOpenRef = useRef(false)
+  const lastEventIdRef = useRef<string | null>(null)
 
-  // Sync form when drawer opens with an event
   useEffect(() => {
-    if (isOpen && event) {
-      const vals = eventToFormValues(event)
-      setForm(vals)
-      setOriginalForm(vals)
-      setIsCustomDuration(!DURATION_PRESETS.includes(vals.durationMinutes as 60 | 90 | 120))
-      setInlineError(null)
-      setIsSaving(false)
-      setIsDeleting(false)
+    if (!isOpen || !event) {
+      wasOpenRef.current = false
+      lastEventIdRef.current = null
+      return
     }
-  }, [isOpen, event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
+    const justOpened = wasOpenRef.current === false
+    const previousEventId = lastEventIdRef.current
+    const next = eventToFormValues(event)
 
-  function handleFieldChange<K extends keyof DrawerFormValues>(
-    field: K,
-    value: DrawerFormValues[K]
-  ) {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    if (justOpened) {
+      setForm(next)
+      setCurrentStep(initialStepForEvent(event))
+      setDirection(1)
+      setAssignedPlayers(event.playerIds.map((id) => ({ id, displayName: id })))
+    }
+
+    setOriginalForm(next)
+    setInlineError(null)
+    setIsSaving(false)
+    setIsDeleting(false)
+    setIsStarting(false)
+    setOriginalPlayerIds(event.playerIds)
+    if (!justOpened) {
+      setForm(next)
+      setAssignedPlayers((current) => {
+        const byId = new Map(current.map((player) => [player.id, player.displayName]))
+        return event.playerIds.map((id) => ({ id, displayName: byId.get(id) ?? id }))
+      })
+      if (previousEventId !== event.id && event.playerIds.length > 0) {
+        setCurrentStep((step) => (step === 0 ? 2 : step))
+      }
+    }
+
+    wasOpenRef.current = true
+    lastEventIdRef.current = event.id
+
+    let cancelled = false
+    void searchPlayers("")
+      .then((catalog) => {
+        if (cancelled) return
+        const byId = new Map(catalog.map((entry) => [entry.id, entry.displayName]))
+        setAssignedPlayers(event.playerIds.map((id) => ({ id, displayName: byId.get(id) ?? id })))
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [event, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        handleCloseRequest()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  })
+
+  const stepperSteps = useMemo(() => [{ label: "Setup" }, { label: "Roster" }, { label: "Confirm" }], [])
+  const isReadOnly = mode === "readonly"
+  const requiredPlayers = getRequiredPlayerCount(form.courts)
+  const setupInvalid = isCreateEventDisabled({
+    eventName: form.eventName,
+    eventDate: form.eventDate,
+    eventTime24h: form.eventTime24h,
+    courts: [],
+    playerIds: [],
+  })
+  const startDisabled = isStrictCreateEventDisabled({
+    eventName: form.eventName,
+    eventDate: form.eventDate,
+    eventTime24h: form.eventTime24h,
+    courts: form.courts,
+    playerIds: idsFromPlayers(assignedPlayers),
+    eventType: form.eventType,
+  })
+
+  function handleFieldChange<K extends keyof DrawerFormValues>(field: K, value: DrawerFormValues[K]) {
+    setForm((previous) => ({ ...previous, [field]: value }))
     setInlineError(null)
   }
 
-  function handleDurationSelectChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const val = e.target.value
-    if (val === "custom") {
-      setIsCustomDuration(true)
-    } else {
-      setIsCustomDuration(false)
-      handleFieldChange("durationMinutes", parseInt(val, 10))
+  function buildSavePayload(targetEvent: CalendarEventViewModel): UpdateEventPayload {
+    return {
+      expectedVersion: targetEvent.version,
+      eventName: form.eventName,
+      eventType: form.eventType,
+      eventDate: form.eventDate,
+      eventTime24h: form.eventTime24h,
+      eventDurationMinutes: form.durationMinutes,
+      selectedCourts: form.courts,
+      playerIds: idsFromPlayers(assignedPlayers),
+      isTeamMexicano: form.eventType === "Mexicano" ? form.isTeamMexicano : false,
     }
   }
 
-  function handleCourtsChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value
-    const parsed = raw
-      .split(",")
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => !isNaN(n) && n > 0)
-    handleFieldChange("courts", parsed)
-  }
-
   function handleCloseRequest() {
-    if (mode && shouldConfirmDiscard(mode, originalForm, form)) {
-      if (!window.confirm("Discard changes?")) return
+    if (!mode) return onClose()
+    const playersDirty = !areSameIds(originalPlayerIds, idsFromPlayers(assignedPlayers))
+    if (shouldConfirmDiscard(mode, originalForm, form) || playersDirty) {
+      if (!window.confirm(POPUP_EDITOR_DISCARD_CONFIRM)) return
     }
     onClose()
   }
 
-  async function handleSave() {
-    if (!event) return
-    setIsSaving(true)
+  async function persistCurrentStep(options?: { closeOnSuccess?: boolean }) {
+    if (!event) return undefined
     setInlineError(null)
-
-    // Build payload with only changed fields
-    const payload: UpdateEventPayload = { expectedVersion: event.version }
-    if (form.eventName !== originalForm.eventName) payload.eventName = form.eventName
-    if (form.eventType !== originalForm.eventType) payload.eventType = form.eventType
-    if (form.eventDate !== originalForm.eventDate) payload.eventDate = form.eventDate
-    if (form.eventTime24h !== originalForm.eventTime24h) payload.eventTime24h = form.eventTime24h
-    if (JSON.stringify(form.courts) !== JSON.stringify(originalForm.courts)) {
-      payload.selectedCourts = form.courts
-    }
-
+    setIsSaving(true)
     try {
-      const normalizedDuration = normalizeDurationMinutes(form.durationMinutes)
-      if (onDurationChange) {
-        onDurationChange(event.id, normalizedDuration)
+      const persisted = await onSave(buildSavePayload(event), options)
+      if (persisted) {
+        const next = eventToFormValues(persisted)
+        setOriginalForm(next)
+        setForm(next)
+        setOriginalPlayerIds(persisted.playerIds)
       }
-      await onSave(payload)
-    } catch {
-      setInlineError("Could not save changes. Please try again.")
+      return persisted
+    } catch (error) {
+      setInlineError(toPopupSaveErrorMessage(error))
+      return undefined
     } finally {
       setIsSaving(false)
     }
@@ -196,201 +278,314 @@ export default function EventDrawer({ state, onSave, onDelete, onClose, onDurati
 
   async function handleDelete() {
     if (!event) return
-    if (!window.confirm("Delete this event? This cannot be undone.")) return
-    setIsDeleting(true)
+    if (!window.confirm(POPUP_EDITOR_DELETE_CONFIRM)) return
     setInlineError(null)
+    setIsDeleting(true)
     try {
       await onDelete(event.id, event.version)
-    } catch {
-      setInlineError("Could not delete event. Please try again.")
+    } catch (error) {
+      setInlineError(error instanceof Error ? error.message : POPUP_EDITOR_DELETE_ERROR_FALLBACK)
       setIsDeleting(false)
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
+  async function handleStartEvent() {
+    if (!event) return
+    setInlineError(null)
+    setIsStarting(true)
+    try {
+      const persisted = await persistCurrentStep({ closeOnSuccess: false })
+      const eventId = persisted?.id ?? event.id
+      await onStart(eventId)
+    } catch (error) {
+      setInlineError(toPopupSaveErrorMessage(error))
+    } finally {
+      setIsStarting(false)
+    }
+  }
 
-  const isReadOnly = mode === "readonly"
+  async function handleNext() {
+    if (currentStep >= 2) return
+    const persisted = await persistCurrentStep({ closeOnSuccess: false })
+    if (!persisted) return
+    setDirection(1)
+    setCurrentStep((step) => (step < 2 ? ((step + 1) as 0 | 1 | 2) : step))
+  }
 
-  const durationSelectValue = isCustomDuration
-    ? "custom"
-    : DURATION_PRESETS.includes(form.durationMinutes as 60 | 90 | 120)
-    ? String(form.durationMinutes)
-    : "custom"
+  const summaryModeLabel = getEventModeLabel(form.eventType)
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          key="event-drawer"
-          className="event-drawer"
-          role="dialog"
-          aria-label="Event details"
-          data-testid="event-drawer"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "tween", duration: 0.22 }}
-        >
-          {/* Header */}
-          <div className="event-drawer__header">
-              <h2 className="event-drawer__title">
-                {mode ? getDrawerTitle(mode) : "Event Details"}
-              </h2>
-            <button
-              className="event-drawer__close"
-              aria-label="Close drawer"
-              onClick={handleCloseRequest}
-              type="button"
-            >
-              ×
-            </button>
-          </div>
+        <div className="event-popup-backdrop" role="presentation" onMouseDown={handleCloseRequest}>
+          <motion.div
+            className="event-popup panel form-grid"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit event"
+            data-testid="event-drawer"
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="event-popup__header">
+              <h2 className="event-popup__title">{mode ? getDrawerTitle(mode) : "Event Details"}</h2>
+              <button
+                className={withInteractiveSurface("event-popup__close")}
+                type="button"
+                aria-label="Close popup"
+                onClick={handleCloseRequest}
+              >
+                x
+              </button>
+            </div>
 
-          {/* Body */}
-          <div className="event-drawer__body">
-            {/* Inline error */}
             {inlineError && (
-              <p className="event-drawer__error" role="alert">
+              <p className="event-popup__error" role="alert">
                 {inlineError}
               </p>
             )}
 
-            {/* Event name */}
-            <label className="event-drawer__field">
-              <span className="event-drawer__label">Event name</span>
-              <input
-                type="text"
-                className="event-drawer__input"
-                value={form.eventName}
-                minLength={3}
-                maxLength={120}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={(e) => handleFieldChange("eventName", e.target.value)}
-                data-testid="drawer-event-name"
-              />
-            </label>
+            <Stepper steps={stepperSteps} currentStep={currentStep} direction={direction}>
+              {currentStep === 0 && (
+                <div className="form-grid">
+                  <p className="section-label">Choose mode</p>
+                  <div className="mode-list" aria-label="Game mode selector">
+                    {EVENT_TYPES.map((item) => (
+                      <div
+                        key={item.id}
+                        className={withInteractiveSurface(
+                          `mode-card ${getEventTypeVisualClass(
+                            item.id,
+                            item.id === "Mexicano" && form.isTeamMexicano,
+                          )}`,
+                        )}
+                        data-active={form.eventType === item.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={form.eventType === item.id}
+                        aria-disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                        onClick={() => {
+                          if (isReadOnly || isSaving || isDeleting || isStarting) return
+                          handleFieldChange("eventType", item.id)
+                        }}
+                        onKeyDown={(event) => {
+                          if (isReadOnly || isSaving || isDeleting || isStarting) return
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
+                            handleFieldChange("eventType", item.id)
+                          }
+                        }}
+                      >
+                        <div className="mode-title mode-title--row">
+                          <span>{item.label}</span>
+                          {item.id === "Mexicano" && (
+                            <span className="team-mexicano-inline" onClick={(e) => e.stopPropagation()}>
+                              <span className="team-mexicano-inline__label">Team Mexicano</span>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={form.isTeamMexicano}
+                                className={`toggle-switch${form.isTeamMexicano ? " toggle-switch--on" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (form.eventType !== "Mexicano") {
+                                    handleFieldChange("eventType", "Mexicano")
+                                  }
+                                  handleFieldChange("isTeamMexicano", !form.isTeamMexicano)
+                                }}
+                                aria-label="Team Mexicano mode"
+                                disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                              >
+                                <span className="toggle-switch__thumb" />
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                        <div className="mode-copy">{item.copy}</div>
+                      </div>
+                    ))}
+                  </div>
 
-            {/* Event type */}
-            <label className="event-drawer__field">
-              <span className="event-drawer__label">Event type</span>
-              <select
-                className="event-drawer__select"
-                value={form.eventType}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={(e) => handleFieldChange("eventType", e.target.value as EventType)}
-                data-testid="drawer-event-type"
-              >
-                {EVENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
+                  <p className="section-label">Choose date and time</p>
+                  <div className="event-schedule-row" aria-label="Event schedule">
+                    <input
+                      type="date"
+                      className="input"
+                      value={form.eventDate}
+                      onChange={(e) => handleFieldChange("eventDate", e.target.value)}
+                      disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                      data-testid="drawer-event-date"
+                    />
+                    <input
+                      type="time"
+                      step={1800}
+                      className="input"
+                      value={form.eventTime24h}
+                      onChange={(e) => handleFieldChange("eventTime24h", e.target.value)}
+                      disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                      data-testid="drawer-event-time"
+                    />
+                    <div className="event-duration-control" aria-label="Event duration">
+                      <label htmlFor="popup-duration" className="event-duration-label">
+                        Duration: {form.durationMinutes} min
+                      </label>
+                      <input
+                        id="popup-duration"
+                        className="event-duration-slider"
+                        type="range"
+                        min={60}
+                        max={120}
+                        step={30}
+                        value={form.durationMinutes}
+                        onChange={(e) =>
+                          handleFieldChange("durationMinutes", normalizeDurationMinutes(Number(e.target.value)))
+                        }
+                        disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                        data-testid="drawer-duration-select"
+                      />
+                      <div className="event-duration-marks" aria-hidden="true">
+                        <span>60</span>
+                        <span>90</span>
+                        <span>120</span>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Date */}
-            <label className="event-drawer__field">
-              <span className="event-drawer__label">Date</span>
-              <input
-                type="date"
-                className="event-drawer__input"
-                value={form.eventDate}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={(e) => handleFieldChange("eventDate", e.target.value)}
-                data-testid="drawer-event-date"
-              />
-            </label>
+                  <input
+                    className="input"
+                    value={form.eventName}
+                    onChange={(e) => handleFieldChange("eventName", e.target.value)}
+                    minLength={3}
+                    maxLength={120}
+                    placeholder="Event name"
+                    disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                    data-testid="drawer-event-name"
+                  />
+                </div>
+              )}
 
-            {/* Start time */}
-            <label className="event-drawer__field">
-              <span className="event-drawer__label">Start time</span>
-              <input
-                type="time"
-                step={1800}
-                className="event-drawer__input"
-                value={form.eventTime24h}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={(e) => handleFieldChange("eventTime24h", e.target.value)}
-                data-testid="drawer-event-time"
-              />
-            </label>
+              {currentStep === 1 && (
+                <div className="form-grid">
+                  <CourtSelector
+                    selectedCourts={form.courts}
+                    onChange={(next) => handleFieldChange("courts", next)}
+                  />
+                  <p className="muted">
+                    {assignedPlayers.length} / {requiredPlayers} players assigned
+                    {form.courts.length > 0
+                      ? ` (${form.courts.length} court${form.courts.length === 1 ? "" : "s"} x 4 required)`
+                      : ""}
+                  </p>
+                  <PlayerSelector
+                    assignedPlayers={assignedPlayers}
+                    totalPlayersRequired={requiredPlayers}
+                    onAssignedPlayersChange={setAssignedPlayers}
+                  />
+                </div>
+              )}
 
-            {/* Duration */}
-            <div className="event-drawer__field">
-              <span className="event-drawer__label">Duration</span>
-              <select
-                className="event-drawer__select"
-                value={durationSelectValue}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={handleDurationSelectChange}
-                data-testid="drawer-duration-select"
-              >
-                <option value="60">60 min</option>
-                <option value="90">90 min</option>
-                <option value="120">120 min</option>
-                <option value="custom">Custom…</option>
-              </select>
-              {isCustomDuration && (
-                <input
-                  type="number"
-                  min={30}
-                  step={30}
-                  className="event-drawer__input event-drawer__input--inline"
-                  value={form.durationMinutes}
-                  disabled={isReadOnly || isSaving || isDeleting}
-                  onChange={(e) =>
-                    handleFieldChange("durationMinutes", parseInt(e.target.value, 10) || 60)
-                  }
-                  data-testid="drawer-duration-custom"
-                />
+              {currentStep === 2 && (
+                <div className="form-grid">
+                  <ul className="summary-list" aria-label="Event summary">
+                    <li className="summary-row">
+                      <span className="muted">Event</span>
+                      <span>{form.eventName || "-"}</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Mode</span>
+                      <span>{summaryModeLabel}{form.eventType === "Mexicano" && form.isTeamMexicano ? " (Team Mexicano)" : ""}</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Date</span>
+                      <span>{form.eventDate || "-"}</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Time</span>
+                      <span>{form.eventTime24h || "-"}</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Duration</span>
+                      <span>{form.durationMinutes} min</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Courts</span>
+                      <span>{form.courts.length}</span>
+                    </li>
+                    <li className="summary-row">
+                      <span className="muted">Players</span>
+                      <span>{assignedPlayers.length}</span>
+                    </li>
+                  </ul>
+
+                  {startDisabled && (
+                    <p className="warning-text" aria-live="polite">
+                      Add players and courts to start event
+                    </p>
+                  )}
+                </div>
+              )}
+            </Stepper>
+
+            <div className="event-popup__actions">
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  className={withInteractiveSurface("button--danger")}
+                  onClick={() => {
+                    void handleDelete()
+                  }}
+                  disabled={isSaving || isDeleting || isStarting}
+                  data-testid="drawer-delete-btn"
+                >
+                  {isDeleting ? "Deleting..." : POPUP_EDITOR_DELETE_LABEL}
+                </button>
+              )}
+
+              {!isReadOnly && currentStep > 0 && (
+                <button
+                  type="button"
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => {
+                    setDirection(-1)
+                    setCurrentStep((step) => (step > 0 ? ((step - 1) as 0 | 1 | 2) : step))
+                  }}
+                  disabled={isSaving || isDeleting || isStarting}
+                >
+                  Previous
+                </button>
+              )}
+
+              {!isReadOnly && currentStep < 2 && (
+                <button
+                  type="button"
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => {
+                    void handleNext()
+                  }}
+                  disabled={isSaving || isDeleting || isStarting || (currentStep === 0 && setupInvalid)}
+                >
+                  Next
+                </button>
+              )}
+
+              {!isReadOnly && currentStep === 2 && (
+                <button
+                  type="button"
+                  className={withInteractiveSurface("button")}
+                  onClick={() => {
+                    void handleStartEvent()
+                  }}
+                  disabled={isSaving || isDeleting || isStarting || startDisabled}
+                >
+                  {isStarting ? "Starting..." : "Start Event"}
+                </button>
               )}
             </div>
-
-            {/* Courts */}
-            <label className="event-drawer__field">
-              <span className="event-drawer__label">Courts (comma-separated)</span>
-              <input
-                type="text"
-                className="event-drawer__input"
-                value={form.courts.join(", ")}
-                disabled={isReadOnly || isSaving || isDeleting}
-                onChange={handleCourtsChange}
-                placeholder="e.g. 1, 2, 3"
-                data-testid="drawer-courts"
-              />
-            </label>
-          </div>
-
-          {/* Footer actions */}
-          {!isReadOnly && (
-            <div className="event-drawer__footer">
-              {mode === "edit" && (
-                <>
-                  <button
-                    className="button-danger"
-                    type="button"
-                    disabled={isSaving || isDeleting}
-                    onClick={handleDelete}
-                    data-testid="drawer-delete-btn"
-                  >
-                    {isDeleting ? "Deleting…" : "Delete"}
-                  </button>
-                  <button
-                    className="button-primary"
-                    type="button"
-                    disabled={isSaving || isDeleting}
-                    onClick={handleSave}
-                    data-testid="drawer-save-btn"
-                  >
-                    {isSaving ? "Saving…" : "Save"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </motion.div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   )

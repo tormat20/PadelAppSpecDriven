@@ -11,6 +11,7 @@ from app.api.schemas.events import (
     CreateEventRequest,
     DeleteAllEventsResponse,
     EventResponse,
+    PopupImmediateSaveRequest,
     PlanningWarningsResponse,
     SubstitutePlayerRequest,
     UpdateEventSetupRequest,
@@ -159,6 +160,49 @@ def update_event(
     with services_scope() as services:
         try:
             details = services["event_service"].update_event_setup(
+                event_id=event_id,
+                expected_version=payload.expectedVersion,
+                event_name=payload.eventName,
+                event_type=payload.eventType,
+                event_date=payload.eventDate,
+                event_time24h=payload.eventTime24h,
+                event_duration_minutes=payload.eventDurationMinutes,
+                selected_courts=payload.selectedCourts,
+                player_ids=payload.playerIds,
+                is_team_mexicano=payload.isTeamMexicano,
+            )
+            return _to_event_response(
+                details["event"],
+                details["player_ids"],
+                details["courts"],
+                details["missing_requirements"],
+                details["warnings"],
+                details["lifecycle_status"],
+            )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+        except ValueError as exc:
+            detail = str(exc)
+            if detail.startswith("conflict:"):
+                version = detail.split(":", 1)[1]
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "EVENT_VERSION_CONFLICT",
+                        "currentVersion": int(version),
+                        "message": "Event changed by another organizer. Refresh and retry.",
+                    },
+                ) from exc
+            raise HTTPException(status_code=400, detail=detail) from exc
+
+
+@router.post("/{event_id}/popup-save", response_model=EventResponse)
+def popup_save_event(
+    event_id: str, payload: PopupImmediateSaveRequest, _: TokenData = Depends(require_admin)
+) -> EventResponse:
+    with services_scope() as services:
+        try:
+            details = services["event_service"].persist_popup_edit(
                 event_id=event_id,
                 expected_version=payload.expectedVersion,
                 event_name=payload.eventName,

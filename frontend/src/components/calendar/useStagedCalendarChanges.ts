@@ -57,6 +57,27 @@ export function useStagedCalendarChanges() {
     setWorking(events)
   }, [])
 
+  const reconcilePersistedEvent = useCallback((persistedEvent: CalendarEventViewModel, replacedEventId?: string) => {
+    const previousId = replacedEventId ?? persistedEvent.id
+    setBaseline((current) => {
+      const exists = current.some((event) => event.id === previousId)
+      return exists
+        ? current.map((event) => (event.id === previousId ? persistedEvent : event))
+        : [persistedEvent, ...current]
+    })
+    setWorking((current) => {
+      const exists = current.some((event) => event.id === previousId)
+      return exists
+        ? current.map((event) => (event.id === previousId ? persistedEvent : event))
+        : [persistedEvent, ...current]
+    })
+  }, [])
+
+  const reconcileDeletedEvent = useCallback((eventId: string) => {
+    setBaseline((current) => current.filter((event) => event.id !== eventId))
+    setWorking((current) => current.filter((event) => event.id !== eventId))
+  }, [])
+
   const changeSet = useMemo<StagedCalendarChangeSet>(() => {
     return buildStagedCalendarChangeSet(baseline, working)
   }, [baseline, working])
@@ -67,6 +88,8 @@ export function useStagedCalendarChanges() {
     initialize,
     replaceWorking,
     markSaved,
+    reconcilePersistedEvent,
+    reconcileDeletedEvent,
     changeSet,
   }
 }

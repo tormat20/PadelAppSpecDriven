@@ -171,3 +171,36 @@ def test_staged_save_rolls_back_on_version_conflict(client):
     names = [event["eventName"] for event in events.json()]
     assert "Should rollback" not in names
     assert "Conflict base" in names
+
+
+def test_popup_save_endpoint_persists_immediately(client):
+    created = client.post(
+        "/api/v1/events",
+        json={
+            "eventName": "Popup target",
+            "eventType": "WinnersCourt",
+            "eventDate": "2026-04-09",
+            "eventTime24h": "10:00",
+            "createAction": "create_event_slot",
+            "selectedCourts": [],
+            "playerIds": [],
+        },
+    )
+    assert created.status_code == 201
+    event = created.json()
+
+    saved = client.post(
+        f"/api/v1/events/{event['id']}/popup-save",
+        json={
+            "expectedVersion": event["version"],
+            "eventName": "Popup persisted",
+            "eventTime24h": "11:30",
+            "selectedCourts": [1, 2],
+        },
+    )
+    assert saved.status_code == 200
+    body = saved.json()
+    assert body["eventName"] == "Popup persisted"
+    assert body["eventTime24h"] == "11:30"
+    assert body["selectedCourts"] == [1, 2]
+    assert body["version"] == event["version"] + 1

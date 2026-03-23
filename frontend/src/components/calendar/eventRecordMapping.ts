@@ -1,4 +1,5 @@
 import type { EventRecord } from "../../lib/types"
+import { getEventModeLabel } from "../../lib/eventMode"
 import type { CalendarEventViewModel } from "./calendarEventModel"
 import { normalizeDurationMinutes } from "./duration"
 import type { CalendarTemplateType } from "./calendarTemplateTypes"
@@ -67,8 +68,13 @@ export function applyCalendarScheduleUpdate(
   eventDate: string,
   eventTime24h: string,
 ): CalendarEventViewModel {
+  const eventTypeLabel =
+    event.eventType === "Mexicano" && event.isTeamMexicano
+      ? "Team Mexicano"
+      : getEventModeLabel(event.eventType)
   return {
     ...event,
+    eventName: generateCalendarEventName(eventDate, eventTime24h, eventTypeLabel),
     eventDate,
     eventTime24h,
   }

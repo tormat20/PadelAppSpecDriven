@@ -62,6 +62,7 @@ export default function EventBlock({
     .join(" ")
 
   const eventTypeLabel = getCalendarEventTypeLabel(event)
+  const scheduleMoment = formatEventMomentLabel(event.eventDate, event.eventTime24h)
   const timeRangeLabel = formatEventTimeRange(event.eventTime24h, event.durationMinutes)
 
   const canResize = isLobby && Boolean(onResizeStart)
@@ -116,24 +117,12 @@ export default function EventBlock({
           ;(onNameClick ?? onClick)()
         }}
       >
-        {event.eventName}
+        {eventTypeLabel}
       </button>
 
-      {/* Event type badge */}
-      <span
-        className={[
-          "calendar-event-block__type-badge",
-          `calendar-event-block__type-badge--${eventTypeLower}`,
-          eventTypeVisualClass,
-        ].join(" ")}
-      >
-        {eventTypeLabel}
-      </span>
-
-      {event.durationMinutes >= 90 && <span className="calendar-event-block__time-range">{timeRangeLabel}</span>}
-      {event.durationMinutes >= 120 && (
-        <span className="calendar-event-block__duration">{formatDurationLabel(event.durationMinutes)}</span>
-      )}
+      <span className="calendar-event-block__moment">{scheduleMoment}</span>
+      <span className="calendar-event-block__time-range">{timeRangeLabel}</span>
+      {event.durationMinutes >= 120 && <span className="calendar-event-block__duration">{formatDurationLabel(event.durationMinutes)}</span>}
 
       {canResize && (
         <div
@@ -141,6 +130,9 @@ export default function EventBlock({
           onPointerDown={(e) => {
             e.stopPropagation()
             onResizeStart?.(event.id, e)
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
           }}
           onPointerMove={(e) => {
             if (!isResizeActive) return
@@ -180,4 +172,34 @@ export function formatEventTimeRange(eventTime24h: string | null, durationMinute
   const start = `${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}`
   const end = `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`
   return `${start} - ${end}`
+}
+
+export function formatEventMomentLabel(eventDate: string, eventTime24h: string | null): string {
+  const parsedDate = new Date(`${eventDate}T00:00:00`)
+  const weekday = Number.isNaN(parsedDate.getTime())
+    ? "Event"
+    : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][parsedDate.getDay()]
+
+  if (!eventTime24h || !eventTime24h.includes(":")) {
+    return `${weekday} Unscheduled`
+  }
+
+  const [hoursPart, minutesPart] = eventTime24h.split(":")
+  const hours = Number(hoursPart)
+  const minutes = Number(minutesPart)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return `${weekday} Unscheduled`
+  }
+  const startMinutes = hours * 60 + minutes
+
+  const category =
+    startMinutes >= 7 * 60 && startMinutes <= 10 * 60
+      ? "Morning"
+      : startMinutes >= 10 * 60 + 30 && startMinutes <= 13 * 60
+        ? "Lunch"
+        : startMinutes >= 13 * 60 + 30 && startMinutes <= 17 * 60
+          ? "Afternoon"
+          : "Evening"
+
+  return `${weekday} ${category}`
 }

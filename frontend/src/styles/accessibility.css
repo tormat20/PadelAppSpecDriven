@@ -48,6 +48,11 @@
   box-shadow: inset 0 -2px 0 var(--interactive-edge-strong);
 }
 
+.event-popup:focus-visible,
+.event-popup__close:focus-visible {
+  box-shadow: 0 0 0 3px rgba(12, 138, 143, 0.22);
+}
+
 .summary-matrix th[scope="col"],
 .summary-rank-cell {
   white-space: nowrap;
