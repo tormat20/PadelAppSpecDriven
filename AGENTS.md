@@ -33,6 +33,14 @@ Auto-generated from all feature plans. Last updated: 2026-02-26
 - Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend) (034-streak-summary-edit)
 - DuckDB event/round/match/result persistence; existing event summary projection data (034-streak-summary-edit)
 - DuckDB event/round/match/result persistence with existing run-state fields and correction audit table (035-previous-round-correction)
+- TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, existing calendar components/helpers, optional minimal extraction of Figma drag/drop interaction logic (without full generated UI kit) (036-calendar-dnd-eventrecord)
+- Frontend in-memory calendar state initialized from existing event API responses (no write persistence in this phase) (036-calendar-dnd-eventrecord)
+- TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, existing in-repo calendar components/helpers, existing interactive surface styling patterns (037-calendar-interaction-polish)
+- Frontend in-memory calendar state initialized from existing event data (no expanded backend persistence in this phase) (037-calendar-interaction-polish)
+- TypeScript 5.x + React 18.3 (frontend), Python 3.12 (backend API response updates) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed repositories, existing interactive-surface style system (038-calendar-staged-save)
+- Existing backend event/round/match/player persistence + frontend staged local calendar state before save (038-calendar-staged-save)
+- Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories, React Router DOM 6, Vite 5, Vitest 2 (038-calendar-staged-save)
+- Existing DuckDB event/round/match/player persistence + frontend staged local calendar state (038-calendar-staged-save)
 
 - TypeScript 5.x, React 18, Node.js 20+ for tooling + React, React Router, Vite, Vitest (001-frontend-visual-redesign)
 
@@ -52,9 +60,9 @@ npm test && npm run lint
 TypeScript 5.x, React 18, Node.js 20+ for tooling: Follow standard conventions
 
 ## Recent Changes
-- 035-previous-round-correction: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
-- 034-streak-summary-edit: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
-- 033-player-management-reset: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, DuckDB (backend); React Router DOM 6, Vite 5, Vitest 2 (frontend)
+- 038-calendar-staged-save: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories, React Router DOM 6, Vite 5, Vitest 2
+- 038-calendar-staged-save: Added TypeScript 5.x + React 18.3 (frontend), Python 3.12 (backend API response updates) + React Router, Vite, Vitest, FastAPI, Pydantic, DuckDB-backed repositories, existing interactive-surface style system
+- 037-calendar-interaction-polish: Added TypeScript 5.x + React 18.3 + React Router DOM 6, Vite 5, existing in-repo calendar components/helpers, existing interactive surface styling patterns
 
 
 ## Git Workflow

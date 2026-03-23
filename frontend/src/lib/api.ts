@@ -1,4 +1,5 @@
 import { normalizePlayerName } from "./playerNames"
+import type { StagedCalendarChangeSet } from "../components/calendar/stagedChangeTypes"
 import type {
   CreateEventPayload,
   EventRecord,
@@ -247,6 +248,19 @@ export async function updateEvent(id: string, payload: UpdateEventPayload): Prom
 
 export async function deleteEvent(id: string): Promise<void> {
   await request(`/events/${id}`, { method: "DELETE" })
+}
+
+export async function deleteAllEvents(): Promise<{ status: "deleted"; deletedCount: number }> {
+  return request("/events", { method: "DELETE" })
+}
+
+export async function saveStagedCalendarChanges(
+  payload: Pick<StagedCalendarChangeSet, "creates" | "updates" | "deletes">,
+): Promise<{ status: "saved"; createdCount: number; updatedCount: number; deletedCount: number }> {
+  return request("/events/staged-save", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function startEvent(id: string): Promise<any> {

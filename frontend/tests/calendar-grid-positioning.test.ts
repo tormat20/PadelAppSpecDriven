@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
+  computeDragDayIndex,
   minutesSinceGridStart,
   eventHeightPx,
   deriveDurationMinutes,
@@ -9,6 +10,10 @@ import {
   getWeekDates,
   formatWeekLabel,
 } from "../src/pages/Calendar"
+import { normalizeDurationMinutes } from "../src/components/calendar/duration"
+import { durationFromResizeDelta } from "../src/components/calendar/resizeMath"
+import { buildDayCourtLaneSegments, deriveCourtNumbers } from "../src/components/calendar/DayCourtGrid"
+import type { CalendarEventViewModel } from "../src/components/calendar/calendarEventModel"
 
 describe("minutesSinceGridStart", () => {
   it("returns 0 for 07:00 (grid start)", () => {
@@ -167,5 +172,77 @@ describe("formatWeekLabel", () => {
   it("formats the week of March 9 as '9 Mar – 15 Mar 2026'", () => {
     const monday = new Date(2026, 2, 9) // March 9, 2026 — actual Monday
     expect(formatWeekLabel(monday)).toBe("9 Mar – 15 Mar 2026")
+  })
+})
+
+describe("normalizeDurationMinutes", () => {
+  it("keeps valid durations", () => {
+    expect(normalizeDurationMinutes(60)).toBe(60)
+    expect(normalizeDurationMinutes(90)).toBe(90)
+    expect(normalizeDurationMinutes(120)).toBe(120)
+  })
+
+  it("normalizes unsupported durations to nearest option", () => {
+    expect(normalizeDurationMinutes(70)).toBe(60)
+    expect(normalizeDurationMinutes(100)).toBe(90)
+    expect(normalizeDurationMinutes(111)).toBe(120)
+  })
+})
+
+describe("durationFromResizeDelta", () => {
+  it("snaps positive resize deltas in 30-minute steps", () => {
+    expect(durationFromResizeDelta(90, 30)).toBe(120)
+  })
+
+  it("snaps negative resize deltas and clamps", () => {
+    expect(durationFromResizeDelta(90, -30)).toBe(60)
+    expect(durationFromResizeDelta(60, -120)).toBe(60)
+  })
+})
+
+describe("laptop-width calendar layout", () => {
+  it("keeps day-column calculations stable on wider grids", () => {
+    const wideGridRect = { left: 80, width: 840 }
+    expect(computeDragDayIndex(80 + 60, wideGridRect)).toBe(0)
+    expect(computeDragDayIndex(80 + 420, wideGridRect)).toBe(3)
+    expect(computeDragDayIndex(80 + 780, wideGridRect)).toBe(6)
+  })
+})
+
+describe("day-court lane helpers", () => {
+  const dayEvent = (overrides: Partial<CalendarEventViewModel> = {}): CalendarEventViewModel => ({
+    id: "evt-1",
+    eventName: "Monday Lunch Mexicano",
+    eventType: "Mexicano",
+    eventDate: "2026-03-09",
+    eventTime24h: "11:00",
+    status: "Lobby",
+    setupStatus: "planned",
+    missingRequirements: [],
+    warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+    version: 1,
+    selectedCourts: [4, 5],
+    playerIds: [],
+    currentRoundNumber: null,
+    totalRounds: 3,
+    roundDurationMinutes: 30,
+    durationMinutes: 90,
+    isTeamMexicano: false,
+    ...overrides,
+  })
+
+  it("uses fallback courts 1-8 when no explicit courts are assigned", () => {
+    const courts = deriveCourtNumbers([dayEvent({ selectedCourts: [] })])
+    expect(courts[0]).toBe(1)
+    expect(courts[7]).toBe(8)
+    expect(courts).toHaveLength(8)
+  })
+
+  it("renders all-lane segments for unspecified-court events", () => {
+    const events = [dayEvent({ id: "evt-plan", selectedCourts: [] })]
+    const courts = deriveCourtNumbers(events)
+    const segments = buildDayCourtLaneSegments(events, courts)
+    expect(segments).toHaveLength(8)
+    expect(segments.every((segment) => segment.allLanesPlanned)).toBe(true)
   })
 })

@@ -175,10 +175,31 @@ class EventsRepository:
             return False
 
         self.clear_event_runtime(event_id)
+        self.conn.execute("DELETE FROM event_teams WHERE event_id = ?", [event_id])
+        self.conn.execute("DELETE FROM event_substitutions WHERE event_id = ?", [event_id])
+        self.conn.execute("DELETE FROM match_result_corrections WHERE event_id = ?", [event_id])
         self.conn.execute("DELETE FROM event_players WHERE event_id = ?", [event_id])
         self.conn.execute("DELETE FROM event_courts WHERE event_id = ?", [event_id])
         self.conn.execute("DELETE FROM events WHERE id = ?", [event_id])
         return True
+
+    def delete_all_events(self) -> int:
+        row = self.conn.execute("SELECT COUNT(*) FROM events").fetchone()
+        count = int(row[0]) if row else 0
+        if count == 0:
+            return 0
+
+        self.conn.execute("DELETE FROM event_scores")
+        self.conn.execute("DELETE FROM player_round_scores")
+        self.conn.execute("DELETE FROM matches")
+        self.conn.execute("DELETE FROM rounds")
+        self.conn.execute("DELETE FROM event_teams")
+        self.conn.execute("DELETE FROM event_substitutions")
+        self.conn.execute("DELETE FROM match_result_corrections")
+        self.conn.execute("DELETE FROM event_players")
+        self.conn.execute("DELETE FROM event_courts")
+        self.conn.execute("DELETE FROM events")
+        return count
 
     def clear_event_runtime(self, event_id: str) -> None:
         self.conn.execute("DELETE FROM event_scores WHERE event_id = ?", [event_id])

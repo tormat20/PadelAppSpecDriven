@@ -11,9 +11,10 @@ import { useState } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
-import { resetAllPlayerStats, deleteAllPlayers } from "../lib/api"
+import { resetAllPlayerStats, deleteAllPlayers, deleteAllEvents } from "../lib/api"
+import { EVENT_MANAGEMENT_CONFIRM_MESSAGE } from "../lib/eventManagement"
 
-type DialogMode = "reset-stats" | "delete-all" | null
+type DialogMode = "reset-stats" | "delete-all" | "delete-all-events" | null
 
 export default function AccountSettingsPage() {
   const { user, isAdmin } = useAuth()
@@ -40,6 +41,19 @@ export default function AccountSettingsPage() {
       await deleteAllPlayers()
       setConfirmDialog(null)
       setStatusMessage("All players have been removed.")
+    } catch {
+      setStatusMessage("Something went wrong. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteAllEvents() {
+    setIsSubmitting(true)
+    try {
+      await deleteAllEvents()
+      setConfirmDialog(null)
+      setStatusMessage("All events have been removed.")
     } catch {
       setStatusMessage("Something went wrong. Please try again.")
     } finally {
@@ -137,6 +151,43 @@ export default function AccountSettingsPage() {
               variant="danger"
               isLoading={isSubmitting}
               onConfirm={handleDeleteAll}
+              onCancel={() => setConfirmDialog(null)}
+            />
+          )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="settings-section">
+          <h2 className="settings-section-title">Event Management</h2>
+          <p className="settings-section-description">
+            Destructive operations — these cannot be undone.
+          </p>
+          <div className="settings-danger-actions">
+            <button
+              type="button"
+              className={withInteractiveSurface("button--danger")}
+              onClick={() => {
+                setStatusMessage("")
+                setConfirmDialog("delete-all-events")
+              }}
+            >
+              Remove All Events
+            </button>
+          </div>
+          {statusMessage && (
+            <p className="settings-status-message" role="status">
+              {statusMessage}
+            </p>
+          )}
+          {confirmDialog === "delete-all-events" && (
+            <ConfirmDialog
+              title="Remove All Events?"
+              message={EVENT_MANAGEMENT_CONFIRM_MESSAGE}
+              confirmLabel="Yes, delete events"
+              variant="danger"
+              isLoading={isSubmitting}
+              onConfirm={handleDeleteAllEvents}
               onCancel={() => setConfirmDialog(null)}
             />
           )}

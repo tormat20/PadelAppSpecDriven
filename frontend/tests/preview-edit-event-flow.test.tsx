@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { getStartStep } from "../src/pages/CreateEvent"
 import { canStartEvent } from "../src/pages/PreviewEvent"
+import { EVENT_MANAGEMENT_CONFIRM_MESSAGE } from "../src/lib/eventManagement"
 
 describe("preview edit event flow", () => {
   it("derives start step from lifecycle status", () => {
@@ -17,5 +18,10 @@ describe("preview edit event flow", () => {
     expect(canStartEvent({ lifecycleStatus: "planned", setupStatus: "planned", status: "Lobby" })).toBe(false)
     expect(canStartEvent({ lifecycleStatus: "ongoing", setupStatus: "ready", status: "Running" })).toBe(false)
     expect(canStartEvent({ lifecycleStatus: "ready", setupStatus: "ready", status: "Lobby" })).toBe(true)
+  })
+
+  it("includes destructive warning copy for remove-all-events confirmation", () => {
+    expect(EVENT_MANAGEMENT_CONFIRM_MESSAGE).toContain("permanently delete all events")
+    expect(EVENT_MANAGEMENT_CONFIRM_MESSAGE).toContain("cannot be undone")
   })
 })

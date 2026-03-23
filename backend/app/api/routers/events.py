@@ -6,7 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.api.deps import TokenData, require_admin, services_scope
 from app.core.errors import DomainError
 from app.api.schemas.events import (
+    CalendarStagedSaveRequest,
+    CalendarStagedSaveResponse,
     CreateEventRequest,
+    DeleteAllEventsResponse,
     EventResponse,
     PlanningWarningsResponse,
     SubstitutePlayerRequest,
@@ -231,6 +234,53 @@ def delete_event(event_id: str, _: TokenData = Depends(require_admin)) -> None:
             raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("", response_model=DeleteAllEventsResponse)
+def delete_all_events(_: TokenData = Depends(require_admin)) -> DeleteAllEventsResponse:
+    with services_scope() as services:
+        try:
+            deleted_count = services["event_service"].delete_all_events()
+            return DeleteAllEventsResponse(status="deleted", deletedCount=deleted_count)
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staged-save", response_model=CalendarStagedSaveResponse)
+def save_staged_calendar_changes(
+    payload: CalendarStagedSaveRequest,
+    _: TokenData = Depends(require_admin),
+) -> CalendarStagedSaveResponse:
+    with services_scope() as services:
+        try:
+            result = services["event_service"].apply_staged_calendar_changes(
+                creates=[item.model_dump() for item in payload.creates],
+                updates=[item.model_dump() for item in payload.updates],
+                deletes=payload.deletes,
+            )
+            return CalendarStagedSaveResponse(
+                status="saved",
+                createdCount=result["created_count"],
+                updatedCount=result["updated_count"],
+                deletedCount=result["deleted_count"],
+            )
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+        except ValueError as exc:
+            detail = str(exc)
+            if detail.startswith("conflict:"):
+                version = detail.split(":", 1)[1]
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "EVENT_VERSION_CONFLICT",
+                        "currentVersion": int(version),
+                        "message": "Event changed by another organizer. Refresh and retry.",
+                    },
+                ) from exc
+            raise HTTPException(status_code=400, detail=detail) from exc
 
 
 @router.post("/{event_id}/next")

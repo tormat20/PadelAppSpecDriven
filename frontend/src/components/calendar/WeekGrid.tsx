@@ -1,10 +1,9 @@
 import { forwardRef } from "react"
-import type { EventRecord } from "../../lib/types"
+import type { CalendarEventViewModel } from "./calendarEventModel"
 import {
   getWeekDates,
   eventTopPx,
   eventHeightPx,
-  deriveDurationMinutes,
 } from "../../pages/Calendar"
 import type { GhostBlockState } from "../../pages/Calendar"
 import {
@@ -21,15 +20,21 @@ import GhostBlock from "./GhostBlock"
 // ---------------------------------------------------------------------------
 
 type WeekGridProps = {
-  events: EventRecord[]
+  events: CalendarEventViewModel[]
   weekStart: Date
   ghostBlock: GhostBlockState | null
   draggingEventId: string | null
-  onBlockClick: (event: EventRecord) => void
-  onBlockDragStart: (event: EventRecord, e: React.DragEvent) => void
+  onBlockClick: (event: CalendarEventViewModel) => void
+  onBlockNameClick?: (event: CalendarEventViewModel) => void
+  onDayHeaderClick?: (date: Date) => void
+  onBlockDragStart: (event: CalendarEventViewModel, e: React.DragEvent) => void
   onBlockDragEnd: () => void
-  onGridDrop: (e: React.DragEvent) => void
-  onGridDragOver: (e: React.DragEvent) => void
+  onGridDrop: (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => void
+  onGridDragOver: (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => void
+  onResizeStart: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
+  onResizeMove: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
+  onResizeEnd: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
+  activeResizeEventId: string | null
   onCellPointerDown: (
     dayIndex: number,
     minutesFromGridStart: number,
@@ -86,10 +91,16 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
     ghostBlock,
     draggingEventId,
     onBlockClick,
+    onBlockNameClick,
+    onDayHeaderClick,
     onBlockDragStart,
     onBlockDragEnd,
     onGridDrop,
     onGridDragOver,
+    onResizeStart,
+    onResizeMove,
+    onResizeEnd,
+    activeResizeEventId,
     onCellPointerDown,
   },
   ref
@@ -114,10 +125,16 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               .join(" ")}
             role="columnheader"
           >
-            <span className="calendar-col__weekday">{SHORT_WEEKDAY[date.getDay()]}</span>
-            <span className="calendar-col__date">
-              {date.getDate()} {SHORT_MONTH[date.getMonth()]}
-            </span>
+            <button
+              type="button"
+              className="calendar-week-grid__col-header-button"
+              onClick={() => onDayHeaderClick?.(date)}
+            >
+              <span className="calendar-col__weekday">{SHORT_WEEKDAY[date.getDay()]}</span>
+              <span className="calendar-col__date">
+                {date.getDate()} {SHORT_MONTH[date.getMonth()]}
+              </span>
+            </button>
           </div>
         ))}
       </div>
@@ -160,8 +177,8 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                 position: "relative",
                 height: `${GRID_TOTAL_MINUTES * PX_PER_MINUTE}px`,
               }}
-              onDrop={onGridDrop}
-              onDragOver={onGridDragOver}
+              onDrop={(e) => onGridDrop(dayIndex, e)}
+              onDragOver={(e) => onGridDragOver(dayIndex, e)}
               onPointerDown={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect()
                 const relativeY = e.clientY - rect.top
@@ -192,7 +209,7 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
               {dayEvents.map((event) => {
                 const top = eventTopPx(event.eventTime24h!, PX_PER_MINUTE)
                 const height = eventHeightPx(
-                  deriveDurationMinutes(event),
+                  event.durationMinutes,
                   PX_PER_MINUTE
                 )
                 return (
@@ -205,6 +222,11 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                     onDragStart={(e) => onBlockDragStart(event, e)}
                     onDragEnd={onBlockDragEnd}
                     onClick={() => onBlockClick(event)}
+                    onNameClick={() => (onBlockNameClick ?? onBlockClick)(event)}
+                    onResizeStart={onResizeStart}
+                    onResizeMove={onResizeMove}
+                    onResizeEnd={onResizeEnd}
+                    isResizeActive={activeResizeEventId === event.id}
                   />
                 )
               })}

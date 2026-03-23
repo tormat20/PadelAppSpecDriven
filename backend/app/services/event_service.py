@@ -373,6 +373,13 @@ class EventService:
             self.events_repo.update_round_count(event_id, total_rounds)
             self.events_repo.set_status(event_id, EventStatus.RUNNING, 1)
             first_round = self.rounds_repo.get_current_round(event_id)
+            if first_round is None:
+                raise DomainError(
+                    "ROUND_NOT_FOUND",
+                    "No active round found for this event.",
+                    status_code=404,
+                )
+            assert first_round is not None
             return {
                 "event_id": event_id,
                 "round_number": 1,
@@ -424,6 +431,78 @@ class EventService:
         deleted = self.events_repo.delete_event(event_id)
         if not deleted:
             raise DomainError("EVENT_NOT_FOUND", "Event not found", status_code=404)
+
+    def delete_all_events(self) -> int:
+        return self.events_repo.delete_all_events()
+
+    def apply_staged_calendar_changes(
+        self,
+        creates: list[dict],
+        updates: list[dict],
+        deletes: list[str],
+    ) -> dict[str, int]:
+        conn = self.events_repo.conn
+        conn.execute("BEGIN")
+        try:
+            created_count = 0
+            updated_count = 0
+            deleted_count = 0
+
+            for payload in creates:
+                event = self.create_event(
+                    payload["eventName"],
+                    payload["eventType"],
+                    payload["eventDate"],
+                    payload["eventTime24h"],
+                    payload["eventDurationMinutes"],
+                    "create_event_slot",
+                    payload.get("selectedCourts", []),
+                    payload.get("playerIds", []),
+                    payload.get("isTeamMexicano", False),
+                )
+                if payload.get("selectedCourts") or payload.get("playerIds"):
+                    self.update_event_setup(
+                        event_id=event.id,
+                        expected_version=event.version,
+                        event_name=payload["eventName"],
+                        event_type=payload["eventType"],
+                        event_date=payload["eventDate"],
+                        event_time24h=payload["eventTime24h"],
+                        event_duration_minutes=payload["eventDurationMinutes"],
+                        selected_courts=payload.get("selectedCourts", []),
+                        player_ids=payload.get("playerIds", []),
+                        is_team_mexicano=payload.get("isTeamMexicano", False),
+                    )
+                created_count += 1
+
+            for payload in updates:
+                self.update_event_setup(
+                    event_id=payload["eventId"],
+                    expected_version=payload["expectedVersion"],
+                    event_name=payload.get("eventName"),
+                    event_type=payload.get("eventType"),
+                    event_date=payload.get("eventDate"),
+                    event_time24h=payload.get("eventTime24h"),
+                    event_duration_minutes=payload.get("eventDurationMinutes"),
+                    selected_courts=payload.get("selectedCourts"),
+                    player_ids=payload.get("playerIds"),
+                    is_team_mexicano=payload.get("isTeamMexicano"),
+                )
+                updated_count += 1
+
+            for event_id in deletes:
+                self.delete_event(event_id)
+                deleted_count += 1
+
+            conn.execute("COMMIT")
+            return {
+                "created_count": created_count,
+                "updated_count": updated_count,
+                "deleted_count": deleted_count,
+            }
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
     def set_event_teams(self, event_id: str, team_pairs: list[tuple[str, str]]) -> list:
         """Replace all team assignments for a Team Mexicano event."""

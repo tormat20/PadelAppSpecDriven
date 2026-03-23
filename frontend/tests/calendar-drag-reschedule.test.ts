@@ -1,9 +1,17 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import {
   computeDragDayIndex,
   computeDropMinutes,
+  eventHeightPx,
   snapToGrid,
 } from "../src/pages/Calendar"
+import { getTemplateDropId, resolveDropTarget } from "../src/components/calendar/calendarDnd"
+import { CALENDAR_TEMPLATE_DRAG_TYPE } from "../src/components/calendar/calendarTemplateTypes"
+import { applyCalendarScheduleUpdate } from "../src/components/calendar/eventRecordMapping"
+import { resolveInteractionMode } from "../src/components/calendar/interactionMode"
+import { createBeforeUnloadHandler } from "../src/components/calendar/useUnsavedCalendarGuard"
+import WeekGrid from "../src/components/calendar/WeekGrid"
+import type { CalendarEventViewModel } from "../src/components/calendar/calendarEventModel"
 
 // ---------------------------------------------------------------------------
 // Helper to build a minimal DOMRect-like object
@@ -105,5 +113,122 @@ describe("snapToGrid — clamp to last valid slot", () => {
   it("clamps negative values to 0", () => {
     expect(snapToGrid(-1)).toBe(0)
     expect(snapToGrid(-100)).toBe(0)
+  })
+})
+
+describe("resolveDropTarget", () => {
+  it("returns clamped day and snapped time", () => {
+    const target = resolveDropTarget(99, 200 + 46, 200)
+    expect(target.dayIndex).toBe(6)
+    expect(target.minutesFromGridStart).toBe(60)
+    expect(target.resolvedTime24h).toBe("08:00")
+  })
+})
+
+describe("applyCalendarScheduleUpdate", () => {
+  it("updates only date and time fields", () => {
+    const base = {
+      id: "evt1",
+      eventName: "Morning",
+      eventType: "Americano" as const,
+      eventDate: "2026-03-09",
+      eventTime24h: "09:00",
+      status: "Lobby" as const,
+      setupStatus: "ready" as const,
+      missingRequirements: [],
+      warnings: { pastDateTime: false, duplicateSlot: false, duplicateCount: 0 },
+      version: 1,
+      selectedCourts: [1],
+      playerIds: [],
+      currentRoundNumber: null,
+      totalRounds: 3,
+      roundDurationMinutes: 20,
+      durationMinutes: 60 as const,
+      isTeamMexicano: false,
+    }
+
+    const next = applyCalendarScheduleUpdate(base, "2026-03-11", "11:30")
+    expect(next.eventDate).toBe("2026-03-11")
+    expect(next.eventTime24h).toBe("11:30")
+    expect(next.eventType).toBe("Americano")
+    expect(next.id).toBe("evt1")
+  })
+})
+
+describe("move/resize conflict prevention", () => {
+  it("chooses resize mode when pointer starts in bottom 4px", () => {
+    expect(resolveInteractionMode(60, 58)).toBe("resize")
+  })
+
+  it("chooses move mode when pointer starts in body", () => {
+    expect(resolveInteractionMode(60, 20)).toBe("move")
+  })
+})
+
+describe("duration-based drag preview footprint", () => {
+  it("matches preview heights for 60, 90, and 120 minute events", () => {
+    expect(eventHeightPx(60, 1)).toBe(60)
+    expect(eventHeightPx(90, 1)).toBe(90)
+    expect(eventHeightPx(120, 1)).toBe(120)
+  })
+})
+
+describe("unsaved navigation guard", () => {
+  it("sets beforeunload returnValue to block navigation", () => {
+    const handler = createBeforeUnloadHandler()
+    const event = { preventDefault: () => undefined, returnValue: undefined } as BeforeUnloadEvent
+
+    handler(event)
+
+    expect(event.returnValue).toBe("")
+  })
+})
+
+describe("week header day click", () => {
+  it("accepts day-header click handler prop for day-view transitions", () => {
+    const onDayHeaderClick = vi.fn()
+    expect(() =>
+      (WeekGrid as any).render(
+        {
+          events: [] as CalendarEventViewModel[],
+          weekStart: new Date(2026, 2, 9),
+          ghostBlock: null,
+          draggingEventId: null,
+          onBlockClick: () => undefined,
+          onBlockDragStart: () => undefined,
+          onBlockDragEnd: () => undefined,
+          onGridDrop: () => undefined,
+          onGridDragOver: () => undefined,
+          onResizeStart: () => undefined,
+          onResizeMove: () => undefined,
+          onResizeEnd: () => undefined,
+          activeResizeEventId: null,
+          onCellPointerDown: () => undefined,
+          onDayHeaderClick,
+        },
+        null,
+      ),
+    ).not.toThrow()
+    expect(typeof onDayHeaderClick).toBe("function")
+  })
+})
+
+describe("template drag payload", () => {
+  it("reads valid template id from dataTransfer", () => {
+    const event = {
+      dataTransfer: {
+        getData: (key: string) => (key === CALENDAR_TEMPLATE_DRAG_TYPE ? "TeamMexicano" : ""),
+      },
+    } as any
+    expect(getTemplateDropId(event)).toBe("TeamMexicano")
+  })
+
+  it("returns null for invalid template payload", () => {
+    const event = {
+      dataTransfer: {
+        getData: () => "unknown",
+      },
+    } as any
+    expect(getTemplateDropId(event)).toBeNull()
   })
 })

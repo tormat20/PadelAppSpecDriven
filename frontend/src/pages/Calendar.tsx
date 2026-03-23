@@ -1,4 +1,26 @@
+import { useCallback, useEffect, useMemo, useState } from "react"
+
+import WeekGrid from "../components/calendar/WeekGrid"
+import DayCourtGrid from "../components/calendar/DayCourtGrid"
+import EventDrawer from "../components/calendar/EventDrawer"
+import UnscheduledStrip from "../components/calendar/UnscheduledStrip"
+import EventTemplatePanel from "../components/calendar/EventTemplatePanel"
+import { getDragEventId, getTemplateDropId, resolveDropTarget, setDragEventId } from "../components/calendar/calendarDnd"
+import type { CalendarEventViewModel } from "../components/calendar/calendarEventModel"
+import {
+  createCalendarEventFromTemplate,
+  generateCalendarEventName,
+} from "../components/calendar/eventRecordMapping"
+import { useCalendarDndState } from "../components/calendar/useCalendarDndState"
+import { resolveInteractionMode } from "../components/calendar/interactionMode"
+import { durationFromResizeDelta } from "../components/calendar/resizeMath"
+import { templateById } from "../components/calendar/calendarTemplateTypes"
+import { normalizeCalendarEvents } from "../components/calendar/normalizeCalendarEvent"
+import { useStagedCalendarChanges } from "../components/calendar/useStagedCalendarChanges"
+import { useUnsavedCalendarGuard } from "../components/calendar/useUnsavedCalendarGuard"
+import { listEventsByDateRange, saveStagedCalendarChanges } from "../lib/api"
 import type { EventRecord } from "../lib/types"
+import type { SaveSessionState } from "../components/calendar/stagedChangeTypes"
 
 // ---------------------------------------------------------------------------
 // Grid constants — defined in calendarConstants.ts; re-exported here so that
@@ -213,25 +235,412 @@ export type GhostBlockState = {
 
 export type DrawerState =
   | { open: false }
-  | { open: true; mode: "edit"; event: EventRecord }
-  | { open: true; mode: "readonly"; event: EventRecord }
+  | { open: true; mode: "edit"; event: CalendarEventViewModel }
+  | { open: true; mode: "readonly"; event: CalendarEventViewModel }
   | { open: true; mode: "create"; dayIndex: number; startMinutes: number }
 
-// ---------------------------------------------------------------------------
-// CalendarPage (default export) — coming soon
-// ---------------------------------------------------------------------------
+export function getSaveStatusLabel(
+  saveSession: SaveSessionState,
+  dirty: boolean,
+  pendingCount: number,
+): string {
+  if (saveSession.status === "saving") {
+    return `Saving ${pendingCount} change${pendingCount === 1 ? "" : "s"}...`
+  }
+  if (saveSession.status === "error") {
+    return saveSession.errorMessage || "Could not save calendar changes."
+  }
+  if (saveSession.status === "success") {
+    return `Saved at ${saveSession.lastSavedAt ?? "just now"}`
+  }
+  if (dirty) {
+    return `${pendingCount} unsaved change${pendingCount === 1 ? "" : "s"}`
+  }
+  return "All changes saved"
+}
+
+// T001 note: `/calendar` route is wired in `frontend/src/app/routes.tsx`,
+// and this file is the concrete page implementation target for the POC.
 
 export default function CalendarPage() {
+  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()))
+  const [viewMode, setViewMode] = useState<"week" | "day">("week")
+  const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null)
+  const [ghostBlock, setGhostBlock] = useState<GhostBlockState | null>(null)
+  const [draggingEventId, setDraggingEventId] = useState<string | null>(null)
+  const [drawerState, setDrawerState] = useState<DrawerState>({ open: false })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeResizeEventId, setActiveResizeEventId] = useState<string | null>(null)
+  const [resizeStartY, setResizeStartY] = useState<number | null>(null)
+  const [resizeStartDuration, setResizeStartDuration] = useState<60 | 90 | 120 | null>(null)
+  const [saveSession, setSaveSession] = useState<SaveSessionState>({
+    status: "idle",
+    errorMessage: "",
+    pendingCount: 0,
+    lastSavedAt: null,
+  })
+
+  const {
+    events,
+    byId,
+    replaceAll,
+    moveEvent,
+    updateDuration,
+    updateEventFields,
+    createEvent,
+    removeEvent,
+    beginInteraction,
+    endInteraction,
+  } = useCalendarDndState([])
+
+  const { baseline, initialize, replaceWorking, changeSet } = useStagedCalendarChanges()
+
+  useUnsavedCalendarGuard(changeSet.dirty)
+
+  useEffect(() => {
+    replaceWorking(events)
+  }, [events, replaceWorking])
+
+  useEffect(() => {
+    setSaveSession((current) => ({
+      ...current,
+      pendingCount: changeSet.creates.length + changeSet.updates.length + changeSet.deletes.length,
+      status: changeSet.dirty && current.status === "success" ? "idle" : current.status,
+      errorMessage: changeSet.dirty ? "" : current.errorMessage,
+    }))
+  }, [changeSet.creates.length, changeSet.deletes.length, changeSet.dirty, changeSet.updates.length])
+
+  const loadWeek = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const from = formatDateISO(weekStart)
+    const toDate = new Date(weekStart)
+    toDate.setDate(toDate.getDate() + 6)
+    const to = formatDateISO(toDate)
+    try {
+      const records = await listEventsByDateRange(from, to)
+      const normalized = normalizeCalendarEvents(records)
+      replaceAll(normalized)
+      initialize(normalized)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load calendar events.")
+      replaceAll([])
+      initialize([])
+    } finally {
+      setLoading(false)
+    }
+  }, [initialize, replaceAll, weekStart])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      await loadWeek()
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadWeek])
+
+  const scheduledEvents = useMemo(
+    () => events.filter((event) => Boolean(event.eventTime24h && event.eventTime24h.length > 0)),
+    [events],
+  )
+  const unscheduledEvents = useMemo(
+    () => events.filter((event) => !event.eventTime24h || event.eventTime24h.length === 0),
+    [events],
+  )
+
+  const goWeek = (offset: number) => {
+    if (changeSet.dirty && !window.confirm("You have unsaved calendar changes. Discard and switch weeks?")) {
+      return
+    }
+    setWeekStart((current) => {
+      const next = new Date(current)
+      next.setDate(next.getDate() + offset * 7)
+      return next
+    })
+    setViewMode("week")
+    setSelectedDayDate(null)
+  }
+
+  const onBlockDragStart = (event: CalendarEventViewModel, e: React.DragEvent) => {
+    beginInteraction(event.id, "move")
+    setDraggingEventId(event.id)
+    setDragEventId(e, event.id)
+  }
+
+  const onBlockDragEnd = () => {
+    endInteraction()
+    setDraggingEventId(null)
+    setGhostBlock(null)
+  }
+
+  const onGridDragOver = (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const target = resolveDropTarget(dayIndex, e.clientY, e.currentTarget.getBoundingClientRect().top)
+    const draggedEventId = getDragEventId(e)
+    const templateId = getTemplateDropId(e)
+    const previewDurationMinutes = draggedEventId
+      ? byId.get(draggedEventId)?.durationMinutes ?? 90
+      : templateId
+        ? 90
+        : 60
+    setGhostBlock({
+      dayIndex: target.dayIndex,
+      top: target.minutesFromGridStart,
+      height: previewDurationMinutes * PX_PER_MINUTE,
+      label: target.resolvedTime24h,
+      mode: "drag",
+    })
+  }
+
+  const onGridDrop = (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const draggedEventId = getDragEventId(e)
+    const target = resolveDropTarget(dayIndex, e.clientY, e.currentTarget.getBoundingClientRect().top)
+    if (draggedEventId) {
+      const dropDate = new Date(weekStart)
+      dropDate.setDate(dropDate.getDate() + target.dayIndex)
+      moveEvent(draggedEventId, formatDateISO(dropDate), target.resolvedTime24h)
+    }
+
+    const templateId = getTemplateDropId(e)
+    if (templateId) {
+      const template = templateById(templateId)
+      const dropDate = new Date(weekStart)
+      dropDate.setDate(dropDate.getDate() + target.dayIndex)
+      createEvent(createCalendarEventFromTemplate(template, formatDateISO(dropDate), target.resolvedTime24h))
+    }
+
+    endInteraction()
+    setDraggingEventId(null)
+    setGhostBlock(null)
+  }
+
+  const onResizeStart = (eventId: string, e: React.PointerEvent<HTMLDivElement>) => {
+    const card = byId.get(eventId)
+    if (!card) return
+    const target = e.currentTarget.parentElement
+    if (!target) return
+    const rect = target.getBoundingClientRect()
+    const offsetY = e.clientY - rect.top
+    if (resolveInteractionMode(rect.height, offsetY) !== "resize") return
+
+    beginInteraction(eventId, "resize")
+    setActiveResizeEventId(eventId)
+    setResizeStartY(e.clientY)
+    setResizeStartDuration(card.durationMinutes)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  const onResizeMove = (eventId: string, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeResizeEventId !== eventId || resizeStartY === null || resizeStartDuration === null) return
+    const deltaY = e.clientY - resizeStartY
+    const next = durationFromResizeDelta(resizeStartDuration, deltaY)
+    updateDuration(eventId, next)
+  }
+
+  const onResizeEnd = (eventId: string, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeResizeEventId !== eventId) return
+    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    setActiveResizeEventId(null)
+    setResizeStartY(null)
+    setResizeStartDuration(null)
+    endInteraction()
+  }
+
+  const selectedEditableEvent =
+    drawerState.open && (drawerState.mode === "edit" || drawerState.mode === "readonly")
+      ? drawerState.event
+      : null
+
+  const savePendingCount = saveSession.pendingCount
+
+  const saveStatusLabel = getSaveStatusLabel(saveSession, changeSet.dirty, savePendingCount)
+
+  const handleSaveChanges = useCallback(async () => {
+    if (!changeSet.dirty || saveSession.status === "saving") return
+
+    setSaveSession((current) => ({
+      ...current,
+      status: "saving",
+      errorMessage: "",
+    }))
+
+    try {
+      await saveStagedCalendarChanges({
+        creates: changeSet.creates,
+        updates: changeSet.updates,
+        deletes: changeSet.deletes,
+      })
+      await loadWeek()
+      const savedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      setSaveSession((current) => ({
+        ...current,
+        status: "success",
+        errorMessage: "",
+        lastSavedAt: savedAt,
+      }))
+    } catch (err) {
+      setSaveSession((current) => ({
+        ...current,
+        status: "error",
+        errorMessage: err instanceof Error ? err.message : "Could not save calendar changes.",
+      }))
+    }
+  }, [changeSet.creates, changeSet.deletes, changeSet.dirty, changeSet.updates, loadWeek, saveSession.status])
+
+  const handleRedoChanges = useCallback(() => {
+    if (!changeSet.dirty || saveSession.status === "saving") return
+    replaceAll(baseline)
+    replaceWorking(baseline)
+    setSaveSession((current) => ({
+      ...current,
+      status: "idle",
+      errorMessage: "",
+      pendingCount: 0,
+    }))
+  }, [baseline, changeSet.dirty, replaceAll, replaceWorking, saveSession.status])
+
   return (
-    <section className="page-shell" aria-label="Calendar page">
-      <header className="page-header panel">
+    <section className="page-shell calendar-page-shell" aria-label="Calendar page">
+      <header className="page-header panel calendar-page-header">
         <h1 className="page-title">Calendar</h1>
+        <div className="calendar-week-controls">
+          <button className="button-secondary" onClick={() => goWeek(-1)} type="button">
+            Previous Week
+          </button>
+          <span className="calendar-week-label">{formatWeekLabel(weekStart)}</span>
+          <button className="button-secondary" onClick={() => goWeek(1)} type="button">
+            Next Week
+          </button>
+        </div>
+        <div className="calendar-save-row">
+          <span className="muted" role="status" aria-live="polite">
+            {saveStatusLabel}
+          </span>
+          <div className="calendar-save-row__actions">
+            <button
+              className="button-secondary calendar-save-row__action"
+              onClick={handleRedoChanges}
+              type="button"
+              disabled={!changeSet.dirty || saveSession.status === "saving"}
+            >
+              Redo Changes
+            </button>
+            <button
+              className="button-secondary calendar-save-row__action"
+              onClick={() => {
+                void handleSaveChanges()
+              }}
+              type="button"
+              disabled={!changeSet.dirty || saveSession.status === "saving"}
+            >
+              {saveSession.status === "saving" ? "Saving Changes..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
       </header>
-      <div className="settings-section panel">
-        <p className="settings-coming-soon">
-          Calendar view — schedule and reschedule events on a weekly grid — coming soon.
-        </p>
+
+      {error && <p className="warning-text">{error}</p>}
+
+      {unscheduledEvents.length > 0 && (
+        <UnscheduledStrip
+          events={unscheduledEvents}
+          onBlockClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+        />
+      )}
+
+      <div className="calendar-layout-grid">
+        <EventTemplatePanel />
+        <div className="panel">
+          {loading ? (
+            <p className="muted">Loading weekly events…</p>
+          ) : viewMode === "week" ? (
+            <WeekGrid
+              events={scheduledEvents}
+              weekStart={weekStart}
+              ghostBlock={ghostBlock}
+              draggingEventId={draggingEventId}
+              onBlockClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+              onBlockNameClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+              onDayHeaderClick={(date) => {
+                setSelectedDayDate(new Date(date))
+                setViewMode("day")
+              }}
+              onBlockDragStart={onBlockDragStart}
+              onBlockDragEnd={onBlockDragEnd}
+              onGridDrop={onGridDrop}
+              onGridDragOver={onGridDragOver}
+              onResizeStart={onResizeStart}
+              onResizeMove={onResizeMove}
+              onResizeEnd={onResizeEnd}
+              activeResizeEventId={activeResizeEventId}
+              onCellPointerDown={() => undefined}
+            />
+          ) : (
+            <DayCourtGrid
+              selectedDate={selectedDayDate ?? weekStart}
+              events={scheduledEvents}
+              onEventClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+              onBackToWeek={() => {
+                setViewMode("week")
+                setSelectedDayDate(null)
+              }}
+            />
+          )}
+        </div>
       </div>
+
+      <EventDrawer
+        state={drawerState}
+        onSave={async (payload) => {
+          if (!selectedEditableEvent) return
+          const patch: Partial<CalendarEventViewModel> = {}
+          if (payload.eventName !== undefined) patch.eventName = payload.eventName
+          if (payload.eventType !== undefined) patch.eventType = payload.eventType
+          if (payload.eventDate !== undefined) patch.eventDate = payload.eventDate
+          if (payload.eventTime24h !== undefined) patch.eventTime24h = payload.eventTime24h
+          if (payload.selectedCourts !== undefined) patch.selectedCourts = payload.selectedCourts
+
+          const changedSchedulingIdentity =
+            payload.eventType !== undefined || payload.eventDate !== undefined || payload.eventTime24h !== undefined
+
+          if (changedSchedulingIdentity && payload.eventName === undefined) {
+            const nextDate = payload.eventDate ?? selectedEditableEvent.eventDate
+            const nextTime = payload.eventTime24h ?? selectedEditableEvent.eventTime24h ?? "07:00"
+            const nextTypeLabel =
+              (payload.eventType ?? selectedEditableEvent.eventType) === "Mexicano" &&
+              selectedEditableEvent.isTeamMexicano
+                ? "Team Mexicano"
+                : payload.eventType ?? selectedEditableEvent.eventType
+            patch.eventName = generateCalendarEventName(nextDate, nextTime, nextTypeLabel)
+          }
+
+          updateEventFields(selectedEditableEvent.id, patch)
+          setDrawerState({ open: false })
+        }}
+        onDelete={async (eventId) => {
+          removeEvent(eventId)
+          setDrawerState({ open: false })
+        }}
+        onClose={() => {
+          setDrawerState({ open: false })
+          setGhostBlock(null)
+        }}
+        onDurationChange={(eventId, durationMinutes) => {
+          updateDuration(eventId, durationMinutes)
+        }}
+      />
     </section>
   )
+}
+
+function formatDateISO(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
 }
