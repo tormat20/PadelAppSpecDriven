@@ -109,3 +109,40 @@ def test_restart_event_clears_runtime_and_reverts_to_ready(client):
 
     current_round = client.get(f"/api/v1/events/{event_id}/rounds/current")
     assert current_round.status_code == 404
+
+
+def test_delete_all_events_removes_all_created_events(client):
+    player_ids = _seed_players(client)
+
+    first = client.post(
+        "/api/v1/events",
+        json={
+            "eventName": "Delete all one",
+            "eventType": "WinnersCourt",
+            "eventDate": "2026-03-01",
+            "selectedCourts": [1, 2],
+            "playerIds": player_ids,
+        },
+    )
+    second = client.post(
+        "/api/v1/events",
+        json={
+            "eventName": "Delete all two",
+            "eventType": "WinnersCourt",
+            "eventDate": "2026-03-02",
+            "selectedCourts": [1, 2],
+            "playerIds": player_ids,
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    deleted = client.delete("/api/v1/events")
+    assert deleted.status_code == 200
+    assert deleted.json()["status"] == "deleted"
+    assert deleted.json()["deletedCount"] >= 2
+
+    listed = client.get("/api/v1/events")
+    assert listed.status_code == 200
+    assert listed.json() == []

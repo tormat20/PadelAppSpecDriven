@@ -51,6 +51,7 @@ export const appRoutes: RouteObject[] = [
       {
         element: <RequireAdmin />,
         children: [
+          // T001/T009: `/calendar` remains admin-guarded while Calendar.tsx hosts the DnD POC UI.
           { path: "calendar", element: <CalendarPage /> },
         ],
       },

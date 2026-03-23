@@ -7,6 +7,10 @@ class MatchView(BaseModel):
     team1: list[str]
     team2: list[str]
     status: str
+    winnerTeam: int | None = None
+    isDraw: bool = False
+    team1Score: int | None = None
+    team2Score: int | None = None
 
 
 class RoundView(BaseModel):

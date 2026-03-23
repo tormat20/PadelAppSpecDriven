@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { isDrawerDirty } from "../src/components/calendar/EventDrawer"
+import { getDrawerTitle, isDrawerDirty, shouldConfirmDiscard } from "../src/components/calendar/EventDrawer"
 import { deriveDurationMinutes } from "../src/pages/Calendar"
 import type { DrawerFormValues } from "../src/components/calendar/EventDrawer"
+import { normalizeDurationMinutes } from "../src/components/calendar/duration"
 
 // ---------------------------------------------------------------------------
 // isDrawerDirty — detects form value changes
@@ -73,5 +74,39 @@ describe("deriveDurationMinutes — drawer use cases", () => {
 
   it("returns 120 for totalRounds=4, roundDurationMinutes=30", () => {
     expect(deriveDurationMinutes({ totalRounds: 4, roundDurationMinutes: 30 })).toBe(120)
+  })
+})
+
+describe("normalizeDurationMinutes — drawer duration constraints", () => {
+  it("normalizes arbitrary values to allowed set", () => {
+    expect(normalizeDurationMinutes(61)).toBe(60)
+    expect(normalizeDurationMinutes(93)).toBe(90)
+    expect(normalizeDurationMinutes(119)).toBe(120)
+  })
+})
+
+describe("drawer modal titles", () => {
+  it("returns titles by mode", () => {
+    expect(getDrawerTitle("create")).toBe("New Event")
+    expect(getDrawerTitle("edit")).toBe("Edit Event")
+    expect(getDrawerTitle("readonly")).toBe("Event Details")
+  })
+})
+
+describe("drawer close confirmation behavior", () => {
+  const base: DrawerFormValues = {
+    eventName: "Morning Padel",
+    eventType: "Mexicano",
+    eventDate: "2026-03-10",
+    eventTime24h: "09:00",
+    durationMinutes: 90,
+    courts: [1, 2],
+  }
+
+  it("requires discard confirmation only in edit mode when dirty", () => {
+    expect(shouldConfirmDiscard("edit", base, { ...base, eventName: "Changed" })).toBe(true)
+    expect(shouldConfirmDiscard("edit", base, { ...base })).toBe(false)
+    expect(shouldConfirmDiscard("create", base, { ...base, eventName: "Changed" })).toBe(false)
+    expect(shouldConfirmDiscard("readonly", base, { ...base, eventName: "Changed" })).toBe(false)
   })
 })

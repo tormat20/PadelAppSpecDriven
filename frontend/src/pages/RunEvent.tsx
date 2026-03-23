@@ -23,13 +23,61 @@ import {
 import type { EventRecord, InlineSummaryView, RunEventTeamBadgeView } from "../lib/types"
 import { shortDisplayNames } from "../lib/playerNames"
 
-export const RUN_PAGE_ACTIONS = ["Previous Round", "Next Match", "View Summary", "Finish Event"] as const
+export const RUN_PAGE_ACTIONS = ["Previous Round", "Next Round", "View Summary", "Finish Event"] as const
 
 type RunMatch = {
   matchId: string
   courtNumber: number
   team1: string[]
   team2: string[]
+  status?: "Pending" | "Completed"
+  winnerTeam?: 1 | 2 | null
+  isDraw?: boolean
+  team1Score?: number | null
+  team2Score?: number | null
+}
+
+function toPayloadFromSavedMatch(
+  match: RunMatch,
+  eventType: EventRecord["eventType"],
+): WinnerPayload | null {
+  if (match.status !== "Completed") return null
+
+  if (eventType === "WinnersCourt") {
+    if (match.winnerTeam === 1 || match.winnerTeam === 2) {
+      return { mode: "WinnersCourt", winningTeam: match.winnerTeam }
+    }
+    return null
+  }
+
+  if (eventType === "RankedBox") {
+    if (match.isDraw) return { mode: "RankedBox", outcome: "Draw" }
+    if (match.winnerTeam === 1) return { mode: "RankedBox", outcome: "Team1Win" }
+    if (match.winnerTeam === 2) return { mode: "RankedBox", outcome: "Team2Win" }
+    return null
+  }
+
+  if (typeof match.team1Score === "number" && typeof match.team2Score === "number") {
+    if (eventType === "Mexicano") {
+      return { mode: "Mexicano", team1Score: match.team1Score, team2Score: match.team2Score }
+    }
+    return { mode: "Americano", team1Score: match.team1Score, team2Score: match.team2Score }
+  }
+
+  return null
+}
+
+function restoreSubmittedPayloads(
+  matches: RunMatch[],
+  eventType: EventRecord["eventType"],
+): Record<string, WinnerPayload> {
+  const entries = matches
+    .map((match) => {
+      const payload = toPayloadFromSavedMatch(match, eventType)
+      return payload ? ([match.matchId, payload] as const) : null
+    })
+    .filter((entry): entry is readonly [string, WinnerPayload] => entry !== null)
+  return Object.fromEntries(entries)
 }
 
 export function mapSubmittedPayloadsToBadges(
@@ -156,6 +204,7 @@ export default function RunEventPage() {
       ...roundRes,
       matches: mapMatchPlayersToDisplayNames(roundRes.matches, shortNameById),
     })
+    setSubmittedPayloads(restoreSubmittedPayloads(roundRes.matches, typedEvent.eventType))
     setCompleted(
       Object.fromEntries(
         roundRes.matches.map((match: any) => [match.matchId, match.status === "Completed"]),

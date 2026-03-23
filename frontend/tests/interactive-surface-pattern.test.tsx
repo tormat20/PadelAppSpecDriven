@@ -12,4 +12,11 @@ describe("Interactive surface class helpers", () => {
     expect(hasInteractiveSurface("button interactive-surface")).toBe(true)
     expect(hasInteractiveSurface("button")).toBe(false)
   })
+
+  it("preserves interaction class for calendar edge-highlight surfaces", () => {
+    const className = withInteractiveSurface("calendar-event-block calendar-type-americano")
+    expect(className).toContain("interactive-surface")
+    expect(className).toContain("calendar-event-block")
+    expect(className).toContain("calendar-type-americano")
+  })
 })

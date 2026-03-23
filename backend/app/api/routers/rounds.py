@@ -25,6 +25,10 @@ def _to_round_view(view: dict) -> RoundView:
                 team1=[m.team1_player1_id, m.team1_player2_id],
                 team2=[m.team2_player1_id, m.team2_player2_id],
                 status=m.status.value,
+                winnerTeam=m.winner_team,
+                isDraw=bool(m.is_draw),
+                team1Score=m.team1_score,
+                team2Score=m.team2_score,
             )
             for m in view["matches"]
         ],

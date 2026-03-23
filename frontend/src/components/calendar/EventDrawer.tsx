@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "motion/react"
 import type { EventRecord, EventType, UpdateEventPayload } from "../../lib/types"
 import type { DrawerState } from "../../pages/Calendar"
 import { deriveDurationMinutes } from "../../pages/Calendar"
+import type { DurationOption } from "./calendarEventModel"
+import { normalizeDurationMinutes } from "./duration"
 
 // ---------------------------------------------------------------------------
 // DrawerFormValues — the shape of editable fields in the drawer
@@ -46,6 +48,7 @@ type EventDrawerProps = {
   onSave: (payload: UpdateEventPayload) => Promise<void>
   onDelete: (eventId: string, version: number) => Promise<void>
   onClose: () => void
+  onDurationChange?: (eventId: string, durationMinutes: DurationOption) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -54,24 +57,38 @@ type EventDrawerProps = {
 
 const EVENT_TYPES: EventType[] = ["WinnersCourt", "Mexicano", "RankedBox", "Americano"]
 
-function eventToFormValues(event: EventRecord): DrawerFormValues {
+function eventToFormValues(event: EventRecord & { durationMinutes?: number }): DrawerFormValues {
   return {
     eventName: event.eventName,
     eventType: event.eventType,
     eventDate: event.eventDate,
     eventTime24h: event.eventTime24h ?? "",
-    durationMinutes: deriveDurationMinutes(event),
+    durationMinutes: event.durationMinutes ?? deriveDurationMinutes(event),
     courts: [...event.selectedCourts],
   }
 }
 
 const DURATION_PRESETS = [60, 90, 120] as const
 
+type DrawerMode = "edit" | "readonly" | "create"
+
+export function getDrawerTitle(mode: DrawerMode): string {
+  return mode === "edit" ? "Edit Event" : mode === "create" ? "New Event" : "Event Details"
+}
+
+export function shouldConfirmDiscard(
+  mode: DrawerMode,
+  originalForm: DrawerFormValues,
+  form: DrawerFormValues,
+): boolean {
+  return mode === "edit" && isDrawerDirty(originalForm, form)
+}
+
 // ---------------------------------------------------------------------------
 // EventDrawer component
 // ---------------------------------------------------------------------------
 
-export default function EventDrawer({ state, onSave, onDelete, onClose }: EventDrawerProps) {
+export default function EventDrawer({ state, onSave, onDelete, onClose, onDurationChange }: EventDrawerProps) {
   const isOpen = state.open
   const mode = isOpen ? state.mode : null
   const event =
@@ -143,7 +160,7 @@ export default function EventDrawer({ state, onSave, onDelete, onClose }: EventD
   }
 
   function handleCloseRequest() {
-    if (mode === "edit" && isDrawerDirty(originalForm, form)) {
+    if (mode && shouldConfirmDiscard(mode, originalForm, form)) {
       if (!window.confirm("Discard changes?")) return
     }
     onClose()
@@ -165,6 +182,10 @@ export default function EventDrawer({ state, onSave, onDelete, onClose }: EventD
     }
 
     try {
+      const normalizedDuration = normalizeDurationMinutes(form.durationMinutes)
+      if (onDurationChange) {
+        onDurationChange(event.id, normalizedDuration)
+      }
       await onSave(payload)
     } catch {
       setInlineError("Could not save changes. Please try again.")
@@ -214,9 +235,9 @@ export default function EventDrawer({ state, onSave, onDelete, onClose }: EventD
         >
           {/* Header */}
           <div className="event-drawer__header">
-            <h2 className="event-drawer__title">
-              {mode === "edit" ? "Edit Event" : mode === "create" ? "New Event" : "Event Details"}
-            </h2>
+              <h2 className="event-drawer__title">
+                {mode ? getDrawerTitle(mode) : "Event Details"}
+              </h2>
             <button
               className="event-drawer__close"
               aria-label="Close drawer"

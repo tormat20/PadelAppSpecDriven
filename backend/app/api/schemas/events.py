@@ -67,3 +67,45 @@ class SubstitutePlayerResponse(BaseModel):
     departingPlayerId: str
     substitutePlayerId: str
     effectiveFromRound: int
+
+
+class CalendarCreateEventItem(BaseModel):
+    eventName: str = Field(min_length=3, max_length=120)
+    eventType: EventType
+    eventDate: date
+    eventTime24h: str = Field(min_length=5, max_length=5)
+    eventDurationMinutes: int = Field(ge=60, le=120)
+    selectedCourts: list[int] = Field(default_factory=list)
+    playerIds: list[str] = Field(default_factory=list)
+    isTeamMexicano: bool = False
+
+
+class CalendarUpdateEventItem(BaseModel):
+    eventId: str
+    expectedVersion: int = Field(ge=1)
+    eventName: str | None = Field(default=None, min_length=3, max_length=120)
+    eventType: EventType | None = None
+    eventDate: date | None = None
+    eventTime24h: str | None = Field(default=None, min_length=5, max_length=5)
+    eventDurationMinutes: int | None = Field(default=None, ge=60, le=120)
+    selectedCourts: list[int] | None = None
+    playerIds: list[str] | None = None
+    isTeamMexicano: bool | None = None
+
+
+class CalendarStagedSaveRequest(BaseModel):
+    creates: list[CalendarCreateEventItem] = Field(default_factory=list)
+    updates: list[CalendarUpdateEventItem] = Field(default_factory=list)
+    deletes: list[str] = Field(default_factory=list)
+
+
+class CalendarStagedSaveResponse(BaseModel):
+    status: Literal["saved"]
+    createdCount: int
+    updatedCount: int
+    deletedCount: int
+
+
+class DeleteAllEventsResponse(BaseModel):
+    status: Literal["deleted"]
+    deletedCount: int

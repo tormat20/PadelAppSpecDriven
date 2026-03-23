@@ -1,12 +1,12 @@
-import type { EventRecord } from "../../lib/types"
+import type { CalendarEventViewModel } from "./calendarEventModel"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type UnscheduledStripProps = {
-  events: EventRecord[]
-  onBlockClick: (event: EventRecord) => void
+  events: CalendarEventViewModel[]
+  onBlockClick: (event: CalendarEventViewModel) => void
 }
 
 // ---------------------------------------------------------------------------
