@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { animate, motion, useMotionValue, useTransform } from "motion/react"
 
 import WeekGrid from "../components/calendar/WeekGrid"
 import DayCourtGrid from "../components/calendar/DayCourtGrid"
@@ -268,6 +269,10 @@ export function getSaveStatusLabel(
 // T001 note: `/calendar` route is wired in `frontend/src/app/routes.tsx`,
 // and this file is the concrete page implementation target for the POC.
 
+const TEMPLATE_PANEL_COLLAPSED_SIZE_PX = 72
+const TEMPLATE_PANEL_EASE: [number, number, number, number] = [0.42, 0, 0.58, 1]
+const TEMPLATE_PANEL_STAGE_DURATION = 0.34
+
 export default function CalendarPage() {
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()))
   const [viewMode, setViewMode] = useState<"week" | "day">("week")
@@ -284,6 +289,12 @@ export default function CalendarPage() {
   const [recurringSelectedEventIds, setRecurringSelectedEventIds] = useState<string[]>([])
   const [isRecurringSaving, setIsRecurringSaving] = useState(false)
   const [isTemplatePanelCollapsed, setIsTemplatePanelCollapsed] = useState(false)
+  const [showTemplatePanelBody, setShowTemplatePanelBody] = useState(true)
+  const [isTemplatePanelAnimating, setIsTemplatePanelAnimating] = useState(false)
+  const [templatePanelExpandedWidth, setTemplatePanelExpandedWidth] = useState(280)
+  const [templatePanelExpandedHeight, setTemplatePanelExpandedHeight] = useState(620)
+  const templatePanelWidthMv = useMotionValue(280)
+  const templatePanelHeightMv = useMotionValue(620)
 
   const {
     events,
@@ -353,6 +364,20 @@ export default function CalendarPage() {
   const [deleteDropHover, setDeleteDropHover] = useState(false)
   const [suppressBlockClick, setSuppressBlockClick] = useState(false)
   const recurringSelectedSet = useMemo(() => new Set(recurringSelectedEventIds), [recurringSelectedEventIds])
+  const leftColWidthCss = useTransform(templatePanelWidthMv, (value) => `${Math.max(value, 0)}px`)
+
+  useEffect(() => {
+    if (isTemplatePanelCollapsed || isTemplatePanelAnimating) return
+    templatePanelWidthMv.set(templatePanelExpandedWidth)
+    templatePanelHeightMv.set(templatePanelExpandedHeight)
+  }, [
+    isTemplatePanelAnimating,
+    isTemplatePanelCollapsed,
+    templatePanelExpandedHeight,
+    templatePanelExpandedWidth,
+    templatePanelHeightMv,
+    templatePanelWidthMv,
+  ])
 
   const persistEventUpdate = useCallback(
     async (eventId: string, patch: Omit<UpdateEventPayload, "expectedVersion">, replacedEventId?: string) => {
@@ -414,6 +439,55 @@ export default function CalendarPage() {
     setRecurringSelectedEventIds([])
     setIsRecurringSaving(false)
   }, [])
+
+  const handleTemplatePanelToggle = useCallback(async () => {
+    if (isTemplatePanelAnimating) return
+
+    setIsTemplatePanelAnimating(true)
+
+    if (!isTemplatePanelCollapsed) {
+      if (isRecurringSelectMode) {
+        cancelRecurringSelectMode()
+      }
+
+      setShowTemplatePanelBody(false)
+      await animate(templatePanelHeightMv, TEMPLATE_PANEL_COLLAPSED_SIZE_PX, {
+        duration: TEMPLATE_PANEL_STAGE_DURATION,
+        ease: TEMPLATE_PANEL_EASE,
+      })
+
+      setIsTemplatePanelCollapsed(true)
+      await animate(templatePanelWidthMv, TEMPLATE_PANEL_COLLAPSED_SIZE_PX, {
+        duration: TEMPLATE_PANEL_STAGE_DURATION,
+        ease: TEMPLATE_PANEL_EASE,
+      })
+
+      setIsTemplatePanelAnimating(false)
+      return
+    }
+
+    await animate(templatePanelWidthMv, templatePanelExpandedWidth, {
+      duration: TEMPLATE_PANEL_STAGE_DURATION,
+      ease: TEMPLATE_PANEL_EASE,
+    })
+    await animate(templatePanelHeightMv, templatePanelExpandedHeight, {
+      duration: TEMPLATE_PANEL_STAGE_DURATION,
+      ease: TEMPLATE_PANEL_EASE,
+    })
+
+    setIsTemplatePanelCollapsed(false)
+    setShowTemplatePanelBody(true)
+    setIsTemplatePanelAnimating(false)
+  }, [
+    cancelRecurringSelectMode,
+    isRecurringSelectMode,
+    isTemplatePanelAnimating,
+    isTemplatePanelCollapsed,
+    templatePanelExpandedHeight,
+    templatePanelExpandedWidth,
+    templatePanelHeightMv,
+    templatePanelWidthMv,
+  ])
 
   const saveRecurringSelections = useCallback(async () => {
     if (recurringSelectedEventIds.length === 0 || isRecurringSaving) return
@@ -712,22 +786,25 @@ export default function CalendarPage() {
         />
       )}
 
-      <div className={`calendar-layout-grid${isTemplatePanelCollapsed ? " calendar-layout-grid--panel-collapsed" : ""}`}>
+      <motion.div
+        className={`calendar-layout-grid${isTemplatePanelCollapsed ? " calendar-layout-grid--panel-collapsed" : ""}`}
+        style={{ ["--calendar-left-col-width" as any]: leftColWidthCss }}
+      >
         <EventTemplatePanel
           deleteDropHover={deleteDropHover}
           onDeleteDrop={onDeleteDrop}
           onDeleteDragOver={onDeleteDragOver}
           onDeleteDragLeave={() => setDeleteDropHover(false)}
           isCollapsed={isTemplatePanelCollapsed}
-          onCollapseToggle={() => {
-            setIsTemplatePanelCollapsed((current) => {
-              const next = !current
-              if (next && isRecurringSelectMode) {
-                cancelRecurringSelectMode()
-              }
-              return next
-            })
+          showBody={showTemplatePanelBody}
+          panelWidth={templatePanelWidthMv}
+          panelHeight={templatePanelHeightMv}
+          onExpandedSize={({ width, height }) => {
+            if (isTemplatePanelCollapsed || isTemplatePanelAnimating) return
+            setTemplatePanelExpandedWidth(width)
+            setTemplatePanelExpandedHeight(height)
           }}
+          onCollapseToggle={handleTemplatePanelToggle}
           isRecurringSelectMode={isRecurringSelectMode}
           recurringSelectedCount={recurringSelectedEventIds.length}
           recurringSaving={isRecurringSaving}
@@ -794,7 +871,7 @@ export default function CalendarPage() {
             />
           )}
         </div>
-      </div>
+      </motion.div>
 
       <EventDrawer
         state={drawerState}
