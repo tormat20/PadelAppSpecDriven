@@ -35,6 +35,8 @@ type WeekGridProps = {
   onResizeMove: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
   onResizeEnd: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
   activeResizeEventId: string | null
+  recurringSelectMode?: boolean
+  recurringSelectedEventIds?: Set<string>
   onCellPointerDown: (
     dayIndex: number,
     minutesFromGridStart: number,
@@ -101,6 +103,8 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
     onResizeMove,
     onResizeEnd,
     activeResizeEventId,
+    recurringSelectMode = false,
+    recurringSelectedEventIds,
     onCellPointerDown,
   },
   ref
@@ -227,6 +231,8 @@ export default forwardRef<HTMLDivElement, WeekGridProps>(function WeekGrid(
                     onResizeMove={onResizeMove}
                     onResizeEnd={onResizeEnd}
                     isResizeActive={activeResizeEventId === event.id}
+                    recurringSelectMode={recurringSelectMode}
+                    recurringSelected={Boolean(recurringSelectedEventIds?.has(event.id))}
                   />
                 )
               })}

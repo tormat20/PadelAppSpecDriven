@@ -12,6 +12,14 @@ type EventTemplatePanelProps = {
   onDeleteDrop?: (e: React.DragEvent<HTMLButtonElement>) => void
   onDeleteDragOver?: (e: React.DragEvent<HTMLButtonElement>) => void
   onDeleteDragLeave?: () => void
+  isRecurringSelectMode?: boolean
+  recurringSelectedCount?: number
+  recurringSaving?: boolean
+  isCollapsed?: boolean
+  onCollapseToggle?: () => void
+  onRecurringModeToggle?: () => void
+  onRecurringSave?: () => void
+  onRecurringCancel?: () => void
 }
 
 export default function EventTemplatePanel({
@@ -20,11 +28,36 @@ export default function EventTemplatePanel({
   onDeleteDrop,
   onDeleteDragOver,
   onDeleteDragLeave,
+  isRecurringSelectMode = false,
+  recurringSelectedCount = 0,
+  recurringSaving = false,
+  isCollapsed = false,
+  onCollapseToggle,
+  onRecurringModeToggle,
+  onRecurringSave,
+  onRecurringCancel,
 }: EventTemplatePanelProps) {
   return (
-    <aside className="panel calendar-template-panel" aria-label="Event templates">
-      <h2 className="calendar-template-panel__title">Event Templates</h2>
-      <p className="calendar-template-panel__copy">Drag a template into the week grid to create an event slot.</p>
+    <aside
+      className={`panel calendar-template-panel${isCollapsed ? " calendar-template-panel--collapsed" : ""}`}
+      aria-label="Event templates"
+    >
+      <div className="calendar-template-panel__header">
+        {!isCollapsed && <h2 className="calendar-template-panel__title">Event Templates</h2>}
+        <button
+          type="button"
+          className={withInteractiveSurface("calendar-template-panel__collapse")}
+          onClick={onCollapseToggle}
+          aria-label={isCollapsed ? "Expand event template panel" : "Collapse event template panel"}
+          title={isCollapsed ? "Expand" : "Collapse"}
+        >
+          {isCollapsed ? "+" : "-"}
+        </button>
+      </div>
+
+      {isCollapsed ? null : (
+        <>
+          <p className="calendar-template-panel__copy">Drag a template into the week grid to create an event slot.</p>
       <div className="calendar-template-panel__list">
         {CALENDAR_TEMPLATE_TYPES.map((template) => (
           <button
@@ -48,6 +81,41 @@ export default function EventTemplatePanel({
           </button>
         ))}
       </div>
+      <div className="calendar-template-panel__recurring-actions">
+        {!isRecurringSelectMode ? (
+          <button
+            type="button"
+            className={withInteractiveSurface("button-secondary")}
+            onClick={onRecurringModeToggle}
+          >
+            Select Recurring
+          </button>
+        ) : (
+          <>
+            <p className="calendar-template-panel__recurring-copy">
+              {recurringSelectedCount} selected
+            </p>
+            <div className="calendar-template-panel__recurring-buttons">
+              <button
+                type="button"
+                className={withInteractiveSurface("button-secondary")}
+                onClick={onRecurringCancel}
+                disabled={recurringSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={withInteractiveSurface("button")}
+                onClick={onRecurringSave}
+                disabled={recurringSaving || recurringSelectedCount === 0}
+              >
+                {recurringSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
       <button
         type="button"
         className="calendar-template-trash"
@@ -60,6 +128,8 @@ export default function EventTemplatePanel({
       >
         <span className="calendar-template-trash__icon" aria-hidden="true">🗑</span>
       </button>
+        </>
+      )}
     </aside>
   )
 }

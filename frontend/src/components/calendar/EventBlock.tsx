@@ -23,6 +23,8 @@ type EventBlockProps = {
   onResizeMove?: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
   onResizeEnd?: (eventId: string, e: React.PointerEvent<HTMLDivElement>) => void
   isResizeActive?: boolean
+  recurringSelectMode?: boolean
+  recurringSelected?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -42,6 +44,8 @@ export default function EventBlock({
   onResizeMove,
   onResizeEnd,
   isResizeActive = false,
+  recurringSelectMode = false,
+  recurringSelected = false,
 }: EventBlockProps) {
   const isLobby = event.status === "Lobby"
   const isRunningOrFinished = event.status === "Running" || event.status === "Finished"
@@ -57,6 +61,7 @@ export default function EventBlock({
     `calendar-event-block--${statusLower}`,
     `calendar-event-block--${eventTypeLower}`,
     isDragging ? "calendar-event-block--dragging" : "",
+    recurringSelectMode && recurringSelected ? "calendar-event-block--recurring-selected" : "",
   ]
     .filter(Boolean)
     .join(" ")
@@ -65,14 +70,14 @@ export default function EventBlock({
   const scheduleMoment = formatEventMomentLabel(event.eventDate, event.eventTime24h)
   const timeRangeLabel = formatEventTimeRange(event.eventTime24h, event.durationMinutes)
 
-  const canResize = isLobby && Boolean(onResizeStart)
+  const canResize = isLobby && !recurringSelectMode && Boolean(onResizeStart)
 
   return (
     <div
       className={className}
       role="button"
       tabIndex={0}
-      draggable={isLobby && !isResizeActive}
+      draggable={isLobby && !isResizeActive && !recurringSelectMode}
       style={{
         position: "absolute",
         top: `${top}px`,
@@ -80,7 +85,13 @@ export default function EventBlock({
         left: 0,
         right: 0,
         opacity: isDragging ? 0.4 : 1,
-        cursor: isResizeActive ? "ns-resize" : isLobby ? "grab" : "default",
+        cursor: isResizeActive
+          ? "ns-resize"
+          : recurringSelectMode
+            ? "pointer"
+            : isLobby
+              ? "grab"
+              : "default",
       }}
       onDragStart={(e) => {
         if (isRunningOrFinished) {
@@ -92,7 +103,7 @@ export default function EventBlock({
       onDragEnd={onDragEnd}
       onClick={onClick}
       onPointerMove={(e) => {
-        if (!canResize || isResizeActive) return
+        if (!canResize || isResizeActive || recurringSelectMode) return
         const rect = e.currentTarget.getBoundingClientRect()
         const offsetY = e.clientY - rect.top
         e.currentTarget.style.cursor = isInBottomResizeZone(rect.height, offsetY) ? "ns-resize" : "grab"
