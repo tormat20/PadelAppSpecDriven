@@ -6,7 +6,7 @@ type GhostBlockProps = {
   top: number
   height: number
   label: string
-  mode: "drag" | "create"
+  mode: "drag" | "create" | "invalid"
 }
 
 export default function GhostBlock({ top, height, label, mode }: GhostBlockProps) {
@@ -23,7 +23,6 @@ export default function GhostBlock({ top, height, label, mode }: GhostBlockProps
         opacity: 0.45,
         pointerEvents: "none",
         zIndex: 10,
-        border: "2px dashed var(--color-accent)",
       }}
     >
       <span className="calendar-ghost-block__label">{label}</span>

@@ -232,7 +232,7 @@ export type GhostBlockState = {
   top: number
   height: number
   label: string
-  mode: "drag" | "create"
+  mode: "drag" | "create" | "invalid"
 }
 
 // ---------------------------------------------------------------------------
@@ -280,6 +280,10 @@ export default function CalendarPage() {
   const [activeResizeEventId, setActiveResizeEventId] = useState<string | null>(null)
   const [resizeStartY, setResizeStartY] = useState<number | null>(null)
   const [resizeStartDuration, setResizeStartDuration] = useState<60 | 90 | 120 | null>(null)
+  const [isRecurringSelectMode, setIsRecurringSelectMode] = useState(false)
+  const [recurringSelectedEventIds, setRecurringSelectedEventIds] = useState<string[]>([])
+  const [isRecurringSaving, setIsRecurringSaving] = useState(false)
+  const [isTemplatePanelCollapsed, setIsTemplatePanelCollapsed] = useState(false)
 
   const {
     events,
@@ -335,6 +339,8 @@ export default function CalendarPage() {
   )
 
   const goWeek = (offset: number) => {
+    setIsRecurringSelectMode(false)
+    setRecurringSelectedEventIds([])
     setWeekStart((current) => {
       const next = new Date(current)
       next.setDate(next.getDate() + offset * 7)
@@ -346,6 +352,7 @@ export default function CalendarPage() {
 
   const [deleteDropHover, setDeleteDropHover] = useState(false)
   const [suppressBlockClick, setSuppressBlockClick] = useState(false)
+  const recurringSelectedSet = useMemo(() => new Set(recurringSelectedEventIds), [recurringSelectedEventIds])
 
   const persistEventUpdate = useCallback(
     async (eventId: string, patch: Omit<UpdateEventPayload, "expectedVersion">, replacedEventId?: string) => {
@@ -396,7 +403,89 @@ export default function CalendarPage() {
     [byId, drawerState, replaceEvent, updateEventFields],
   )
 
+  const toggleRecurringSelection = useCallback((eventId: string) => {
+    setRecurringSelectedEventIds((current) =>
+      current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId],
+    )
+  }, [])
+
+  const cancelRecurringSelectMode = useCallback(() => {
+    setIsRecurringSelectMode(false)
+    setRecurringSelectedEventIds([])
+    setIsRecurringSaving(false)
+  }, [])
+
+  const saveRecurringSelections = useCallback(async () => {
+    if (recurringSelectedEventIds.length === 0 || isRecurringSaving) return
+    setIsRecurringSaving(true)
+    setError(null)
+
+    try {
+      const nextWeekStart = addDaysISO(formatDateISO(weekStart), 7)
+      const nextWeekEnd = addDaysISO(formatDateISO(weekStart), 13)
+      const persistedNextWeek = normalizeCalendarEvents(
+        await listEventsByDateRange(nextWeekStart, nextWeekEnd),
+      )
+      const existingSlots = [
+        ...events.filter((event) => event.eventDate >= nextWeekStart && event.eventDate <= nextWeekEnd),
+        ...persistedNextWeek,
+      ]
+
+      const selected = recurringSelectedEventIds
+        .map((id) => byId.get(id))
+        .filter((event): event is CalendarEventViewModel => Boolean(event && event.eventTime24h))
+
+      for (const sourceEvent of selected) {
+        const nextWeekDate = addDaysISO(sourceEvent.eventDate, 7)
+        const conflicts = hasEventSlotConflict(
+          existingSlots,
+          nextWeekDate,
+          sourceEvent.eventTime24h!,
+          sourceEvent.durationMinutes,
+        )
+        if (conflicts) {
+          continue
+        }
+
+        const typeLabel = getCalendarEventTypeLabel(sourceEvent)
+        const created = await createEvent({
+          eventName: generateCalendarEventName(nextWeekDate, sourceEvent.eventTime24h!, typeLabel),
+          eventType: sourceEvent.eventType,
+          eventDate: nextWeekDate,
+          eventTime24h: sourceEvent.eventTime24h!,
+          eventDurationMinutes: sourceEvent.durationMinutes,
+          createAction: "create_event_slot",
+          selectedCourts: [],
+          playerIds: [],
+          isTeamMexicano: sourceEvent.isTeamMexicano,
+        })
+
+        const createdView = mapEventRecordToCalendarEvent(created)
+        createLocalEvent(createdView)
+        existingSlots.push(createdView)
+      }
+
+      cancelRecurringSelectMode()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save recurring selections.")
+    } finally {
+      setIsRecurringSaving(false)
+    }
+  }, [
+    byId,
+    cancelRecurringSelectMode,
+    createLocalEvent,
+    events,
+    isRecurringSaving,
+    recurringSelectedEventIds,
+    weekStart,
+  ])
+
   const onBlockDragStart = (event: CalendarEventViewModel, e: React.DragEvent) => {
+    if (isRecurringSelectMode) {
+      e.preventDefault()
+      return
+    }
     beginInteraction(event.id, "move")
     setDraggingEventId(event.id)
     setDragEventId(e, event.id)
@@ -409,32 +498,67 @@ export default function CalendarPage() {
   }
 
   const onGridDragOver = (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => {
+    if (isRecurringSelectMode) return
     e.preventDefault()
     const target = resolveDropTarget(dayIndex, e.clientY, e.currentTarget.getBoundingClientRect().top)
     const draggedEventId = getDragEventId(e)
     const templateId = getTemplateDropId(e)
+    const dropDate = new Date(weekStart)
+    dropDate.setDate(dropDate.getDate() + target.dayIndex)
+    const nextDate = formatDateISO(dropDate)
     const previewDurationMinutes = draggedEventId
       ? byId.get(draggedEventId)?.durationMinutes ?? 90
       : templateId
         ? 90
         : 60
+    const hasConflict = hasEventSlotConflict(
+      events,
+      nextDate,
+      target.resolvedTime24h,
+      previewDurationMinutes,
+      draggedEventId || undefined,
+    )
     setGhostBlock({
       dayIndex: target.dayIndex,
       top: target.minutesFromGridStart,
       height: previewDurationMinutes * PX_PER_MINUTE,
       label: target.resolvedTime24h,
-      mode: "drag",
+      mode: hasConflict ? "invalid" : "drag",
     })
   }
 
   const onGridDrop = (dayIndex: number, e: React.DragEvent<HTMLDivElement>) => {
+    if (isRecurringSelectMode) return
     e.preventDefault()
     const draggedEventId = getDragEventId(e)
     const target = resolveDropTarget(dayIndex, e.clientY, e.currentTarget.getBoundingClientRect().top)
+    const dropDate = new Date(weekStart)
+    dropDate.setDate(dropDate.getDate() + target.dayIndex)
+    const nextDate = formatDateISO(dropDate)
+
+    const previewDurationMinutes = draggedEventId
+      ? byId.get(draggedEventId)?.durationMinutes ?? 90
+      : getTemplateDropId(e)
+        ? 90
+        : 60
+
+    const hasConflict = hasEventSlotConflict(
+      events,
+      nextDate,
+      target.resolvedTime24h,
+      previewDurationMinutes,
+      draggedEventId || undefined,
+    )
+
+    if (hasConflict) {
+      setError("No duplicate events: this time slot is already occupied.")
+      endInteraction()
+      setDraggingEventId(null)
+      setGhostBlock(null)
+      return
+    }
+
     if (draggedEventId) {
-      const dropDate = new Date(weekStart)
-      dropDate.setDate(dropDate.getDate() + target.dayIndex)
-      const nextDate = formatDateISO(dropDate)
       moveEvent(draggedEventId, nextDate, target.resolvedTime24h)
 
       const movedEvent = byId.get(draggedEventId)
@@ -454,15 +578,12 @@ export default function CalendarPage() {
     const templateId = getTemplateDropId(e)
     if (templateId) {
       const template = templateById(templateId)
-      const dropDate = new Date(weekStart)
-      dropDate.setDate(dropDate.getDate() + target.dayIndex)
-      const eventDate = formatDateISO(dropDate)
-      const eventName = generateCalendarEventName(eventDate, target.resolvedTime24h, template.displayLabel)
+      const eventName = generateCalendarEventName(nextDate, target.resolvedTime24h, template.displayLabel)
 
       void createEvent({
         eventName,
         eventType: template.eventType,
-        eventDate,
+        eventDate: nextDate,
         eventTime24h: target.resolvedTime24h,
         eventDurationMinutes: 90,
         createAction: "create_event_slot",
@@ -484,6 +605,7 @@ export default function CalendarPage() {
   }
 
   const onResizeStart = (eventId: string, e: React.PointerEvent<HTMLDivElement>) => {
+    if (isRecurringSelectMode) return
     const card = byId.get(eventId)
     if (!card) return
     const target = e.currentTarget.parentElement
@@ -590,12 +712,34 @@ export default function CalendarPage() {
         />
       )}
 
-      <div className="calendar-layout-grid">
+      <div className={`calendar-layout-grid${isTemplatePanelCollapsed ? " calendar-layout-grid--panel-collapsed" : ""}`}>
         <EventTemplatePanel
           deleteDropHover={deleteDropHover}
           onDeleteDrop={onDeleteDrop}
           onDeleteDragOver={onDeleteDragOver}
           onDeleteDragLeave={() => setDeleteDropHover(false)}
+          isCollapsed={isTemplatePanelCollapsed}
+          onCollapseToggle={() => {
+            setIsTemplatePanelCollapsed((current) => {
+              const next = !current
+              if (next && isRecurringSelectMode) {
+                cancelRecurringSelectMode()
+              }
+              return next
+            })
+          }}
+          isRecurringSelectMode={isRecurringSelectMode}
+          recurringSelectedCount={recurringSelectedEventIds.length}
+          recurringSaving={isRecurringSaving}
+          onRecurringModeToggle={() => {
+            setDrawerState({ open: false })
+            setIsRecurringSelectMode(true)
+            setRecurringSelectedEventIds([])
+          }}
+          onRecurringCancel={cancelRecurringSelectMode}
+          onRecurringSave={() => {
+            void saveRecurringSelections()
+          }}
         />
         <div className="panel">
           {loading ? (
@@ -608,10 +752,18 @@ export default function CalendarPage() {
               draggingEventId={draggingEventId}
               onBlockClick={(event) => {
                 if (suppressBlockClick) return
+                if (isRecurringSelectMode) {
+                  toggleRecurringSelection(event.id)
+                  return
+                }
                 setDrawerState({ open: true, mode: "edit", event })
               }}
               onBlockNameClick={(event) => {
                 if (suppressBlockClick) return
+                if (isRecurringSelectMode) {
+                  toggleRecurringSelection(event.id)
+                  return
+                }
                 setDrawerState({ open: true, mode: "edit", event })
               }}
               onDayHeaderClick={(date) => {
@@ -626,6 +778,8 @@ export default function CalendarPage() {
               onResizeMove={onResizeMove}
               onResizeEnd={onResizeEnd}
               activeResizeEventId={activeResizeEventId}
+              recurringSelectMode={isRecurringSelectMode}
+              recurringSelectedEventIds={recurringSelectedSet}
               onCellPointerDown={() => undefined}
             />
           ) : (
@@ -741,4 +895,36 @@ function formatDateISO(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0")
   const d = String(date.getDate()).padStart(2, "0")
   return `${y}-${m}-${d}`
+}
+
+function addDaysISO(dateISO: string, days: number): string {
+  const [yearRaw, monthRaw, dayRaw] = dateISO.split("-")
+  const year = Number(yearRaw)
+  const month = Number(monthRaw)
+  const day = Number(dayRaw)
+  const parsed = new Date(year, month - 1, day)
+  if (Number.isNaN(parsed.getTime())) return dateISO
+  parsed.setDate(parsed.getDate() + days)
+  return formatDateISO(parsed)
+}
+
+function hasEventSlotConflict(
+  events: CalendarEventViewModel[],
+  eventDate: string,
+  eventTime24h: string,
+  durationMinutes: number,
+  ignoreEventId?: string,
+): boolean {
+  const targetStart = minutesSinceGridStart(eventTime24h)
+  const targetEnd = targetStart + durationMinutes
+
+  return events.some((event) => {
+    if (event.id === ignoreEventId) return false
+    if (event.eventDate !== eventDate) return false
+    if (!event.eventTime24h) return false
+
+    const existingStart = minutesSinceGridStart(event.eventTime24h)
+    const existingEnd = existingStart + event.durationMinutes
+    return targetStart < existingEnd && existingStart < targetEnd
+  })
 }
