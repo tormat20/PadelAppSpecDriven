@@ -1,5 +1,6 @@
 import { normalizePlayerName } from "../../lib/playerNames"
 import { findDuplicateByName } from "../../features/create-event/playerSearch"
+import type { OcrResolveRowResponse, OcrResolutionStatus } from "./correctionTypes"
 
 export type OcrMatchResult = {
   /** The raw name string extracted from the OCR output (trimmed, deduplicated). */
@@ -13,6 +14,33 @@ export type OcrMatchResult = {
    * The matched catalog player, or null if no case-insensitive match was found.
    */
   matchedPlayer: { id: string; displayName: string; email?: string | null } | null
+  sourceType?: "booking_text" | "ocr_image"
+  noisySignature?: string
+  parsedName?: string
+  parsedEmail?: string
+  resolutionStatus?: OcrResolutionStatus
+  resolutionReason?:
+    | "exact_signature"
+    | "recent_override"
+    | "suggested_only"
+    | "identity_conflict"
+    | "no_match"
+  resolutionConfidence?: number
+  suggestedName?: string
+  suggestedEmail?: string
+}
+
+export function getResolutionBadgeText(row: OcrMatchResult): string | null {
+  if (row.resolutionStatus === "auto_corrected") {
+    return "Auto-corrected from previous edit"
+  }
+  if (row.resolutionStatus === "suggested_review") {
+    return "Suggested review"
+  }
+  if (row.resolutionStatus === "conflict") {
+    return "Conflict - review"
+  }
+  return null
 }
 
 /**
@@ -95,4 +123,81 @@ export function matchNamesToCatalog(
     email: null,
     matchedPlayer: findDuplicateByName(catalog, rawName),
   }))
+}
+
+function findByEmail(
+  catalog: { id: string; displayName: string; email?: string | null }[],
+  email: string,
+) {
+  const emailLower = email.toLowerCase()
+  return catalog.find((player) => player.email != null && player.email.toLowerCase() === emailLower) ?? null
+}
+
+export function applyResolvedCorrections(
+  participants: { name: string; email: string; noisySignature: string; rawSource: string }[],
+  catalog: { id: string; displayName: string; email?: string | null }[],
+  resolvedRows: OcrResolveRowResponse[],
+): OcrMatchResult[] {
+  const resolvedBySignature = new Map<string, OcrResolveRowResponse>()
+  for (const row of resolvedRows) {
+    const key = normalizePlayerName(row.parsedName) + "|" + row.parsedEmail.toLowerCase()
+    resolvedBySignature.set(key, row)
+  }
+
+  return participants.map(({ name, email, noisySignature }) => {
+    const resolved = resolvedBySignature.get(normalizePlayerName(name) + "|" + email.toLowerCase())
+
+    const parsedEmailMatch = findByEmail(catalog, email)
+    const resolvedEmailMatch = resolved ? findByEmail(catalog, resolved.resolvedEmail) : null
+
+    const hasIdentityDisagreement =
+      resolved?.resolutionStatus === "auto_corrected" &&
+      parsedEmailMatch != null &&
+      resolvedEmailMatch != null &&
+      parsedEmailMatch.id !== resolvedEmailMatch.id
+
+    let finalName = name
+    let finalEmail = email
+    let finalStatus: OcrResolutionStatus = resolved?.resolutionStatus ?? "unchanged"
+    let finalReason = resolved?.resolutionReason ?? "no_match"
+
+    if (resolved?.resolutionStatus === "auto_corrected") {
+      finalName = resolved.resolvedName
+      finalEmail = resolved.resolvedEmail
+    }
+
+    if (hasIdentityDisagreement) {
+      finalName = name
+      finalEmail = email
+      finalStatus = "conflict"
+      finalReason = "identity_conflict"
+    }
+
+    const matchedPlayerByEmail = findByEmail(catalog, finalEmail)
+    const matchedPlayer =
+      matchedPlayerByEmail ??
+      catalog.find((player) => normalizePlayerName(player.displayName) === normalizePlayerName(finalName)) ??
+      null
+
+    return {
+      rawName: finalName,
+      email: finalEmail,
+      matchedPlayer,
+      sourceType: "booking_text",
+      noisySignature,
+      parsedName: name,
+      parsedEmail: email,
+      resolutionStatus: finalStatus,
+      resolutionReason: finalReason,
+      resolutionConfidence: resolved?.confidence ?? 0,
+      suggestedName:
+        resolved?.resolutionStatus === "suggested_review" || resolved?.resolutionStatus === "conflict"
+          ? resolved.resolvedName
+          : undefined,
+      suggestedEmail:
+        resolved?.resolutionStatus === "suggested_review" || resolved?.resolutionStatus === "conflict"
+          ? resolved.resolvedEmail
+          : undefined,
+    }
+  })
 }

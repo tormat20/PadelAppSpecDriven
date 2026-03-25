@@ -178,6 +178,8 @@ For cross-stack changes:
 ## Active Technologies
 - Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories, React Router DOM 6, Vite 5, Vitest 2 (039-popup-editor-save)
 - Existing DuckDB event/round/match/player persistence + frontend staged local calendar change state (039-popup-editor-save)
+- Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB, React, Vite, Vitest (040-ocr-correction-learning)
+- DuckDB (new persistent correction-memory table) (040-ocr-correction-learning)
 
 ## Recent Changes
 - 039-popup-editor-save: Added Python 3.12 (backend), TypeScript 5.x + React 18.3 (frontend) + FastAPI, Pydantic, DuckDB repositories, React Router DOM 6, Vite 5, Vitest 2

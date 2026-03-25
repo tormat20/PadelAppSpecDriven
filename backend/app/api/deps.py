@@ -13,6 +13,7 @@ from app.repositories.events_repo import EventsRepository
 from app.repositories.matches_repo import MatchesRepository
 from app.repositories.player_stats_repo import PlayerStatsRepository
 from app.repositories.players_repo import PlayersRepository
+from app.repositories.ocr_corrections_repo import OcrCorrectionsRepository
 from app.repositories.rankings_repo import RankingsRepository
 from app.repositories.rounds_repo import RoundsRepository
 from app.repositories.substitutions_repo import SubstitutionsRepository
@@ -21,6 +22,7 @@ from app.services.auth_service import AuthService
 from app.services.event_service import EventService
 from app.services.player_service import PlayerService
 from app.services.player_stats_service import PlayerStatsService
+from app.services.ocr_correction_service import OcrCorrectionService
 from app.services.round_service import RoundService
 from app.services.summary_service import SummaryService
 
@@ -37,6 +39,7 @@ def services_scope():
         users_repo = UsersRepository(conn)
         event_teams_repo = EventTeamsRepository(conn)
         substitutions_repo = SubstitutionsRepository(conn)
+        ocr_corrections_repo = OcrCorrectionsRepository(conn)
 
         player_service = PlayerService(players_repo, player_stats_repo)
         event_service = EventService(
@@ -69,6 +72,7 @@ def services_scope():
             player_stats_service,
         )
         auth_service = AuthService(users_repo)
+        ocr_correction_service = OcrCorrectionService(ocr_corrections_repo)
 
         yield {
             "player_service": player_service,
@@ -82,6 +86,7 @@ def services_scope():
             "substitutions_repo": substitutions_repo,
             "users_repo": users_repo,
             "auth_service": auth_service,
+            "ocr_correction_service": ocr_correction_service,
         }
 
 

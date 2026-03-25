@@ -8,6 +8,7 @@ type PlayerEditDialogProps = {
   initialDisplayName: string
   initialEmail?: string | null
   isSaving?: boolean
+  saveError?: string
   onCancel: () => void
   onSave: (payload: { displayName: string; email: string | null }) => void
 }
@@ -17,6 +18,7 @@ export default function PlayerEditDialog({
   initialDisplayName,
   initialEmail,
   isSaving = false,
+  saveError = "",
   onCancel,
   onSave,
 }: PlayerEditDialogProps) {
@@ -80,8 +82,8 @@ export default function PlayerEditDialog({
               disabled={isSaving}
             />
           </label>
-          {error && (
-            <p className="warning-text" role="alert">{error}</p>
+          {(error || saveError) && (
+            <p className="warning-text" role="alert">{error || saveError}</p>
           )}
         </div>
         <div className="confirm-dialog__actions">
