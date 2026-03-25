@@ -56,11 +56,10 @@ function isBoilerplate(line: string): boolean {
  * 3. **Repetition** (min 4 chars): the last name word often appears both at
  *    the start of the jammed segment *and* somewhere inside the email local;
  *    the longest such prefix (≥ 4 chars) is used as the name portion.
- * 4. **Name-word boundary**: look for any word from `wordsFromLine` (or a
- *    prefix ≥ 3 chars) occurring inside the jammed segment; the email starts
- *    at that occurrence.
- * 5. **Digit boundary**: the email starts at the first digit (Apple relay
- *    addresses and other purely alphanumeric email locals).
+ * 4. **Name-word boundary**: use prior line words as anchors and choose the
+ *    earliest valid boundary inside the jammed segment.
+ * 5. **Digit boundary**: prefer the first alnum chunk ending in a digit to
+ *    avoid dropping valid local-part prefixes (e.g. `micke0522`).
  * 6. **Fallback**: return the entire segment.
  *
  * Returns the email local-part string.
@@ -76,25 +75,47 @@ const MIN_REPETITION_LEN = 4
  */
 function nameWordSearch(s: string, wordsFromLine: string[]): string | null {
   const ls = s.toLowerCase()
-  // Full word match
+  // If a previous-line word is a full prefix in the jammed segment, skip it.
+  for (const word of wordsFromLine) {
+    if (word.length < 3) continue
+    const wl = word.toLowerCase()
+    if (!ls.startsWith(wl)) continue
+    if (s.length <= word.length + 1) continue
+    const candidate = s.slice(word.length).replace(/^[._+\-]+/, "")
+    if (candidate.length > 0) return candidate
+  }
+
+  // Full word match (pick earliest index, not input-word order)
+  let earliestFullIdx = -1
   for (const word of wordsFromLine) {
     if (word.length < 2) continue
     const wl = word.toLowerCase()
     const idx = ls.indexOf(wl, 1)
-    if (idx > 0) return s.slice(idx)
+    if (idx <= 0) continue
+    if (earliestFullIdx < 0 || idx < earliestFullIdx) {
+      earliestFullIdx = idx
+    }
   }
+  if (earliestFullIdx > 0) return s.slice(earliestFullIdx)
+
   // Prefix match (longest first, minimum 3 chars)
   const maxWordLen = wordsFromLine.reduce((m, w) => Math.max(m, w.length), 0)
+  let earliestPrefixIdx = -1
+  let earliestPrefixSlice: string | null = null
   for (let prefixLen = maxWordLen; prefixLen >= 3; prefixLen--) {
     for (const word of wordsFromLine) {
       const wl = word.toLowerCase()
       if (prefixLen >= wl.length) continue
       const pfx = wl.slice(0, prefixLen)
       const idx = ls.indexOf(pfx, 1)
-      if (idx > 0) return s.slice(idx)
+      if (idx <= 0) continue
+      if (earliestPrefixIdx < 0 || idx < earliestPrefixIdx) {
+        earliestPrefixIdx = idx
+        earliestPrefixSlice = s.slice(idx)
+      }
     }
   }
-  return null
+  return earliestPrefixSlice
 }
 
 function extractEmailLocalFromJammed(jammed: string, wordsFromLine: string[]): string {
@@ -140,6 +161,12 @@ function extractEmailLocalFromJammed(jammed: string, wordsFromLine: string[]): s
 
   // 5. Digit boundary
   const digitIdx = jammed.search(/[0-9]/)
+  if (digitIdx > 0) {
+    const alphaPrefix = jammed.slice(0, digitIdx)
+    if (/^[a-z._%+\-]{1,8}$/.test(alphaPrefix)) {
+      return jammed
+    }
+  }
   if (digitIdx >= 0) return jammed.slice(digitIdx)
 
   // 6. Fallback

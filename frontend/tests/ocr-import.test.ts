@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { cleanOcrName, matchNamesToCatalog, parseOcrNames } from "../src/features/ocr/ocrImport"
+import {
+  applyResolvedCorrections,
+  cleanOcrName,
+  getResolutionBadgeText,
+  matchNamesToCatalog,
+  parseOcrNames,
+} from "../src/features/ocr/ocrImport"
+import { buildOcrNoisySignature } from "../src/features/ocr/correctionSignature"
 
 // ---------------------------------------------------------------------------
 // cleanOcrName
@@ -174,5 +181,145 @@ describe("matchNamesToCatalog", () => {
   it("matches multi-word names", () => {
     const results = matchNamesToCatalog(["Maria Karlsson"], catalog)
     expect(results[0].matchedPlayer).toEqual({ id: "2", displayName: "Maria Karlsson" })
+  })
+})
+
+describe("buildOcrNoisySignature", () => {
+  it("builds deterministic normalized signatures", () => {
+    const a = buildOcrNoisySignature({
+      sourceType: "booking_text",
+      rawSource: " Daniel  Haglunddaniel@example.com ",
+      parsedName: "Daniel Haglund",
+      parsedEmail: "Daniel@Example.com",
+    })
+    const b = buildOcrNoisySignature({
+      sourceType: "booking_text",
+      rawSource: "daniel haglunddaniel@example.com",
+      parsedName: "daniel haglund",
+      parsedEmail: "daniel@example.com",
+    })
+    expect(a).toBe(b)
+  })
+
+  it("keeps source type as part of the signature", () => {
+    const textSig = buildOcrNoisySignature({
+      sourceType: "booking_text",
+      rawSource: "Karin Stagekarin@example.com",
+      parsedName: "Karin Stage",
+      parsedEmail: "karin@example.com",
+    })
+    const imageSig = buildOcrNoisySignature({
+      sourceType: "ocr_image",
+      rawSource: "Karin Stagekarin@example.com",
+      parsedName: "Karin Stage",
+      parsedEmail: "karin@example.com",
+    })
+    expect(textSig).not.toBe(imageSig)
+  })
+})
+
+describe("applyResolvedCorrections", () => {
+  const baseCatalog = [
+    { id: "p1", displayName: "Daniel Haglund Theemasiri", email: "haglund_daniel@hotmail.com" },
+    { id: "p2", displayName: "Mikael Andersson", email: "micke0522@gmail.com" },
+    { id: "p3", displayName: "Mikael Andersson", email: "mikael@toyoretail.se" },
+  ]
+
+  it("applies auto-corrected rows and rematches by corrected email", () => {
+    const result = applyResolvedCorrections(
+      [
+        {
+          name: "Daniel Haglund Theemasiri",
+          email: "daniel@hotmail.com",
+          noisySignature: "sig-1",
+          rawSource: "Daniel Haglund Theemasiridaniel@hotmail.com",
+        },
+      ],
+      baseCatalog,
+      [
+        {
+          parsedName: "Daniel Haglund Theemasiri",
+          parsedEmail: "daniel@hotmail.com",
+          resolvedName: "Daniel Haglund Theemasiri",
+          resolvedEmail: "haglund_daniel@hotmail.com",
+          resolvedPlayerId: "p1",
+          resolutionStatus: "auto_corrected",
+          resolutionReason: "exact_signature",
+          confidence: 0.95,
+        },
+      ],
+    )
+
+    expect(result[0].email).toBe("haglund_daniel@hotmail.com")
+    expect(result[0].matchedPlayer?.id).toBe("p1")
+    expect(result[0].resolutionStatus).toBe("auto_corrected")
+  })
+
+  it("keeps parsed values and flags conflict when resolved identity disagrees", () => {
+    const result = applyResolvedCorrections(
+      [
+        {
+          name: "Mikael Andersson",
+          email: "mikael@toyoretail.se",
+          noisySignature: "sig-2",
+          rawSource: "Mikael Anderssonmikael@toyoretail.se",
+        },
+      ],
+      baseCatalog,
+      [
+        {
+          parsedName: "Mikael Andersson",
+          parsedEmail: "mikael@toyoretail.se",
+          resolvedName: "Mikael Andersson",
+          resolvedEmail: "micke0522@gmail.com",
+          resolvedPlayerId: "p2",
+          resolutionStatus: "auto_corrected",
+          resolutionReason: "exact_signature",
+          confidence: 0.99,
+        },
+      ],
+    )
+
+    expect(result[0].email).toBe("mikael@toyoretail.se")
+    expect(result[0].matchedPlayer?.id).toBe("p3")
+    expect(result[0].resolutionStatus).toBe("conflict")
+    expect(result[0].resolutionReason).toBe("identity_conflict")
+  })
+
+  it("keeps suggestion metadata without auto-applying", () => {
+    const result = applyResolvedCorrections(
+      [
+        {
+          name: "Karin Stage",
+          email: "karin@example.com",
+          noisySignature: "sig-3",
+          rawSource: "Karin Stagekarin@example.com",
+        },
+      ],
+      baseCatalog,
+      [
+        {
+          parsedName: "Karin Stage",
+          parsedEmail: "karin@example.com",
+          resolvedName: "Karin Stage",
+          resolvedEmail: "karin.stage@educ.goteborg.se",
+          resolvedPlayerId: null,
+          resolutionStatus: "suggested_review",
+          resolutionReason: "suggested_only",
+          confidence: 0.6,
+        },
+      ],
+    )
+
+    expect(result[0].email).toBe("karin@example.com")
+    expect(result[0].resolutionStatus).toBe("suggested_review")
+    expect(result[0].suggestedEmail).toBe("karin.stage@educ.goteborg.se")
+  })
+})
+
+describe("getResolutionBadgeText", () => {
+  it("returns review badges for suggested and conflict states", () => {
+    expect(getResolutionBadgeText({ rawName: "A", email: null, matchedPlayer: null, resolutionStatus: "suggested_review" })).toBe("Suggested review")
+    expect(getResolutionBadgeText({ rawName: "A", email: null, matchedPlayer: null, resolutionStatus: "conflict" })).toBe("Conflict - review")
   })
 })

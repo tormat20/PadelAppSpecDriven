@@ -7,7 +7,7 @@ import Stepper from "../stepper/Stepper"
 import type { AssignedPlayer } from "../../features/create-event/draftPlayers"
 import { getRequiredPlayerCount, isCreateEventDisabled, isStrictCreateEventDisabled } from "../../features/create-event/validation"
 import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
-import { searchPlayers } from "../../lib/api"
+import { getEventTeams, searchPlayers, setEventTeams } from "../../lib/api"
 import { getEventModeLabel } from "../../lib/eventMode"
 import type { UpdateEventPayload } from "../../lib/types"
 import type { DrawerState } from "../../pages/Calendar"
@@ -99,14 +99,15 @@ function idsFromPlayers(players: AssignedPlayer[]): string[] {
   return players.map((player) => player.id)
 }
 
-function initialStepForEvent(event: CalendarEventViewModel): 0 | 1 | 2 {
+function initialStepForEvent(event: CalendarEventViewModel): 0 | 1 | 2 | 3 {
   const selectedCourts = event.selectedCourts.length
   const players = event.playerIds.length
   const requiredPlayers = selectedCourts * 4
+  const isTeamMexicano = event.eventType === "Mexicano" && Boolean(event.isTeamMexicano)
 
-  if (event.setupStatus === "ready") return 2
+  if (event.setupStatus === "ready") return isTeamMexicano ? 3 : 2
   if (selectedCourts === 0) return 0
-  if (players > 0 && requiredPlayers > 0 && players === requiredPlayers) return 2
+  if (players > 0 && requiredPlayers > 0 && players === requiredPlayers) return isTeamMexicano ? 3 : 2
   return 1
 }
 
@@ -135,12 +136,15 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
   const [originalForm, setOriginalForm] = useState<DrawerFormValues>(form)
   const [assignedPlayers, setAssignedPlayers] = useState<AssignedPlayer[]>([])
   const [originalPlayerIds, setOriginalPlayerIds] = useState<string[]>([])
-  const [currentStep, setCurrentStep] = useState<0 | 1 | 2>(0)
+  const [currentStep, setCurrentStep] = useState<0 | 1 | 2 | 3>(0)
   const [direction, setDirection] = useState<1 | -1>(1)
   const [inlineError, setInlineError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
+  const [teamPairs, setTeamPairs] = useState<[string, string][]>([])
+  const [teamsError, setTeamsError] = useState("")
+  const [pendingPick, setPendingPick] = useState<string | null>(null)
   const wasOpenRef = useRef(false)
   const lastEventIdRef = useRef<string | null>(null)
 
@@ -160,6 +164,9 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
       setCurrentStep(initialStepForEvent(event))
       setDirection(1)
       setAssignedPlayers(event.playerIds.map((id) => ({ id, displayName: id })))
+      setTeamPairs([])
+      setPendingPick(null)
+      setTeamsError("")
     }
 
     setOriginalForm(next)
@@ -167,6 +174,8 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
     setIsSaving(false)
     setIsDeleting(false)
     setIsStarting(false)
+    setTeamsError("")
+    setPendingPick(null)
     setOriginalPlayerIds(event.playerIds)
     if (!justOpened) {
       setForm(next)
@@ -175,7 +184,8 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
         return event.playerIds.map((id) => ({ id, displayName: byId.get(id) ?? id }))
       })
       if (previousEventId !== event.id && event.playerIds.length > 0) {
-        setCurrentStep((step) => (step === 0 ? 2 : step))
+        const targetStep = initialStepForEvent(event)
+        setCurrentStep((step) => (step === 0 ? targetStep : step))
       }
     }
 
@@ -190,6 +200,20 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
         setAssignedPlayers(event.playerIds.map((id) => ({ id, displayName: byId.get(id) ?? id })))
       })
       .catch(() => undefined)
+
+    if (event.eventType === "Mexicano" && event.isTeamMexicano) {
+      void getEventTeams(event.id)
+        .then((response) => {
+          if (cancelled) return
+          setTeamPairs(response.teams.map((team) => [team.player1Id, team.player2Id]))
+        })
+        .catch(() => {
+          if (cancelled) return
+          setTeamPairs([])
+        })
+    } else {
+      setTeamPairs([])
+    }
 
     return () => {
       cancelled = true
@@ -208,7 +232,32 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
     return () => window.removeEventListener("keydown", onKeyDown)
   })
 
-  const stepperSteps = useMemo(() => [{ label: "Setup" }, { label: "Roster" }, { label: "Confirm" }], [])
+  const teamMexicanoActive = form.eventType === "Mexicano" && form.isTeamMexicano
+
+  useEffect(() => {
+    if (!teamMexicanoActive) {
+      setTeamPairs([])
+      setPendingPick(null)
+      setTeamsError("")
+      if (currentStep === 3) {
+        setCurrentStep(2)
+      }
+      return
+    }
+
+    const validIds = new Set(assignedPlayers.map((player) => player.id))
+    setTeamPairs((previous) =>
+      previous.filter(([player1Id, player2Id]) => validIds.has(player1Id) && validIds.has(player2Id)),
+    )
+    setPendingPick((current) => (current && validIds.has(current) ? current : null))
+  }, [assignedPlayers, currentStep, teamMexicanoActive])
+  const stepperSteps = useMemo(
+    () =>
+      teamMexicanoActive
+        ? [{ label: "Setup" }, { label: "Roster" }, { label: "Teams" }, { label: "Confirm" }]
+        : [{ label: "Setup" }, { label: "Roster" }, { label: "Confirm" }],
+    [teamMexicanoActive],
+  )
   const isReadOnly = mode === "readonly"
   const requiredPlayers = getRequiredPlayerCount(form.courts)
   const setupInvalid = isCreateEventDisabled({
@@ -218,14 +267,17 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
     courts: [],
     playerIds: [],
   })
-  const startDisabled = isStrictCreateEventDisabled({
-    eventName: form.eventName,
-    eventDate: form.eventDate,
-    eventTime24h: form.eventTime24h,
-    courts: form.courts,
-    playerIds: idsFromPlayers(assignedPlayers),
-    eventType: form.eventType,
-  })
+  const teamStepIncomplete = teamMexicanoActive && teamPairs.length * 2 !== assignedPlayers.length
+  const startDisabled =
+    isStrictCreateEventDisabled({
+      eventName: form.eventName,
+      eventDate: form.eventDate,
+      eventTime24h: form.eventTime24h,
+      courts: form.courts,
+      playerIds: idsFromPlayers(assignedPlayers),
+      eventType: form.eventType,
+    }) ||
+    teamStepIncomplete
 
   function handleFieldChange<K extends keyof DrawerFormValues>(field: K, value: DrawerFormValues[K]) {
     setForm((previous) => ({ ...previous, [field]: value }))
@@ -305,14 +357,61 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
   }
 
   async function handleNext() {
-    if (currentStep >= 2) return
+    const lastStepIndex = teamMexicanoActive ? 3 : 2
+    if (currentStep >= lastStepIndex) return
+
+    if (currentStep === 2 && teamMexicanoActive) {
+      if (!event) return
+      setTeamsError("")
+      if (teamPairs.length * 2 !== assignedPlayers.length) {
+        setTeamsError("Assign all players into teams before continuing.")
+        return
+      }
+      try {
+        await setEventTeams(
+          event.id,
+          teamPairs.map(([player1Id, player2Id]) => ({ player1Id, player2Id })),
+        )
+        setDirection(1)
+        setCurrentStep(3)
+      } catch (error) {
+        setTeamsError(error instanceof Error ? error.message : "Failed to save teams. Please try again.")
+      }
+      return
+    }
+
     const persisted = await persistCurrentStep({ closeOnSuccess: false })
     if (!persisted) return
     setDirection(1)
-    setCurrentStep((step) => (step < 2 ? ((step + 1) as 0 | 1 | 2) : step))
+    if (currentStep === 1 && teamMexicanoActive) {
+      setCurrentStep(2)
+      return
+    }
+    setCurrentStep((step) => (step < lastStepIndex ? ((step + 1) as 0 | 1 | 2 | 3) : step))
+  }
+
+  function handleTeamPlayerClick(playerId: string) {
+    if (pendingPick === null) {
+      setPendingPick(playerId)
+      return
+    }
+    if (pendingPick === playerId) {
+      setPendingPick(null)
+      return
+    }
+    setTeamPairs((previous) => [...previous, [pendingPick, playerId]])
+    setPendingPick(null)
+    setTeamsError("")
+  }
+
+  function removeTeamPair(index: number) {
+    setTeamPairs((previous) => previous.filter((_, pairIndex) => pairIndex !== index))
   }
 
   const summaryModeLabel = getEventModeLabel(form.eventType)
+  const pairedPlayerIds = new Set(teamPairs.flat())
+  const unpairedPlayers = assignedPlayers.filter((player) => !pairedPlayerIds.has(player.id))
+  const playerNamesById = new Map(assignedPlayers.map((player) => [player.id, player.displayName]))
 
   return (
     <AnimatePresence>
@@ -487,7 +586,62 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
                 </div>
               )}
 
-              {currentStep === 2 && (
+              {currentStep === 2 && teamMexicanoActive && (
+                <div className="form-grid">
+                  <p className="section-label">Assign fixed teams</p>
+                  <p className="muted">Click two players to pair them as a team. All players must be paired.</p>
+
+                  {teamPairs.length > 0 && (
+                    <ul className="summary-list" aria-label="Assigned teams">
+                      {teamPairs.map(([player1Id, player2Id], index) => (
+                        <li key={`${player1Id}-${player2Id}-${index}`} className="summary-row">
+                          <span>
+                            {(playerNamesById.get(player1Id) ?? player1Id)} + {(playerNamesById.get(player2Id) ?? player2Id)}
+                          </span>
+                          <button
+                            type="button"
+                            className={withInteractiveSurface("button-secondary")}
+                            onClick={() => removeTeamPair(index)}
+                            disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {unpairedPlayers.length > 0 && (
+                    <>
+                      <p className="muted">Unpaired players ({unpairedPlayers.length}):</p>
+                      <div className="form-grid" style={{ gap: "0.5rem" }}>
+                        {unpairedPlayers.map((player) => (
+                          <button
+                            key={player.id}
+                            type="button"
+                            className={withInteractiveSurface(
+                              pendingPick === player.id ? "button" : "button-secondary",
+                            )}
+                            onClick={() => handleTeamPlayerClick(player.id)}
+                            disabled={isReadOnly || isSaving || isDeleting || isStarting}
+                            aria-pressed={pendingPick === player.id}
+                          >
+                            {player.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {teamsError && (
+                    <p className="warning-text" aria-live="polite">
+                      {teamsError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {((currentStep === 2 && !teamMexicanoActive) || currentStep === 3) && (
                 <div className="form-grid">
                   <ul className="summary-list" aria-label="Event summary">
                     <li className="summary-row">
@@ -518,6 +672,12 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
                       <span className="muted">Players</span>
                       <span>{assignedPlayers.length}</span>
                     </li>
+                    {teamMexicanoActive && (
+                      <li className="summary-row">
+                        <span className="muted">Teams</span>
+                        <span>{teamPairs.length}</span>
+                      </li>
+                    )}
                   </ul>
 
                   {startDisabled && (
@@ -550,7 +710,7 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
                   className={withInteractiveSurface("button-secondary")}
                   onClick={() => {
                     setDirection(-1)
-                    setCurrentStep((step) => (step > 0 ? ((step - 1) as 0 | 1 | 2) : step))
+                    setCurrentStep((step) => (step > 0 ? ((step - 1) as 0 | 1 | 2 | 3) : step))
                   }}
                   disabled={isSaving || isDeleting || isStarting}
                 >
@@ -558,20 +718,26 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
                 </button>
               )}
 
-              {!isReadOnly && currentStep < 2 && (
+              {!isReadOnly && currentStep < (teamMexicanoActive ? 3 : 2) && (
                 <button
                   type="button"
                   className={withInteractiveSurface("button-secondary")}
                   onClick={() => {
                     void handleNext()
                   }}
-                  disabled={isSaving || isDeleting || isStarting || (currentStep === 0 && setupInvalid)}
+                  disabled={
+                    isSaving ||
+                    isDeleting ||
+                    isStarting ||
+                    (currentStep === 0 && setupInvalid) ||
+                    (currentStep === 2 && teamMexicanoActive && teamStepIncomplete)
+                  }
                 >
                   Next
                 </button>
               )}
 
-              {!isReadOnly && currentStep === 2 && (
+              {!isReadOnly && currentStep === (teamMexicanoActive ? 3 : 2) && (
                 <button
                   type="button"
                   className={withInteractiveSurface("button")}

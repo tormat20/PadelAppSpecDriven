@@ -323,6 +323,61 @@ Konto-/kreditkort`
     expect(result[0].email).toBe("maloukarlsson@hotmail.se")
   })
 
+  it("regression: keeps earliest valid boundary for Daniel jammed row", () => {
+    const input = [
+      "Daniel Haglund Theemasiri",
+      "Daniel Haglund Theemasirihaglund_daniel@hotmail.com",
+      "Gick med 2026-03-01",
+      "Konto-/kreditkort",
+    ].join("\n")
+
+    const result = parseBookingText(input)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe("Daniel Haglund Theemasiri")
+    expect(result[0].email).toBe("haglund_daniel@hotmail.com")
+  })
+
+  it("regression: strips prefixed surname and keeps micke0522 local-part", () => {
+    const input = [
+      "Mikael Andersson",
+      "Mikael Anderssonmicke0522@gmail.com",
+      "Gick med 2026-03-01",
+      "Konto-/kreditkort",
+    ].join("\n")
+
+    const result = parseBookingText(input)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe("Mikael Andersson")
+    expect(result[0].email).toBe("micke0522@gmail.com")
+  })
+
+  it("regression: handles Mikeal typo variant with micke0522 local-part", () => {
+    const input = [
+      "Mikeal Andersson",
+      "Mikeal Anderssonmicke0522@gmail.com",
+      "Gick med 2026-03-01",
+      "Konto-/kreditkort",
+    ].join("\n")
+
+    const result = parseBookingText(input)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe("Mikeal Andersson")
+    expect(result[0].email).toBe("micke0522@gmail.com")
+  })
+
+  it("non-regression: preserves all-caps suffix split with digit local-part", () => {
+    const input = [
+      "Liwei Zhang",
+      "Liwei ZHANG NYBORGtanming7@163.com",
+      "Gick med 2026-03-02",
+      "Klippkort",
+    ].join("\n")
+
+    const result = parseBookingText(input)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({ name: "Liwei Zhang", email: "tanming7@163.com" })
+  })
+
   it("returns empty array for empty input", () => {
     expect(parseBookingText("")).toEqual([])
     expect(parseBookingText("   \n  \n ")).toEqual([])

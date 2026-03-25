@@ -1,6 +1,12 @@
 import { normalizePlayerName } from "./playerNames"
 import type { StagedCalendarChangeSet } from "../components/calendar/stagedChangeTypes"
 import type {
+  OcrCorrectionRecord,
+  OcrCorrectionResolveRequest,
+  OcrCorrectionResolveResponse,
+  OcrCorrectionUpsertRequest,
+} from "../features/ocr/correctionTypes"
+import type {
   CreateEventPayload,
   EventRecord,
   EventSummaryResponse,
@@ -182,6 +188,24 @@ export async function updatePlayer(
       displayName: payload.displayName,
       ...(payload.email !== undefined ? { email: payload.email } : {}),
     }),
+  })
+}
+
+export async function upsertOcrCorrection(
+  payload: OcrCorrectionUpsertRequest,
+): Promise<OcrCorrectionRecord> {
+  return request<OcrCorrectionRecord>("/ocr/corrections", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function resolveOcrCorrections(
+  payload: OcrCorrectionResolveRequest,
+): Promise<OcrCorrectionResolveResponse> {
+  return request<OcrCorrectionResolveResponse>("/ocr/corrections/resolve", {
+    method: "POST",
+    body: JSON.stringify(payload),
   })
 }
 

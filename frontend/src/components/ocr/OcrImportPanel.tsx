@@ -3,9 +3,21 @@ import type { Worker as TesseractWorker } from "tesseract.js"
 import { createWorker } from "tesseract.js"
 
 import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
-import { matchNamesToCatalog, parseOcrNames } from "../../features/ocr/ocrImport"
+import {
+  applyResolvedCorrections,
+  getResolutionBadgeText,
+  matchNamesToCatalog,
+  parseOcrNames,
+} from "../../features/ocr/ocrImport"
 import { parseBookingHtml, parseBookingText } from "../../features/ocr/bookingTextParser"
-import { createOrReusePlayer, deletePlayer, updatePlayer } from "../../lib/api"
+import { buildOcrNoisySignature } from "../../features/ocr/correctionSignature"
+import {
+  createOrReusePlayer,
+  deletePlayer,
+  resolveOcrCorrections,
+  updatePlayer,
+  upsertOcrCorrection,
+} from "../../lib/api"
 import type { OcrMatchResult } from "../../features/ocr/ocrImport"
 import PlayerEditDialog from "../PlayerEditDialog"
 
@@ -71,6 +83,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const [isEditingInSystem, setIsEditingInSystem] = useState(false)
   const [editingRawName, setEditingRawName] = useState<string | null>(null)
   const [isUpdatingPlayer, setIsUpdatingPlayer] = useState(false)
+  const [editSaveError, setEditSaveError] = useState("")
   const workerRef = useRef<TesseractWorker | null>(null)
   // Holds a file that arrived before the worker was ready
   const queuedFileRef = useRef<File | null>(null)
@@ -118,10 +131,14 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       setIndividuallyRegistered(new Map())
       setIsEditingInSystem(false)
       setEditingRawName(null)
+      setEditSaveError("")
       try {
         const ret = await workerRef.current.recognize(file)
         const names = parseOcrNames(ret.data.text)
-        const matched = matchNamesToCatalog(names, catalog)
+        const matched = matchNamesToCatalog(names, catalog).map((row) => ({
+          ...row,
+          sourceType: "ocr_image" as const,
+        }))
         setResults(matched)
         // Pre-check all names in both modes.
         // In register mode, already-registered names are pre-checked but disabled
@@ -177,7 +194,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   // "Paste list" tab — parse booking text/HTML on paste into the textarea
   // ---------------------------------------------------------------------------
 
-  const handleTextareaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handleTextareaPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     e.preventDefault()
 
     // Try plain text first — the Matchi plain-text format is unambiguous and
@@ -200,22 +217,65 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
 
     if (participants.length === 0) return
 
-    // Convert ParsedParticipant[] → OcrMatchResult[] by looking up catalog
-    const matched: OcrMatchResult[] = participants.map(({ name, email }) => {
-      // Email-first match against catalog
-      const emailLower = email.toLowerCase()
-      let matchedPlayer =
-        catalog.find((p) => p.email != null && p.email.toLowerCase() === emailLower) ?? null
-
-      // Fallback: name-based match
-      if (!matchedPlayer) {
-        const normalizedName = name.toLowerCase().trim()
-        matchedPlayer =
-          catalog.find((p) => p.displayName.toLowerCase().trim() === normalizedName) ?? null
+    const resolveRows = participants.map(({ name, email }) => {
+      const noisySignature = buildOcrNoisySignature({
+        sourceType: "booking_text",
+        rawSource: `${name}${email}`,
+        parsedName: name,
+        parsedEmail: email,
+      })
+      return {
+        rawSource: `${name}${email}`,
+        parsedName: name,
+        parsedEmail: email,
+        noisySignature,
       }
-
-      return { rawName: name, email, matchedPlayer }
     })
+
+    let resolvedRows: Array<{
+      parsedName: string
+      parsedEmail: string
+      resolvedName: string
+      resolvedEmail: string
+      resolvedPlayerId: string | null
+      resolutionStatus: "unchanged" | "auto_corrected" | "suggested_review" | "conflict"
+      resolutionReason:
+        | "exact_signature"
+        | "recent_override"
+        | "suggested_only"
+        | "identity_conflict"
+        | "no_match"
+      confidence: number
+    }> = []
+
+    try {
+      const resolved = await resolveOcrCorrections({
+        sourceType: "booking_text",
+        rows: resolveRows,
+      })
+      resolvedRows = resolved.rows
+    } catch {
+      resolvedRows = []
+    }
+
+    const participantsWithSignatures = participants.map(({ name, email }) => ({
+      name,
+      email,
+      rawSource: `${name}${email}`,
+      noisySignature: buildOcrNoisySignature({
+        sourceType: "booking_text",
+        rawSource: `${name}${email}`,
+        parsedName: name,
+        parsedEmail: email,
+      }),
+    }))
+
+    // Convert ParsedParticipant[] → OcrMatchResult[] by looking up catalog
+    const matched: OcrMatchResult[] = applyResolvedCorrections(
+      participantsWithSignatures,
+      catalog,
+      resolvedRows,
+    )
 
     // Deduplicate by rawName in case parser returned duplicates
     const seen = new Set<string>()
@@ -264,6 +324,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
     setIndividuallyRegistered(new Map())
     setIsEditingInSystem(false)
     setEditingRawName(null)
+    setEditSaveError("")
     queuedFileRef.current = null
   }
 
@@ -277,6 +338,18 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       const { player } = await createOrReusePlayer(r.rawName, localCatalog, r.email)
       setIndividuallyRegistered((prev) => new Map(prev).set(r.rawName, player))
       setChecked((prev) => new Set(prev).add(r.rawName))
+      if (r.sourceType && r.noisySignature && r.email) {
+        void upsertOcrCorrection({
+          sourceType: r.sourceType,
+          noisySignature: r.noisySignature,
+          rawName: r.parsedName ?? r.rawName,
+          rawEmail: r.parsedEmail ?? r.email,
+          correctedName: player.displayName,
+          correctedEmail: player.email ?? r.email,
+          playerId: player.id,
+          confidence: 1,
+        })
+      }
       onPlayerCreated?.()
     } catch {
       // If creation fails, leave the row in the unmatched column
@@ -356,11 +429,26 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
   const handleSavePlayerEdit = async (payload: { displayName: string; email: string | null }) => {
     if (!editingPlayer || !editingRawName) return
     setIsUpdatingPlayer(true)
+    setEditSaveError("")
     try {
+      const normalizedEmail = payload.email ? payload.email.trim().toLowerCase() : null
       const updated = await updatePlayer(editingPlayer.id, {
         displayName: payload.displayName,
-        email: payload.email,
+        email: normalizedEmail,
       })
+
+      if (editingResult?.sourceType && editingResult.noisySignature && editingResult.email) {
+        void upsertOcrCorrection({
+          sourceType: editingResult.sourceType,
+          noisySignature: editingResult.noisySignature,
+          rawName: editingResult.parsedName ?? editingResult.rawName,
+          rawEmail: editingResult.parsedEmail ?? editingResult.email,
+          correctedName: updated.displayName,
+          correctedEmail: updated.email ?? editingResult.email,
+          playerId: updated.id,
+          confidence: 1,
+        })
+      }
 
       setResults((prev) =>
         prev.map((row) => {
@@ -385,9 +473,17 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
       })
 
       setEditingRawName(null)
+      setEditSaveError("")
       onPlayerCreated?.()
-    } catch {
-      // keep dialog open; user can retry
+    } catch (error) {
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+          ? ((error as { message: string }).message || "Could not save player. Please try again.")
+          : "Could not save player. Please try again."
+      setEditSaveError(message)
     } finally {
       setIsUpdatingPlayer(false)
     }
@@ -568,6 +664,7 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                     onClick={() => {
                       setIsEditingInSystem((v) => !v)
                       setEditingRawName(null)
+                      setEditSaveError("")
                     }}
                   >
                     {isEditingInSystem ? "Done" : "Edit"}
@@ -583,6 +680,13 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                       const resolved = getResolvedPlayer(r)
                       const nameLabel = resolved?.displayName ?? r.rawName
                       const emailLabel = resolved?.email ?? r.email
+                      const resolutionBadge = getResolutionBadgeText(r)
+                      const primaryStatusTag =
+                        mode === "register"
+                          ? "Registered"
+                          : r.resolutionStatus === "auto_corrected"
+                            ? "Auto-corrected"
+                            : "Matched"
                       return (
                         <div
                           key={r.rawName}
@@ -593,7 +697,10 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                               <button
                                 type="button"
                                 className={withInteractiveSurface("button-secondary ocr-row-edit-btn")}
-                                onClick={() => setEditingRawName(r.rawName)}
+                                onClick={() => {
+                                  setEditSaveError("")
+                                  setEditingRawName(r.rawName)
+                                }}
                               >
                                 Edit
                               </button>
@@ -631,9 +738,12 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                               <span className="ocr-player-email muted">{emailLabel}</span>
                             )}
                             {isAlreadyRegistered
-                              ? <span className="tag">Registered</span>
-                              : <span className="tag">Matched</span>
+                              ? <span className="tag">{primaryStatusTag}</span>
+                              : <span className="tag">{primaryStatusTag}</span>
                             }
+                            {resolutionBadge && r.resolutionStatus !== "auto_corrected" && (
+                              <span className="tag">{resolutionBadge}</span>
+                            )}
                           </button>
                         </div>
                       )
@@ -679,6 +789,14 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                             {r.email && (
                               <span className="ocr-player-email muted">{r.email}</span>
                             )}
+                            {getResolutionBadgeText(r) && (
+                              <span className="tag">{getResolutionBadgeText(r)}</span>
+                            )}
+                            {r.resolutionStatus === "suggested_review" && r.suggestedEmail && (
+                              <span className="ocr-player-email muted">
+                                Suggested: {r.suggestedEmail}
+                              </span>
+                            )}
                           </span>
                           <button
                             type="button"
@@ -722,7 +840,11 @@ export default function OcrImportPanel({ catalog, mode, pendingFile, onConfirmRo
                 initialDisplayName={editingPlayer.displayName}
                 initialEmail={editingPlayer.email}
                 isSaving={isUpdatingPlayer}
-                onCancel={() => setEditingRawName(null)}
+                saveError={editSaveError}
+                onCancel={() => {
+                  setEditSaveError("")
+                  setEditingRawName(null)
+                }}
                 onSave={(payload) => void handleSavePlayerEdit(payload)}
               />
             )}
