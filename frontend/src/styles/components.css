@@ -2737,21 +2737,44 @@
 }
 
 .calendar-template-panel {
+  --template-panel-pad: var(--space-5);
+  --template-panel-collapsed-pad: var(--template-panel-pad);
+  box-sizing: border-box;
   display: grid;
   gap: var(--space-3);
+  height: fit-content;
+  overflow: hidden;
+  padding: var(--template-panel-pad);
+  position: relative;
 }
 
 .calendar-template-panel--collapsed {
-  align-self: stretch;
   align-content: start;
-  min-height: 100%;
+  align-self: start;
+  gap: 0;
+  height: fit-content;
+  justify-self: start;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--template-panel-collapsed-pad);
+  width: calc(1.8rem + (var(--template-panel-collapsed-pad) * 2));
 }
 
 .calendar-template-panel__header {
-  align-items: center;
-  display: flex;
-  gap: var(--space-2);
-  justify-content: space-between;
+  align-items: start;
+  display: block;
+  min-height: 1.8rem;
+  position: relative;
+}
+
+.calendar-template-panel--collapsed .calendar-template-panel__header {
+  min-height: 1.8rem;
+}
+
+.calendar-template-panel__body {
+  display: grid;
+  gap: var(--space-3);
+  transform-origin: top center;
 }
 
 .calendar-template-panel__collapse {
@@ -2764,6 +2787,9 @@
   font-weight: 700;
   height: 1.8rem;
   justify-content: center;
+  position: absolute;
+  right: 0;
+  top: 0;
   width: 1.8rem;
 }
 
