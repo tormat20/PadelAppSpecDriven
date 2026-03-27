@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import TokenData, require_admin, services_scope, read_services_scope
 from app.api.schemas.players import CreatePlayerRequest, PlayerResponse, UpdatePlayerRequest
-from app.api.schemas.stats import OnFireResponse, PlayerStatsResponse
+from app.api.schemas.stats import OnFireResponse, PlayerDeepDiveResponse, PlayerStatsResponse
 from app.services.name_format import format_display_name
 
 router = APIRouter(prefix="/players", tags=["players"])
@@ -62,6 +62,16 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             event_wins=stats["event_wins"],
             mexicano_best_event_score=stats["mexicano_best_event_score"],
         )
+
+
+@router.get("/{player_id}/stats/deep-dive", response_model=PlayerDeepDiveResponse)
+def get_player_deep_dive(player_id: str) -> PlayerDeepDiveResponse:
+    with services_scope() as services:
+        player = services["player_service"].get_player(player_id)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        data = services["player_stats_service"].get_player_deep_dive(player_id)
+    return PlayerDeepDiveResponse(**data)
 
 
 @router.get("/{player_id}", response_model=PlayerResponse)

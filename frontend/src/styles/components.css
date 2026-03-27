@@ -1533,6 +1533,98 @@
   text-align: center;
 }
 
+/* ── Player stats deep-dive panel ─────────────────────────────────────────── */
+
+.dd-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.dd-tab-pill {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.dd-tab-pill:hover {
+  background: var(--color-listbox-option-active);
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong);
+}
+
+.dd-tab-pill--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.dd-tab-pill--active:hover {
+  background: var(--color-accent-strong);
+  color: #fff;
+}
+
+.dd-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-top: var(--space-2);
+}
+
+.dd-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-5);
+}
+
+.dd-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dd-chart-scroll {
+  overflow-x: auto;
+}
+
+.dd-chart-label {
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.dd-sub-stat {
+  font-weight: 400;
+  text-transform: none;
+}
+
+.dd-axis-tick {
+  fill: var(--color-ink-muted);
+  font-family: var(--font-body);
+  font-size: 9px;
+}
+
+.dd-stacked-wrap {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-5);
+}
+
+.dd-empty-state {
+  padding: var(--space-5) 0;
+}
+
 /* ── Monthly leaderboard sections (Home page) ──────────────────────────────── */
 
 .leaderboard-section {

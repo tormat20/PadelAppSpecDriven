@@ -13,6 +13,7 @@ from app.services.winners_court_service import WinnersCourtService
 from app.services.ranked_box_service import RankedBoxService
 from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.mexicano_service import MexicanoService
+from app.services.team_mexicano_service import TeamMexicanoService
 
 
 class EventService:
@@ -31,6 +32,7 @@ class EventService:
         self.substitutions_repo = substitutions_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
+        self.team_mexicano_service = TeamMexicanoService()
         self.rb_service = RankedBoxService()
 
     @staticmethod
@@ -378,9 +380,14 @@ class EventService:
             if event.is_team_mexicano and self.event_teams_repo:
                 fixed_teams_objs = self.event_teams_repo.list_by_event(event_id)
                 fixed_teams = [(t.player1_id, t.player2_id) for t in fixed_teams_objs]
-                plan = self.mexicano_service.generate_round_1_team_mexicano(fixed_teams, courts)
+                event_seed = str(event_id)
+                plan = self.team_mexicano_service.generate_round_1(
+                    fixed_teams, courts, event_seed=event_seed
+                )
             else:
-                plan = self.mexicano_service.generate_round_1(player_ids, courts)
+                plan = self.mexicano_service.generate_round_1(
+                    player_ids, courts, event_seed=str(event_id)
+                )
         elif event.event_type == EventType.AMERICANO:
             all_plans = generate_americano_rounds(player_ids, courts)
             total_rounds = len(all_plans)

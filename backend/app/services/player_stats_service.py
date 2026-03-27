@@ -129,6 +129,14 @@ class PlayerStatsService:
         """Returns player IDs whose last event win was within the past 7 days."""
         return self.player_stats_repo.get_on_fire_player_ids()
 
+    def get_player_deep_dive(self, player_id: str) -> dict:
+        """
+        Compute deep-dive stats for a player from raw match history.
+        Returns a dict matching the PlayerDeepDiveResponse shape.
+        """
+        rows = self.player_stats_repo.get_deep_dive_matches(player_id)
+        return _compute_deep_dive(rows)
+
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _derive_crowned_player_ids(
@@ -279,3 +287,150 @@ def _assign_ranks(rows: list[dict], key: tuple) -> list[dict]:
             prev_key_values = current_key
         result.append({**row, "rank": rank})
     return result
+
+
+# ── Deep-dive computation ──────────────────────────────────────────────────────
+
+
+def _empty_score24_stats() -> dict:
+    return {
+        "avg_score_per_round": [],
+        "avg_court_per_round": [],
+        "avg_court_overall": None,
+        "match_wdl": {"wins": 0, "draws": 0, "losses": 0},
+    }
+
+
+def _compute_score24_stats(rows: list[dict]) -> dict:
+    """Compute avg_score_per_round, avg_court_per_round, match_wdl for Score24 rows."""
+    from collections import defaultdict
+
+    round_scores: dict[int, list[float]] = defaultdict(list)
+    round_courts: dict[int, list[int]] = defaultdict(list)
+    all_courts: list[int] = []
+    wins = draws = losses = 0
+
+    for row in rows:
+        score = (
+            int(row["team1_score"] or 0)
+            if row["player_team"] == 1
+            else int(row["team2_score"] or 0)
+        )
+        rnum = row["round_number"]
+        round_scores[rnum].append(score)
+        round_courts[rnum].append(row["court_number"])
+        all_courts.append(row["court_number"])
+
+        if score > 12:
+            wins += 1
+        elif score < 12:
+            losses += 1
+        else:
+            draws += 1
+
+    avg_score_per_round = [
+        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_scores.items())
+    ]
+    avg_court_per_round = [
+        {"round": r, "avg_court": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_courts.items())
+    ]
+    avg_court_overall = sum(all_courts) / len(all_courts) if all_courts else None
+
+    return {
+        "avg_score_per_round": avg_score_per_round,
+        "avg_court_per_round": avg_court_per_round,
+        "avg_court_overall": avg_court_overall,
+        "match_wdl": {"wins": wins, "draws": draws, "losses": losses},
+    }
+
+
+def _compute_wdl_per_round(rows: list[dict]) -> list[dict]:
+    """Compute per-round win/draw/loss counts for WinLoss or WinLossDraw rows."""
+    from collections import defaultdict
+
+    round_wdl: dict[int, dict] = defaultdict(lambda: {"wins": 0, "draws": 0, "losses": 0})
+
+    for row in rows:
+        rnum = row["round_number"]
+        if row["is_draw"]:
+            round_wdl[rnum]["draws"] += 1
+        elif row["winner_team"] == row["player_team"]:
+            round_wdl[rnum]["wins"] += 1
+        else:
+            round_wdl[rnum]["losses"] += 1
+
+    return [{"round": r, **wdl} for r, wdl in sorted(round_wdl.items())]
+
+
+def _compute_rb_elo(rows: list[dict]) -> list[dict]:
+    """
+    Compute cumulative RB score over time, one data point per finished event.
+    Rows must be ordered by event_date ASC, event_id ASC.
+    """
+    from collections import defaultdict
+
+    # Group score deltas by (event_date, event_id)
+    event_scores: dict[tuple, int] = defaultdict(int)
+    event_order: list[tuple] = []
+
+    for row in rows:
+        key = (row["event_date"], row["event_id"])
+        if key not in event_scores:
+            event_order.append(key)
+        if row["is_draw"]:
+            event_scores[key] += 5
+        elif row["winner_team"] == row["player_team"]:
+            event_scores[key] += 25
+        else:
+            event_scores[key] -= 15
+
+    # Build cumulative timeline
+    cumulative = 0
+    timeline = []
+    for key in event_order:
+        cumulative += event_scores[key]
+        timeline.append({"event_date": key[0], "cumulative_score": cumulative})
+
+    return timeline
+
+
+def _compute_deep_dive(rows: list[dict]) -> dict:
+    """Compute the full deep-dive response from raw match rows."""
+    mexicano_rows = [
+        r
+        for r in rows
+        if r["event_type"] == "Mexicano"
+        and not r["is_team_mexicano"]
+        and r["result_type"] == "Score24"
+    ]
+    americano_rows = [
+        r for r in rows if r["event_type"] == "Americano" and r["result_type"] == "Score24"
+    ]
+    team_mex_rows = [
+        r
+        for r in rows
+        if r["event_type"] == "Mexicano" and r["is_team_mexicano"] and r["result_type"] == "Score24"
+    ]
+    rb_rows = [r for r in rows if r["event_type"] == "RankedBox"]
+    wc_rows = [r for r in rows if r["event_type"] == "WinnersCourt"]
+
+    return {
+        "mexicano": _compute_score24_stats(mexicano_rows)
+        if mexicano_rows
+        else _empty_score24_stats(),
+        "americano": _compute_score24_stats(americano_rows)
+        if americano_rows
+        else _empty_score24_stats(),
+        "team_mexicano": _compute_score24_stats(team_mex_rows)
+        if team_mex_rows
+        else _empty_score24_stats(),
+        "ranked_box": {
+            "per_round_wdl": _compute_wdl_per_round(rb_rows),
+            "elo_timeline": _compute_rb_elo(rb_rows),
+        },
+        "winners_court": {
+            "per_round_wdl": _compute_wdl_per_round(wc_rows),
+        },
+    }

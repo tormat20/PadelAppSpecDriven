@@ -18,6 +18,7 @@ import type {
   LeaderboardEntry,
   MexicanoHighscore,
   MexicanoHighscoreEntry,
+  PlayerDeepDive,
   PlayerStats,
   PreviousRoundResponse,
   RankedBoxLadder,
@@ -421,6 +422,56 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
     rbDraws: data.rb_draws ?? 0,
     eventWins: data.event_wins ?? 0,
     mexicanoBestEventScore: data.mexicano_best_event_score ?? 0,
+  }
+}
+
+function normalizeScore24Mode(raw: any) {
+  return {
+    avgScorePerRound: (raw?.avg_score_per_round ?? []).map((r: any) => ({
+      round: r.round,
+      avgScore: r.avg_score,
+      sampleCount: r.sample_count,
+    })),
+    avgCourtPerRound: (raw?.avg_court_per_round ?? []).map((r: any) => ({
+      round: r.round,
+      avgCourt: r.avg_court,
+      sampleCount: r.sample_count,
+    })),
+    avgCourtOverall: raw?.avg_court_overall ?? null,
+    matchWdl: {
+      wins: raw?.match_wdl?.wins ?? 0,
+      draws: raw?.match_wdl?.draws ?? 0,
+      losses: raw?.match_wdl?.losses ?? 0,
+    },
+  }
+}
+
+export async function getPlayerDeepDive(playerId: string): Promise<PlayerDeepDive> {
+  const data = await request<any>(`/players/${playerId}/stats/deep-dive`)
+  return {
+    mexicano: normalizeScore24Mode(data.mexicano),
+    americano: normalizeScore24Mode(data.americano),
+    teamMexicano: normalizeScore24Mode(data.team_mexicano),
+    rankedBox: {
+      perRoundWdl: (data.ranked_box?.per_round_wdl ?? []).map((r: any) => ({
+        round: r.round,
+        wins: r.wins,
+        draws: r.draws,
+        losses: r.losses,
+      })),
+      eloTimeline: (data.ranked_box?.elo_timeline ?? []).map((p: any) => ({
+        eventDate: p.event_date,
+        cumulativeScore: p.cumulative_score,
+      })),
+    },
+    winnersCourt: {
+      perRoundWdl: (data.winners_court?.per_round_wdl ?? []).map((r: any) => ({
+        round: r.round,
+        wins: r.wins,
+        draws: r.draws,
+        losses: r.losses,
+      })),
+    },
   }
 }
 

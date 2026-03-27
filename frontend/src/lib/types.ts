@@ -237,6 +237,62 @@ export type PlayerStats = {
   mexicanoBestEventScore: number
 }
 
+// ── Player deep-dive stats ─────────────────────────────────────────────────────
+
+export type RoundAvgScore = {
+  round: number
+  avgScore: number
+  sampleCount: number
+}
+
+export type RoundAvgCourt = {
+  round: number
+  avgCourt: number
+  sampleCount: number
+}
+
+export type MatchWDL = {
+  wins: number
+  draws: number
+  losses: number
+}
+
+export type Score24ModeStats = {
+  avgScorePerRound: RoundAvgScore[]
+  avgCourtPerRound: RoundAvgCourt[]
+  avgCourtOverall: number | null
+  matchWdl: MatchWDL
+}
+
+export type RoundWDL = {
+  round: number
+  wins: number
+  draws: number
+  losses: number
+}
+
+export type EloPoint = {
+  eventDate: string
+  cumulativeScore: number
+}
+
+export type RankedBoxDeepDive = {
+  perRoundWdl: RoundWDL[]
+  eloTimeline: EloPoint[]
+}
+
+export type WinnersCourtDeepDive = {
+  perRoundWdl: RoundWDL[]
+}
+
+export type PlayerDeepDive = {
+  mexicano: Score24ModeStats
+  americano: Score24ModeStats
+  teamMexicano: Score24ModeStats
+  rankedBox: RankedBoxDeepDive
+  winnersCourt: WinnersCourtDeepDive
+}
+
 // ── Leaderboards ──────────────────────────────────────────────────────────────
 
 export type LeaderboardEntry = {
