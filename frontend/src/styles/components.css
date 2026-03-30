@@ -2448,7 +2448,6 @@
   max-height: min(90vh, 920px);
   max-width: min(900px, 96vw);
   overflow-y: auto;
-  overscroll-behavior: contain;
   width: 100%;
 }
 

@@ -32,14 +32,6 @@ export default function PlayerEditDialog({
     setError("")
   }, [initialDisplayName, initialEmail])
 
-  // Lock body scroll while dialog is open
-  useEffect(() => {
-    document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [])
-
   if (typeof document === "undefined") {
     return null
   }

@@ -252,19 +252,6 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
     setPendingPick((current) => (current && validIds.has(current) ? current : null))
   }, [assignedPlayers, currentStep, teamMexicanoActive])
 
-  // Lock body scroll while the popup is open so the calendar doesn't scroll
-  // behind the overlay on small screens.
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [isOpen])
-
   const stepperSteps = useMemo(
     () =>
       teamMexicanoActive
