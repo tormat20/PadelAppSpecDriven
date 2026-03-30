@@ -66,6 +66,7 @@ class PlayerStatsResponse(BaseModel):
     display_name: str
     mexicano_score_total: int
     americano_score_total: int
+    team_mexicano_score_total: int
     rb_score_total: int
     events_attended: int
     wc_matches_played: int
@@ -76,6 +77,8 @@ class PlayerStatsResponse(BaseModel):
     rb_draws: int
     event_wins: int
     mexicano_best_event_score: int
+    mexicano_events_played: int
+    team_mexicano_events_played: int
 
 
 class LeaderboardEntryResponse(BaseModel):

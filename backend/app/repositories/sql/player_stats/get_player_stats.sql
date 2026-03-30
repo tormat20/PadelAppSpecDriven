@@ -12,6 +12,9 @@ SELECT
     ps.mexicano_best_event_score,
     ps.event_wins,
     ps.last_win_at,
-    ps.americano_score_total
+    ps.americano_score_total,
+    ps.team_mexicano_score_total,
+    ps.mexicano_events_played,
+    ps.team_mexicano_events_played
 FROM player_stats ps
 WHERE ps.player_id = ?;

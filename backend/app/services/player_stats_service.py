@@ -57,17 +57,26 @@ class PlayerStatsService:
 
         # Accumulate stats from every completed match
         rounds = self.rounds_repo.list_rounds(event_id)
+        is_team_mexicano = getattr(event, "is_team_mexicano", False) or False
         for round_obj in rounds:
             for match in self.matches_repo.list_by_round(round_obj.id):
                 if match.status != MatchStatus.COMPLETED:
                     continue
                 all_completed_matches.append(match)
-                self._accumulate_match(match, event.event_type, all_time_deltas, monthly_deltas)
+                self._accumulate_match(
+                    match, event.event_type, is_team_mexicano, all_time_deltas, monthly_deltas
+                )
 
         # Each player attended this event (add 1 to events_attended)
         for pid in player_ids:
             all_time_deltas[pid]["events_attended_delta"] += 1
             monthly_deltas[pid]["events_played_delta"] += 1
+            # Track per-mode event counts
+            if event.event_type == EventType.MEXICANO:
+                if is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_events_delta"] += 1
+                else:
+                    all_time_deltas[pid]["mexicano_events_delta"] += 1
 
         # Derive crowned (winning) players for this event
         crowned_ids = self._derive_crowned_player_ids(
@@ -77,11 +86,13 @@ class PlayerStatsService:
             if pid in all_time_deltas:
                 all_time_deltas[pid]["event_wins_delta"] += 1
 
-        # For Mexicano/Americano: record each player's total event score as candidate highscore
+        # For Mexicano/Americano/TeamMexicano: record each player's total event score as candidate highscore
         if event.event_type in (EventType.MEXICANO, EventType.AMERICANO):
             for pid in player_ids:
                 if event.event_type == EventType.AMERICANO:
                     score = all_time_deltas[pid]["americano_score_delta"]
+                elif is_team_mexicano:
+                    score = all_time_deltas[pid]["team_mexicano_score_delta"]
                 else:
                     score = all_time_deltas[pid]["mexicano_score_delta"]
                 all_time_deltas[pid]["mexicano_event_score"] = score
@@ -190,6 +201,7 @@ class PlayerStatsService:
         self,
         match,
         event_type: EventType,
+        is_team_mexicano: bool,
         all_time_deltas: dict[str, dict],
         monthly_deltas: dict[str, dict],
     ) -> None:
@@ -204,12 +216,14 @@ class PlayerStatsService:
             player_team = 1 if pid in players_on_team1 else 2
 
             if match.result_type == ResultType.SCORE_24:
-                # Mexicano/Americano: accumulate score into separate totals
+                # Mexicano/Americano/TeamMexicano: accumulate score into separate totals
                 score = (
                     int(match.team1_score or 0) if player_team == 1 else int(match.team2_score or 0)
                 )
                 if event_type == EventType.AMERICANO:
                     all_time_deltas[pid]["americano_score_delta"] += score
+                elif is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_score_delta"] += score
                 else:
                     all_time_deltas[pid]["mexicano_score_delta"] += score
                 monthly_deltas[pid]["mexicano_score_delta"] += score
@@ -244,8 +258,11 @@ def _zero_all_time_deltas() -> dict:
     return {
         "mexicano_score_delta": 0,
         "americano_score_delta": 0,
+        "team_mexicano_score_delta": 0,
         "rb_score_delta": 0,
         "events_attended_delta": 0,
+        "mexicano_events_delta": 0,
+        "team_mexicano_events_delta": 0,
         "wc_matches_played_delta": 0,
         "wc_wins_delta": 0,
         "wc_losses_delta": 0,
@@ -270,8 +287,11 @@ def _zero_all_time_stats(player_id: str) -> dict:
         "player_id": player_id,
         "mexicano_score_total": 0,
         "americano_score_total": 0,
+        "team_mexicano_score_total": 0,
         "rb_score_total": 0,
         "events_attended": 0,
+        "mexicano_events_played": 0,
+        "team_mexicano_events_played": 0,
         "wc_matches_played": 0,
         "wc_wins": 0,
         "wc_losses": 0,

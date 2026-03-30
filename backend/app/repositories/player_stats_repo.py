@@ -38,6 +38,9 @@ class PlayerStatsRepository:
                 event_wins_delta,
                 event_wins_delta,  # second use: CASE WHEN ? = 1 THEN NOW()
                 deltas.get("americano_score_delta", 0),
+                deltas.get("team_mexicano_score_delta", 0),
+                deltas.get("mexicano_events_delta", 0),
+                deltas.get("team_mexicano_events_delta", 0),
             ],
         )
 
@@ -83,6 +86,9 @@ class PlayerStatsRepository:
             "event_wins": row[11],
             "last_win_at": row[12],
             "americano_score_total": row[13],
+            "team_mexicano_score_total": row[14],
+            "mexicano_events_played": row[15],
+            "team_mexicano_events_played": row[16],
         }
 
     def get_player_of_month(self, year: int, month: int) -> list[dict]:

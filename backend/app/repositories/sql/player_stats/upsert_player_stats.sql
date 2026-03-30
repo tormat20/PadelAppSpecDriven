@@ -13,21 +13,27 @@ INSERT INTO player_stats (
     event_wins,
     last_win_at,
     americano_score_total,
+    team_mexicano_score_total,
+    mexicano_events_played,
+    team_mexicano_events_played,
     updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN NOW() ELSE NULL END, ?, NOW())
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN NOW() ELSE NULL END, ?, ?, ?, ?, NOW())
 ON CONFLICT (player_id) DO UPDATE SET
-    mexicano_score_total      = player_stats.mexicano_score_total      + excluded.mexicano_score_total,
-    rb_score_total            = player_stats.rb_score_total            + excluded.rb_score_total,
-    events_attended           = player_stats.events_attended           + excluded.events_attended,
-    wc_matches_played         = player_stats.wc_matches_played         + excluded.wc_matches_played,
-    wc_wins                   = player_stats.wc_wins                   + excluded.wc_wins,
-    wc_losses                 = player_stats.wc_losses                 + excluded.wc_losses,
-    rb_wins                   = player_stats.rb_wins                   + excluded.rb_wins,
-    rb_losses                 = player_stats.rb_losses                 + excluded.rb_losses,
-    rb_draws                  = player_stats.rb_draws                  + excluded.rb_draws,
-    mexicano_best_event_score = GREATEST(player_stats.mexicano_best_event_score, excluded.mexicano_best_event_score),
-    event_wins                = player_stats.event_wins                + excluded.event_wins,
-    last_win_at               = CASE WHEN excluded.event_wins > 0 THEN NOW() ELSE player_stats.last_win_at END,
-    americano_score_total     = player_stats.americano_score_total     + excluded.americano_score_total,
-    updated_at                = NOW();
+    mexicano_score_total          = player_stats.mexicano_score_total          + excluded.mexicano_score_total,
+    rb_score_total                = player_stats.rb_score_total                + excluded.rb_score_total,
+    events_attended               = player_stats.events_attended               + excluded.events_attended,
+    wc_matches_played             = player_stats.wc_matches_played             + excluded.wc_matches_played,
+    wc_wins                       = player_stats.wc_wins                       + excluded.wc_wins,
+    wc_losses                     = player_stats.wc_losses                     + excluded.wc_losses,
+    rb_wins                       = player_stats.rb_wins                       + excluded.rb_wins,
+    rb_losses                     = player_stats.rb_losses                     + excluded.rb_losses,
+    rb_draws                      = player_stats.rb_draws                      + excluded.rb_draws,
+    mexicano_best_event_score     = GREATEST(player_stats.mexicano_best_event_score, excluded.mexicano_best_event_score),
+    event_wins                    = player_stats.event_wins                    + excluded.event_wins,
+    last_win_at                   = CASE WHEN excluded.event_wins > 0 THEN NOW() ELSE player_stats.last_win_at END,
+    americano_score_total         = player_stats.americano_score_total         + excluded.americano_score_total,
+    team_mexicano_score_total     = player_stats.team_mexicano_score_total     + excluded.team_mexicano_score_total,
+    mexicano_events_played        = player_stats.mexicano_events_played        + excluded.mexicano_events_played,
+    team_mexicano_events_played   = player_stats.team_mexicano_events_played   + excluded.team_mexicano_events_played,
+    updated_at                    = NOW();

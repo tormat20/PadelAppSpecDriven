@@ -52,6 +52,7 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             display_name=format_display_name(player.display_name),
             mexicano_score_total=stats["mexicano_score_total"],
             americano_score_total=stats["americano_score_total"],
+            team_mexicano_score_total=stats["team_mexicano_score_total"],
             rb_score_total=stats["rb_score_total"],
             events_attended=stats["events_attended"],
             wc_matches_played=stats["wc_matches_played"],
@@ -62,6 +63,8 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             rb_draws=stats["rb_draws"],
             event_wins=stats["event_wins"],
             mexicano_best_event_score=stats["mexicano_best_event_score"],
+            mexicano_events_played=stats["mexicano_events_played"],
+            team_mexicano_events_played=stats["team_mexicano_events_played"],
         )
 
 
