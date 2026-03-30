@@ -255,6 +255,105 @@ export function buildStackedBars(
   })
 }
 
+// ── Grouped side-by-side bar chart ───────────────────────────────────────────
+
+export type GroupedBar = {
+  /** "Win" | "Draw" | "Loss" */
+  label: string
+  color: string
+  count: number
+  /** x offset of this sub-bar within the SVG viewBox */
+  x: number
+  /** y offset (top of bar, grows upward from baseline) */
+  y: number
+  width: number
+  height: number
+}
+
+export type GroupedBarGroup = {
+  /** e.g. "R1" */
+  roundLabel: string
+  bars: GroupedBar[]
+  /** x centre of the group, for the round label */
+  labelX: number
+}
+
+/**
+ * Build grouped side-by-side bar groups for absolute-count WDL charts.
+ *
+ * Each round produces one group of N sub-bars (N=3 with draw, N=2 without).
+ * Bar height = (count / globalMaxCount) * plotH.
+ * Zero-count bars are omitted entirely.
+ * All bars share a common Y scale derived from the global maximum count.
+ *
+ * @param rounds   - per-round WDL data
+ * @param showDraw - true for Ranked Box (3 bars), false for Winners Court (2 bars)
+ * @param svgW     - total SVG width
+ * @param svgH     - total SVG height
+ * @param padX     - horizontal padding
+ * @param padY     - vertical padding
+ */
+export function buildGroupedBars(
+  rounds: Array<{ round: number; wins: number; draws: number; losses: number }>,
+  showDraw: boolean,
+  svgW: number,
+  svgH: number,
+  padX: number,
+  padY: number,
+): GroupedBarGroup[] {
+  const WIN_COLOR = "#0c8a8f"
+  const DRAW_COLOR = "#f59e0b"
+  const LOSS_COLOR = "#ef4444"
+  const SUB_GAP = 2
+
+  const activeRounds = rounds.filter((r) => r.wins + r.draws + r.losses > 0)
+  if (activeRounds.length === 0) return []
+
+  // Global maximum count across all rounds and all displayed outcomes
+  let globalMax = 0
+  for (const r of activeRounds) {
+    globalMax = Math.max(globalMax, r.wins, r.losses)
+    if (showDraw) globalMax = Math.max(globalMax, r.draws)
+  }
+  if (globalMax === 0) return []
+
+  const plotW = svgW - padX * 2
+  const plotH = svgH - padY * 2
+  const baseline = padY + plotH
+
+  const n = showDraw ? 3 : 2
+  const slotW = plotW / activeRounds.length
+  // Sub-bar width: divide slot evenly among n sub-bars minus gaps
+  const subBarW = Math.max(4, slotW / n - SUB_GAP)
+
+  return activeRounds.map((r, i) => {
+    const slotX = padX + i * slotW
+    const outcomes: Array<{ label: string; color: string; count: number }> = [
+      { label: "Win", color: WIN_COLOR, count: r.wins },
+      ...(showDraw ? [{ label: "Draw", color: DRAW_COLOR, count: r.draws }] : []),
+      { label: "Loss", color: LOSS_COLOR, count: r.losses },
+    ]
+
+    const bars: GroupedBar[] = []
+    let subIdx = 0
+    for (const outcome of outcomes) {
+      if (outcome.count === 0) {
+        subIdx++
+        continue
+      }
+      const h = (outcome.count / globalMax) * plotH
+      const x = slotX + subIdx * (subBarW + SUB_GAP)
+      const y = baseline - h
+      bars.push({ label: outcome.label, color: outcome.color, count: outcome.count, x, y, width: subBarW, height: h })
+      subIdx++
+    }
+
+    const labelX = slotX + slotW / 2
+
+    return { roundLabel: `R${r.round}`, bars, labelX }
+  })
+}
+
 // ── Line chart ────────────────────────────────────────────────────────────────
 
 export type LinePoint = {

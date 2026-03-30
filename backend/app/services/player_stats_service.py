@@ -80,7 +80,10 @@ class PlayerStatsService:
         # For Mexicano/Americano: record each player's total event score as candidate highscore
         if event.event_type in (EventType.MEXICANO, EventType.AMERICANO):
             for pid in player_ids:
-                score = all_time_deltas[pid]["mexicano_score_delta"]
+                if event.event_type == EventType.AMERICANO:
+                    score = all_time_deltas[pid]["americano_score_delta"]
+                else:
+                    score = all_time_deltas[pid]["mexicano_score_delta"]
                 all_time_deltas[pid]["mexicano_event_score"] = score
 
         # Write deltas
@@ -155,7 +158,12 @@ class PlayerStatsService:
         if event_type in (EventType.MEXICANO, EventType.AMERICANO):
             if not all_time_deltas:
                 return []
-            scores = {pid: d["mexicano_score_delta"] for pid, d in all_time_deltas.items()}
+            delta_key = (
+                "americano_score_delta"
+                if event_type == EventType.AMERICANO
+                else "mexicano_score_delta"
+            )
+            scores = {pid: d[delta_key] for pid, d in all_time_deltas.items()}
             top_score = max(scores.values(), default=0)
             if top_score <= 0:
                 return []
@@ -196,11 +204,14 @@ class PlayerStatsService:
             player_team = 1 if pid in players_on_team1 else 2
 
             if match.result_type == ResultType.SCORE_24:
-                # Mexicano: accumulate score
+                # Mexicano/Americano: accumulate score into separate totals
                 score = (
                     int(match.team1_score or 0) if player_team == 1 else int(match.team2_score or 0)
                 )
-                all_time_deltas[pid]["mexicano_score_delta"] += score
+                if event_type == EventType.AMERICANO:
+                    all_time_deltas[pid]["americano_score_delta"] += score
+                else:
+                    all_time_deltas[pid]["mexicano_score_delta"] += score
                 monthly_deltas[pid]["mexicano_score_delta"] += score
 
             elif match.result_type == ResultType.WIN_LOSS:
@@ -232,6 +243,7 @@ class PlayerStatsService:
 def _zero_all_time_deltas() -> dict:
     return {
         "mexicano_score_delta": 0,
+        "americano_score_delta": 0,
         "rb_score_delta": 0,
         "events_attended_delta": 0,
         "wc_matches_played_delta": 0,
@@ -257,6 +269,7 @@ def _zero_all_time_stats(player_id: str) -> dict:
     return {
         "player_id": player_id,
         "mexicano_score_total": 0,
+        "americano_score_total": 0,
         "rb_score_total": 0,
         "events_attended": 0,
         "wc_matches_played": 0,

@@ -225,6 +225,7 @@ export type PlayerStats = {
   playerId: string
   displayName: string
   mexicanoScoreTotal: number
+  americanoScoreTotal: number
   rbScoreTotal: number
   eventsAttended: number
   wcMatchesPlayed: number

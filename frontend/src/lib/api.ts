@@ -412,6 +412,7 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
     playerId: data.player_id,
     displayName: data.display_name,
     mexicanoScoreTotal: data.mexicano_score_total ?? 0,
+    americanoScoreTotal: data.americano_score_total ?? 0,
     rbScoreTotal: data.rb_score_total ?? 0,
     eventsAttended: data.events_attended ?? 0,
     wcMatchesPlayed: data.wc_matches_played ?? 0,

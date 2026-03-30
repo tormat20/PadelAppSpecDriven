@@ -12,9 +12,10 @@ INSERT INTO player_stats (
     mexicano_best_event_score,
     event_wins,
     last_win_at,
+    americano_score_total,
     updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN NOW() ELSE NULL END, NOW())
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN NOW() ELSE NULL END, ?, NOW())
 ON CONFLICT (player_id) DO UPDATE SET
     mexicano_score_total      = player_stats.mexicano_score_total      + excluded.mexicano_score_total,
     rb_score_total            = player_stats.rb_score_total            + excluded.rb_score_total,
@@ -28,4 +29,5 @@ ON CONFLICT (player_id) DO UPDATE SET
     mexicano_best_event_score = GREATEST(player_stats.mexicano_best_event_score, excluded.mexicano_best_event_score),
     event_wins                = player_stats.event_wins                + excluded.event_wins,
     last_win_at               = CASE WHEN excluded.event_wins > 0 THEN NOW() ELSE player_stats.last_win_at END,
+    americano_score_total     = player_stats.americano_score_total     + excluded.americano_score_total,
     updated_at                = NOW();

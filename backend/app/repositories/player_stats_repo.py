@@ -37,6 +37,7 @@ class PlayerStatsRepository:
                 deltas.get("mexicano_event_score", 0),  # candidate for GREATEST highscore
                 event_wins_delta,
                 event_wins_delta,  # second use: CASE WHEN ? = 1 THEN NOW()
+                deltas.get("americano_score_delta", 0),
             ],
         )
 
@@ -81,6 +82,7 @@ class PlayerStatsRepository:
             "mexicano_best_event_score": row[10],
             "event_wins": row[11],
             "last_win_at": row[12],
+            "americano_score_total": row[13],
         }
 
     def get_player_of_month(self, year: int, month: int) -> list[dict]:

@@ -65,6 +65,7 @@ class PlayerStatsResponse(BaseModel):
     player_id: str
     display_name: str
     mexicano_score_total: int
+    americano_score_total: int
     rb_score_total: int
     events_attended: int
     wc_matches_played: int

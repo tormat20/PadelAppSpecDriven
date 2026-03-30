@@ -5,6 +5,7 @@ import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import {
   buildBarSegments,
   buildDoughnutSegments,
+  buildGroupedBars,
   buildLinePoints,
   buildStackedBars,
 } from "../features/player-stats/chartData"
@@ -416,7 +417,178 @@ function EloLineChart({ timeline }: EloLineChartProps) {
   )
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
+// ── Grouped bar chart ─────────────────────────────────────────────────────────
+
+const GROUPED_W = 260
+const GROUPED_H = 120
+const GROUPED_PAD_X = 8
+const GROUPED_PAD_Y = 8
+
+interface GroupedBarChartProps {
+  rounds: RoundWDL[]
+  showDraw: boolean
+  title: string
+}
+
+function GroupedBarChart({ rounds, showDraw, title }: GroupedBarChartProps) {
+  const groups = buildGroupedBars(
+    rounds,
+    showDraw,
+    GROUPED_W,
+    GROUPED_H,
+    GROUPED_PAD_X,
+    GROUPED_PAD_Y,
+  )
+
+  const baseline = GROUPED_PAD_Y + (GROUPED_H - GROUPED_PAD_Y * 2)
+
+  // Legend aggregates
+  const totalWins = rounds.reduce((s, r) => s + r.wins, 0)
+  const totalDraws = rounds.reduce((s, r) => s + r.draws, 0)
+  const totalLosses = rounds.reduce((s, r) => s + r.losses, 0)
+
+  return (
+    <div className="dd-stacked-wrap">
+      <div className="dd-chart-scroll">
+        <svg
+          width={GROUPED_W}
+          height={GROUPED_H}
+          viewBox={`0 0 ${GROUPED_W} ${GROUPED_H}`}
+          role="img"
+          aria-label={title}
+        >
+          <title>{title}</title>
+          {/* Shared baseline */}
+          <line
+            x1={GROUPED_PAD_X}
+            y1={baseline}
+            x2={GROUPED_W - GROUPED_PAD_X}
+            y2={baseline}
+            stroke="var(--color-border)"
+            strokeWidth={1}
+          />
+          {groups.map((group) => (
+            <g key={group.roundLabel}>
+              {group.bars.map((bar) => (
+                <rect
+                  key={`${group.roundLabel}-${bar.label}`}
+                  x={bar.x}
+                  y={bar.y}
+                  width={bar.width}
+                  height={bar.height}
+                  fill={bar.color}
+                  rx={2}
+                />
+              ))}
+              <text
+                x={group.labelX}
+                y={GROUPED_H - 2}
+                textAnchor="middle"
+                className="dd-axis-tick"
+              >
+                {group.roundLabel}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="stats-chart-details">
+        <LegendRow color="#0c8a8f" label="Wins" value={totalWins} />
+        {showDraw && <LegendRow color="#f59e0b" label="Draws" value={totalDraws} />}
+        <LegendRow color="#ef4444" label="Losses" value={totalLosses} />
+      </div>
+    </div>
+  )
+}
+
+// ── Overview panel with tabs ──────────────────────────────────────────────────
+
+type OverviewTab = "all" | "mexicano" | "americano" | "team_mexicano"
+
+const OVERVIEW_TABS: Array<{ id: OverviewTab; label: string }> = [
+  { id: "all", label: "All Stats" },
+  { id: "mexicano", label: "Mexicano" },
+  { id: "americano", label: "Americano" },
+  { id: "team_mexicano", label: "Team Mexicano" },
+]
+
+interface OverviewPanelProps {
+  stats: PlayerStats
+  deepDive: PlayerDeepDive | null
+}
+
+function OverviewPanel({ stats, deepDive }: OverviewPanelProps) {
+  const [activeTab, setActiveTab] = useState<OverviewTab>("all")
+
+  function renderTabContent() {
+    if (activeTab === "all") {
+      return (
+        <div className="stats-cards-row">
+          <StatCard label="Events Attended" value={stats.eventsAttended} />
+          <StatCard label="Event Wins" value={stats.eventWins} />
+          <StatCard label="Mexicano Total" value={stats.mexicanoScoreTotal} />
+          <StatCard label="Americano Total" value={stats.americanoScoreTotal} />
+          <StatCard label="RB Score" value={stats.rbScoreTotal} />
+        </div>
+      )
+    }
+
+    if (deepDive === null) {
+      return <p className="muted">Loading…</p>
+    }
+
+    let wdl: MatchWDL
+    if (activeTab === "mexicano") {
+      wdl = deepDive.mexicano.matchWdl
+    } else if (activeTab === "americano") {
+      wdl = deepDive.americano.matchWdl
+    } else {
+      wdl = deepDive.teamMexicano.matchWdl
+    }
+
+    return (
+      <div className="stats-cards-row">
+        <StatCard label="Matches Played" value={wdl.wins + wdl.draws + wdl.losses} />
+        <StatCard label="Wins" value={wdl.wins} />
+        <StatCard label="Draws" value={wdl.draws} />
+        <StatCard label="Losses" value={wdl.losses} />
+      </div>
+    )
+  }
+
+  return (
+    <section className="panel">
+      <h2 className="stats-section-heading">Overview</h2>
+
+      {/* Tab pills */}
+      <div className="dd-tab-bar" role="tablist" aria-label="Overview mode">
+        {OVERVIEW_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={activeTab === id}
+            aria-controls={`ov-panel-${id}`}
+            id={`ov-tab-${id}`}
+            className={`dd-tab-pill${activeTab === id ? " dd-tab-pill--active" : ""}`}
+            onClick={() => setActiveTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id={`ov-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`ov-tab-${activeTab}`}
+      >
+        {renderTabContent()}
+      </div>
+    </section>
+  )
+}
+
+
 
 function DeepDiveEmpty() {
   return (
@@ -490,7 +662,7 @@ function RankedBoxTab({ perRoundWdl, eloTimeline }: RankedBoxTabProps) {
       {perRoundWdl.length > 0 && (
         <div className="dd-chart-wrap">
           <p className="dd-chart-label">Win / Draw / Loss per round</p>
-          <StackedBarChart rounds={perRoundWdl} showDraw={true} title="Ranked Box per-round WDL" />
+          <GroupedBarChart rounds={perRoundWdl} showDraw={true} title="Ranked Box per-round WDL" />
         </div>
       )}
       {eloTimeline.length > 0 && <EloLineChart timeline={eloTimeline} />}
@@ -502,17 +674,39 @@ function RankedBoxTab({ perRoundWdl, eloTimeline }: RankedBoxTabProps) {
 
 interface WinnersCourtTabProps {
   perRoundWdl: RoundWDL[]
+  wcWins: number
+  wcLosses: number
+  wcMatchesPlayed: number
 }
 
-function WinnersCourtTab({ perRoundWdl }: WinnersCourtTabProps) {
+function WinnersCourtTab({ perRoundWdl, wcWins, wcLosses, wcMatchesPlayed }: WinnersCourtTabProps) {
   const hasData = perRoundWdl.length > 0
   if (!hasData) return <DeepDiveEmpty />
 
   return (
     <div className="dd-tab-content">
+      {/* Summary doughnut */}
+      <div className="dd-row">
+        <div className="stats-doughnut-wrapper">
+          <Doughnut
+            title="WinnersCourt win/loss split"
+            segments={[
+              { label: "Wins", value: wcWins, color: COLOR_TEAL },
+              { label: "Losses", value: wcLosses, color: COLOR_RED },
+            ]}
+          />
+        </div>
+        <div className="stats-chart-details">
+          <p className="stats-matches-played">
+            {formatStatValue(wcMatchesPlayed, "matches played")}
+          </p>
+          <LegendRow color={COLOR_TEAL} label="Wins" value={wcWins} />
+          <LegendRow color={COLOR_RED} label="Losses" value={wcLosses} />
+        </div>
+      </div>
       <div className="dd-chart-wrap">
         <p className="dd-chart-label">Win / Loss per round</p>
-        <StackedBarChart rounds={perRoundWdl} showDraw={false} title="Winners Court per-round WL" />
+        <GroupedBarChart rounds={perRoundWdl} showDraw={false} title="Winners Court per-round WL" />
       </div>
     </div>
   )
@@ -532,9 +726,10 @@ const TAB_LABELS: Array<{ id: DeepDiveTab; label: string }> = [
 
 interface DeepDivePanelProps {
   data: PlayerDeepDive
+  stats: PlayerStats
 }
 
-function DeepDivePanel({ data }: DeepDivePanelProps) {
+function DeepDivePanel({ data, stats }: DeepDivePanelProps) {
   const [activeTab, setActiveTab] = useState<DeepDiveTab>("mexicano")
 
   return (
@@ -597,7 +792,12 @@ function DeepDivePanel({ data }: DeepDivePanelProps) {
         aria-labelledby="dd-tab-winners_court"
         hidden={activeTab !== "winners_court"}
       >
-        <WinnersCourtTab perRoundWdl={data.winnersCourt.perRoundWdl} />
+        <WinnersCourtTab
+            perRoundWdl={data.winnersCourt.perRoundWdl}
+            wcWins={stats.wcWins}
+            wcLosses={stats.wcLosses}
+            wcMatchesPlayed={stats.wcMatchesPlayed}
+          />
       </div>
     </section>
   )
@@ -662,67 +862,11 @@ export default function PlayerStatsPage() {
 
       {!loading && !error && stats && (
         <>
-          {/* ── Summary cards ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">Overview</h2>
-            <div className="stats-cards-row">
-              <StatCard label="Events Attended" value={stats.eventsAttended} />
-              <StatCard label="Event Wins" value={stats.eventWins} />
-              <StatCard label="Mexicano / Americano Total" value={stats.mexicanoScoreTotal} />
-              <StatCard label="Ranked Box Total" value={stats.rbScoreTotal} />
-            </div>
-          </section>
-
-          {/* ── WinnersCourt ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">WinnersCourt</h2>
-            <div className="stats-chart-row">
-              <div className="stats-doughnut-wrapper">
-                <Doughnut
-                  title="WinnersCourt win/loss split"
-                  segments={[
-                    { label: "Wins", value: stats.wcWins, color: COLOR_TEAL },
-                    { label: "Losses", value: stats.wcLosses, color: COLOR_RED },
-                  ]}
-                />
-              </div>
-              <div className="stats-chart-details">
-                <p className="stats-matches-played">
-                  {formatStatValue(stats.wcMatchesPlayed, "matches played")}
-                </p>
-                <LegendRow color={COLOR_TEAL} label="Wins" value={stats.wcWins} />
-                <LegendRow color={COLOR_RED} label="Losses" value={stats.wcLosses} />
-              </div>
-            </div>
-          </section>
-
-          {/* ── Ranked Box ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">Ranked Box</h2>
-            <div className="stats-chart-row">
-              <div className="stats-doughnut-wrapper">
-                <Doughnut
-                  title="Ranked Box win/loss/draw split"
-                  segments={[
-                    { label: "Wins", value: stats.rbWins, color: COLOR_TEAL },
-                    { label: "Losses", value: stats.rbLosses, color: COLOR_RED },
-                    { label: "Draws", value: stats.rbDraws, color: COLOR_AMBER },
-                  ]}
-                />
-              </div>
-              <div className="stats-chart-details">
-                <p className="stats-rb-score">
-                  {formatStatValue(stats.rbScoreTotal, "pts total")}
-                </p>
-                <LegendRow color={COLOR_TEAL} label="Wins (+25)" value={stats.rbWins} />
-                <LegendRow color={COLOR_RED} label="Losses (−15)" value={stats.rbLosses} />
-                <LegendRow color={COLOR_AMBER} label="Draws (+5)" value={stats.rbDraws} />
-              </div>
-            </div>
-          </section>
+          {/* ── Overview (tabbed) ── */}
+          <OverviewPanel stats={stats} deepDive={deepDive} />
 
           {/* ── Deep-dive panel ── */}
-          {deepDive && <DeepDivePanel data={deepDive} />}
+          {deepDive && <DeepDivePanel data={deepDive} stats={stats} />}
         </>
       )}
 
