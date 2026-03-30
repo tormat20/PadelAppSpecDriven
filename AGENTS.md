@@ -159,6 +159,66 @@ For cross-stack changes:
 - If task lists exist, keep task checkboxes in sync with real completion state.
 - When behavior changes materially, update `spec.md`, `plan.md`, and `tasks.md` together.
 
+## Git Workflow
+
+### Branch Model
+
+```
+main   production-only; what the customer laptop runs
+dev    continuous integration; all feature branches merge here
+```
+
+- `main` is never committed to directly.
+- `dev` is the default PR target on GitHub.
+- Feature branches are cut from `dev` and merged back to `dev` via PR.
+- `dev` → `main` happens via PR at release time only.
+
+### Day-to-Day Push/Pull
+
+```bash
+# Start new work
+git checkout dev
+git pull origin dev
+git checkout -b feature/<name>
+
+# Push feature branch and open PR targeting dev
+git push -u origin feature/<name>
+
+# After PR merges, clean up locally
+git checkout dev
+git pull origin dev
+git branch -d feature/<name>
+```
+
+### Customer Laptop
+
+The customer laptop always runs `main`. Use explicit branch names to avoid
+accidentally pulling from whatever the GitHub default branch is:
+
+```bash
+# Update to latest production code
+git pull origin main
+
+# First-time setup after a fresh clone (lands on dev by default)
+git checkout main
+git pull origin main
+```
+
+### Release: Promoting dev → main
+
+```bash
+# On GitHub: open a PR from dev → main, review, merge
+# Then locally sync main
+git checkout main
+git pull origin main
+```
+
+### Rules for Agents
+
+- Always branch off `dev`, never off `main`.
+- Never push directly to `main` or `dev`; use PRs.
+- After finishing a task, ensure `dev` is up to date before cutting a new branch.
+
 ## Practical Guardrails for Agents
 
 - Do not revert unrelated dirty worktree changes.
