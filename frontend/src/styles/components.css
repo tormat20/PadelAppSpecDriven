@@ -2439,7 +2439,7 @@
   padding: var(--space-4);
   position: fixed;
   right: 0;
-  top: 0;
+  top: 60px;
   z-index: 80;
 }
 
