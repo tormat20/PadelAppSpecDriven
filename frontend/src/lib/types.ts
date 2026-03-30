@@ -263,6 +263,8 @@ export type MatchWDL = {
 
 export type Score24ModeStats = {
   avgScorePerRound: RoundAvgScore[]
+  avgScorePerRoundLastMonth: RoundAvgScore[]
+  avgScorePerRoundLastWeek: RoundAvgScore[]
   avgCourtPerRound: RoundAvgCourt[]
   avgCourtOverall: number | null
   matchWdl: MatchWDL

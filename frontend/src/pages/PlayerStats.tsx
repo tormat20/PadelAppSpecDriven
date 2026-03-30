@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import {
-  buildBarSegments,
   buildDoughnutSegments,
   buildGroupedBars,
   buildLinePoints,
@@ -27,6 +26,7 @@ import type {
 const COLOR_TEAL = "#0c8a8f"
 const COLOR_RED = "#ef4444"
 const COLOR_AMBER = "#f59e0b"
+const COLOR_GREEN = "#22c55e"
 
 // ── Doughnut chart ─────────────────────────────────────────────────────────────
 
@@ -94,82 +94,167 @@ function LegendRow({ color, label, value }: LegendRowProps) {
   )
 }
 
-// ── Avg Score Bar Chart ───────────────────────────────────────────────────────
+// ── Avg Score Line Chart (multi-series) ───────────────────────────────────────
 
-const BAR_W = 340
-const BAR_H = 120
-const BAR_PAD_X = 32
-const BAR_PAD_Y = 12
-const SCORE24_Y_MIN = 0
-const SCORE24_Y_MAX = 24
+const SCORE_W = 340
+const SCORE_H = 180
+const SCORE_PAD_X = 32
+const SCORE_PAD_Y = 14
+const SCORE_Y_MIN = 0
+const SCORE_Y_MAX = 24
+const SCORE_Y_RANGE = SCORE_Y_MAX - SCORE_Y_MIN
 
-interface AvgScoreBarChartProps {
-  data: RoundAvgScore[]
+interface AvgScoreLineChartProps {
+  allTime: RoundAvgScore[]
+  lastMonth: RoundAvgScore[]
+  lastWeek: RoundAvgScore[]
 }
 
-function AvgScoreBarChart({ data }: AvgScoreBarChartProps) {
-  const bars = buildBarSegments(
-    data.map((r) => ({ label: `R${r.round}`, value: r.avgScore })),
-    COLOR_TEAL,
-    BAR_W,
-    BAR_H,
-    BAR_PAD_X,
-    BAR_PAD_Y,
-    SCORE24_Y_MIN,
-    SCORE24_Y_MAX,
-  )
-  const plotH = BAR_H - BAR_PAD_Y * 2
+function AvgScoreLineChart({ allTime, lastMonth, lastWeek }: AvgScoreLineChartProps) {
+  if (allTime.length === 0 && lastMonth.length === 0 && lastWeek.length === 0) return null
+
+  // Use the all-time series as the X-axis spine; fall back to whichever series has data
+  const spine = allTime.length > 0 ? allTime : lastMonth.length > 0 ? lastMonth : lastWeek
+  const rounds = spine.map((r) => r.round)
+  const plotW = SCORE_W - SCORE_PAD_X * 2
+  const plotH = SCORE_H - SCORE_PAD_Y * 2
+
+  // Map a round number → X pixel position based on its index in the spine
+  function xForRound(round: number): number {
+    const idx = rounds.indexOf(round)
+    if (idx === -1) return SCORE_PAD_X
+    return SCORE_PAD_X + (rounds.length === 1 ? plotW / 2 : (idx / (rounds.length - 1)) * plotW)
+  }
+
+  // Map an avg score → Y pixel position (clamped to axis range)
+  function yForScore(score: number): number {
+    const clamped = Math.max(SCORE_Y_MIN, Math.min(SCORE_Y_MAX, score))
+    return SCORE_PAD_Y + plotH - ((clamped - SCORE_Y_MIN) / SCORE_Y_RANGE) * plotH
+  }
+
+  // Build SVG path + dot list for one series
+  function buildSeries(data: RoundAvgScore[]) {
+    if (data.length === 0) return { pathD: "", pts: [] as Array<{ x: number; y: number }> }
+    const pts = data.map((r) => ({ x: xForRound(r.round), y: yForScore(r.avgScore) }))
+    const pathD =
+      pts.length === 1
+        ? ""
+        : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+    return { pathD, pts }
+  }
+
+  const seriesAllTime = buildSeries(allTime)
+  const seriesMonth = buildSeries(lastMonth)
+  const seriesWeek = buildSeries(lastWeek)
+
+  // Legend — only show entries that have data, and only if >1 series is present
+  const activeSeries = [
+    lastMonth.length > 0 && { color: COLOR_GREEN, label: "Last 30 days" },
+    lastWeek.length > 0 && { color: COLOR_AMBER, label: "Last 7 days" },
+    allTime.length > 0 && { color: COLOR_RED, label: "All time" },
+  ].filter(Boolean) as Array<{ color: string; label: string }>
 
   return (
     <div className="dd-chart-wrap" aria-label="Average score per round">
       <p className="dd-chart-label">Avg score per round</p>
       <div className="dd-chart-scroll">
         <svg
-          width={Math.max(BAR_W, data.length * 32)}
-          height={BAR_H}
-          viewBox={`0 0 ${Math.max(BAR_W, data.length * 32)} ${BAR_H}`}
+          width={SCORE_W}
+          height={SCORE_H}
+          viewBox={`0 0 ${SCORE_W} ${SCORE_H}`}
           role="img"
-          aria-label="Average score per round bar chart"
+          aria-label="Average score per round line chart"
         >
           {/* Y-axis reference lines */}
           {[0, 6, 12, 18, 24].map((v) => {
-            const y = BAR_PAD_Y + plotH - ((v - SCORE24_Y_MIN) / (SCORE24_Y_MAX - SCORE24_Y_MIN)) * plotH
+            const y = yForScore(v)
             return (
               <g key={v}>
                 <line
-                  x1={BAR_PAD_X}
+                  x1={SCORE_PAD_X}
                   y1={y}
-                  x2={Math.max(BAR_W, data.length * 32) - BAR_PAD_X}
+                  x2={SCORE_W - SCORE_PAD_X}
                   y2={y}
                   stroke="var(--color-border)"
                   strokeWidth={1}
                 />
-                <text x={BAR_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
+                <text x={SCORE_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
                   {v}
                 </text>
               </g>
             )
           })}
-          {/* Bars */}
-          {bars.map((b) => (
-            <g key={b.label}>
-              <rect x={b.x} y={b.y} width={b.width} height={b.height} fill={b.color} rx={3} />
-            </g>
+
+          {/* All-time series — red, drawn first (bottom layer) */}
+          {seriesAllTime.pathD && (
+            <path
+              d={seriesAllTime.pathD}
+              fill="none"
+              stroke={COLOR_RED}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesAllTime.pts.map((p, i) => (
+            <circle key={`at-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_RED} />
           ))}
-          {/* X-axis labels */}
-          {bars.map((b) => (
+
+          {/* Last-month series — green */}
+          {seriesMonth.pathD && (
+            <path
+              d={seriesMonth.pathD}
+              fill="none"
+              stroke={COLOR_GREEN}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesMonth.pts.map((p, i) => (
+            <circle key={`lm-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_GREEN} />
+          ))}
+
+          {/* Last-week series — amber, drawn last (top layer) */}
+          {seriesWeek.pathD && (
+            <path
+              d={seriesWeek.pathD}
+              fill="none"
+              stroke={COLOR_AMBER}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesWeek.pts.map((p, i) => (
+            <circle key={`lw-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_AMBER} />
+          ))}
+
+          {/* X-axis labels (round numbers from spine) */}
+          {spine.map((r, i) => (
             <text
-              key={`lbl-${b.label}`}
-              x={b.x + b.width / 2}
-              y={BAR_H - 2}
+              key={`lbl-${r.round}`}
+              x={SCORE_PAD_X + (rounds.length === 1 ? plotW / 2 : (i / (rounds.length - 1)) * plotW)}
+              y={SCORE_H - 2}
               textAnchor="middle"
               className="dd-axis-tick"
             >
-              {b.label}
+              R{r.round}
             </text>
           ))}
         </svg>
       </div>
+
+      {/* Legend — only when more than one series has data */}
+      {activeSeries.length > 1 && (
+        <div className="dd-score-legend">
+          {activeSeries.map(({ color, label }) => (
+            <span key={label} className="dd-score-legend-item">
+              <svg width="16" height="4" aria-hidden="true">
+                <rect x="0" y="0" width="16" height="4" rx="2" fill={color} />
+              </svg>
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -653,10 +738,7 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
 
   return (
     <div className="dd-tab-content">
-      {/* Avg score per round */}
-      {data.avgScorePerRound.length > 0 && <AvgScoreBarChart data={data.avgScorePerRound} />}
-
-      {/* Win/Draw/Loss doughnut */}
+      {/* Win/Draw/Loss doughnut — first */}
       <div className="dd-row">
         <div className="stats-doughnut-wrapper">
           <Doughnut
@@ -677,6 +759,13 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
           <LegendRow color={COLOR_RED} label="Losses" value={losses} />
         </div>
       </div>
+
+      {/* Avg score per round — multi-series line chart */}
+      <AvgScoreLineChart
+        allTime={data.avgScorePerRound}
+        lastMonth={data.avgScorePerRoundLastMonth}
+        lastWeek={data.avgScorePerRoundLastWeek}
+      />
 
       {/* Avg court per round */}
       {data.avgCourtPerRound.length > 0 && (

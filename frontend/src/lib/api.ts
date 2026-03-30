@@ -436,6 +436,16 @@ function normalizeScore24Mode(raw: any) {
       avgScore: r.avg_score,
       sampleCount: r.sample_count,
     })),
+    avgScorePerRoundLastMonth: (raw?.avg_score_per_round_last_month ?? []).map((r: any) => ({
+      round: r.round,
+      avgScore: r.avg_score,
+      sampleCount: r.sample_count,
+    })),
+    avgScorePerRoundLastWeek: (raw?.avg_score_per_round_last_week ?? []).map((r: any) => ({
+      round: r.round,
+      avgScore: r.avg_score,
+      sampleCount: r.sample_count,
+    })),
     avgCourtPerRound: (raw?.avg_court_per_round ?? []).map((r: any) => ({
       round: r.round,
       avgCourt: r.avg_court,

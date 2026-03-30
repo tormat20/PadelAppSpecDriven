@@ -1619,6 +1619,24 @@
   font-size: 9px;
 }
 
+.dd-score-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
+}
+
+.dd-score-legend-item {
+  align-items: center;
+  color: var(--color-ink-muted);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 500;
+  gap: var(--space-1);
+  letter-spacing: 0.02em;
+}
+
 .dd-stacked-wrap {
   align-items: flex-start;
   display: flex;
