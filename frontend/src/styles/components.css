@@ -238,6 +238,10 @@
   gap: var(--space-3);
 }
 
+.form-grid--two-col {
+  grid-template-columns: 1fr 1fr;
+}
+
 .event-schedule-row {
   display: grid;
   gap: var(--space-2);
