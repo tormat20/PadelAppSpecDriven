@@ -63,13 +63,14 @@ function Doughnut({ segments, title }: DoughnutProps) {
 
 interface StatCardProps {
   label: string
-  value: number
+  value: number | string
 }
 
 function StatCard({ label, value }: StatCardProps) {
+  const display = typeof value === "number" ? formatStatValue(value) : value
   return (
     <div className="stats-stat-card">
-      <span className="stats-stat-value">{formatStatValue(value)}</span>
+      <span className="stats-stat-value">{display}</span>
       <span className="stats-stat-label">{label}</span>
     </div>
   )
@@ -173,27 +174,42 @@ function AvgScoreBarChart({ data }: AvgScoreBarChartProps) {
   )
 }
 
-// ── Avg Court Bar Chart ───────────────────────────────────────────────────────
+// ── Avg Court Line Chart ──────────────────────────────────────────────────────
 
-interface AvgCourtBarChartProps {
+const COURT_W = 340
+const COURT_H = 180
+const COURT_PAD_X = 32
+const COURT_PAD_Y = 14
+
+interface CourtLineChartProps {
   data: RoundAvgCourt[]
   avgCourtOverall: number | null
 }
 
-function AvgCourtBarChart({ data, avgCourtOverall }: AvgCourtBarChartProps) {
+function CourtLineChart({ data, avgCourtOverall }: CourtLineChartProps) {
   if (data.length === 0) return null
+
+  const minCourt = 1
   const maxCourt = Math.max(...data.map((r) => r.avgCourt), 1)
-  const bars = buildBarSegments(
-    data.map((r) => ({ label: `R${r.round}`, value: r.avgCourt })),
-    COLOR_TEAL,
-    BAR_W,
-    BAR_H,
-    BAR_PAD_X,
-    BAR_PAD_Y,
-    1,
-    maxCourt,
-  )
-  const plotH = BAR_H - BAR_PAD_Y * 2
+  const maxCourtInt = Math.ceil(maxCourt)
+  const plotW = COURT_W - COURT_PAD_X * 2
+  const plotH = COURT_H - COURT_PAD_Y * 2
+  const range = maxCourtInt - minCourt || 1
+
+  const pts = data.map((r, i) => ({
+    x: COURT_PAD_X + (data.length === 1 ? plotW / 2 : (i / (data.length - 1)) * plotW),
+    y: COURT_PAD_Y + plotH - ((r.avgCourt - minCourt) / range) * plotH,
+    label: `R${r.round}`,
+    value: r.avgCourt,
+  }))
+
+  const pathD =
+    pts.length === 1
+      ? ""
+      : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+
+  // Y-axis ticks: every integer from minCourt to maxCourtInt
+  const allCourtTicks = Array.from({ length: maxCourtInt - minCourt + 1 }, (_, i) => minCourt + i)
 
   return (
     <div className="dd-chart-wrap" aria-label="Average court per round">
@@ -205,45 +221,58 @@ function AvgCourtBarChart({ data, avgCourtOverall }: AvgCourtBarChartProps) {
       </p>
       <div className="dd-chart-scroll">
         <svg
-          width={Math.max(BAR_W, data.length * 32)}
-          height={BAR_H}
-          viewBox={`0 0 ${Math.max(BAR_W, data.length * 32)} ${BAR_H}`}
+          width={COURT_W}
+          height={COURT_H}
+          viewBox={`0 0 ${COURT_W} ${COURT_H}`}
           role="img"
-          aria-label="Average court per round bar chart"
+          aria-label="Average court per round line chart"
         >
-          {/* Y-axis reference lines */}
-          {[1, Math.ceil(maxCourt / 2), Math.ceil(maxCourt)].map((v) => {
-            const y = BAR_PAD_Y + plotH - ((v - 1) / (maxCourt - 1 || 1)) * plotH
+          {/* Y-axis reference lines + labels */}
+          {allCourtTicks.map((v) => {
+            const y = COURT_PAD_Y + plotH - ((v - minCourt) / range) * plotH
             return (
               <g key={v}>
                 <line
-                  x1={BAR_PAD_X}
+                  x1={COURT_PAD_X}
                   y1={y}
-                  x2={Math.max(BAR_W, data.length * 32) - BAR_PAD_X}
+                  x2={COURT_W - COURT_PAD_X}
                   y2={y}
                   stroke="var(--color-border)"
                   strokeWidth={1}
                 />
-                <text x={BAR_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
+                <text x={COURT_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
                   {v}
                 </text>
               </g>
             )
           })}
-          {bars.map((b) => (
-            <g key={b.label}>
-              <rect x={b.x} y={b.y} width={b.width} height={b.height} fill={b.color} rx={3} />
-            </g>
+          {/* Baseline */}
+          <line
+            x1={COURT_PAD_X}
+            y1={COURT_PAD_Y + plotH}
+            x2={COURT_W - COURT_PAD_X}
+            y2={COURT_PAD_Y + plotH}
+            stroke="var(--color-border)"
+            strokeWidth={1}
+          />
+          {/* Line */}
+          {pathD && (
+            <path d={pathD} fill="none" stroke={COLOR_TEAL} strokeWidth={2} strokeLinejoin="round" />
+          )}
+          {/* Dots */}
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={COLOR_TEAL} />
           ))}
-          {bars.map((b) => (
+          {/* X-axis labels */}
+          {pts.map((p) => (
             <text
-              key={`lbl-${b.label}`}
-              x={b.x + b.width / 2}
-              y={BAR_H - 2}
+              key={`lbl-${p.label}`}
+              x={p.x}
+              y={COURT_H - 2}
               textAnchor="middle"
               className="dd-axis-tick"
             >
-              {b.label}
+              {p.label}
             </text>
           ))}
         </svg>
@@ -522,13 +551,24 @@ function OverviewPanel({ stats, deepDive }: OverviewPanelProps) {
 
   function renderTabContent() {
     if (activeTab === "all") {
+      const mexAvg =
+        stats.mexicanoEventsPlayed > 0
+          ? Math.round(stats.mexicanoScoreTotal / stats.mexicanoEventsPlayed)
+          : "—"
+      const tmAvg =
+        stats.teamMexicanoEventsPlayed > 0
+          ? Math.round(stats.teamMexicanoScoreTotal / stats.teamMexicanoEventsPlayed)
+          : "—"
       return (
         <div className="stats-cards-row">
           <StatCard label="Events Attended" value={stats.eventsAttended} />
           <StatCard label="Event Wins" value={stats.eventWins} />
           <StatCard label="Mexicano Total" value={stats.mexicanoScoreTotal} />
+          <StatCard label="TM Total" value={stats.teamMexicanoScoreTotal} />
           <StatCard label="Americano Total" value={stats.americanoScoreTotal} />
           <StatCard label="RB Score" value={stats.rbScoreTotal} />
+          <StatCard label="Mex Avg/Event" value={mexAvg} />
+          <StatCard label="TM Avg/Event" value={tmAvg} />
         </div>
       )
     }
@@ -640,7 +680,7 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
 
       {/* Avg court per round */}
       {data.avgCourtPerRound.length > 0 && (
-        <AvgCourtBarChart data={data.avgCourtPerRound} avgCourtOverall={data.avgCourtOverall} />
+        <CourtLineChart data={data.avgCourtPerRound} avgCourtOverall={data.avgCourtOverall} />
       )}
     </div>
   )
