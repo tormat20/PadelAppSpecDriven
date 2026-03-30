@@ -24,6 +24,8 @@ class MatchWDL(BaseModel):
 
 class Score24ModeStats(BaseModel):
     avg_score_per_round: list[RoundAvgScore]
+    avg_score_per_round_last_month: list[RoundAvgScore]
+    avg_score_per_round_last_week: list[RoundAvgScore]
     avg_court_per_round: list[RoundAvgCourt]
     avg_court_overall: float | None
     match_wdl: MatchWDL

@@ -328,20 +328,44 @@ def _assign_ranks(rows: list[dict], key: tuple) -> list[dict]:
 def _empty_score24_stats() -> dict:
     return {
         "avg_score_per_round": [],
+        "avg_score_per_round_last_month": [],
+        "avg_score_per_round_last_week": [],
         "avg_court_per_round": [],
         "avg_court_overall": None,
         "match_wdl": {"wins": 0, "draws": 0, "losses": 0},
     }
 
 
-def _compute_score24_stats(rows: list[dict]) -> dict:
-    """Compute avg_score_per_round, avg_court_per_round, match_wdl for Score24 rows."""
+def _avg_score_series(rows: list[dict]) -> list[dict]:
+    """Return avg_score_per_round list from the given match rows."""
     from collections import defaultdict
 
     round_scores: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        score = (
+            int(row["team1_score"] or 0)
+            if row["player_team"] == 1
+            else int(row["team2_score"] or 0)
+        )
+        round_scores[row["round_number"]].append(score)
+    return [
+        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_scores.items())
+    ]
+
+
+def _compute_score24_stats(rows: list[dict]) -> dict:
+    """Compute avg_score_per_round (all-time + windowed), avg_court_per_round, match_wdl for Score24 rows."""
+    from collections import defaultdict
+    from datetime import date, timedelta
+
     round_courts: dict[int, list[int]] = defaultdict(list)
     all_courts: list[int] = []
     wins = draws = losses = 0
+
+    today = date.today()
+    cutoff_month = today - timedelta(days=30)
+    cutoff_week = today - timedelta(days=7)
 
     for row in rows:
         score = (
@@ -350,7 +374,6 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
             else int(row["team2_score"] or 0)
         )
         rnum = row["round_number"]
-        round_scores[rnum].append(score)
         round_courts[rnum].append(row["court_number"])
         all_courts.append(row["court_number"])
 
@@ -361,10 +384,16 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
         else:
             draws += 1
 
-    avg_score_per_round = [
-        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
-        for r, v in sorted(round_scores.items())
-    ]
+    # Parse event_date once per row for windowing
+    def _parse_date(row: dict) -> date:
+        raw = row["event_date"]
+        if isinstance(raw, date):
+            return raw
+        return date.fromisoformat(str(raw)[:10])
+
+    rows_month = [r for r in rows if _parse_date(r) >= cutoff_month]
+    rows_week = [r for r in rows if _parse_date(r) >= cutoff_week]
+
     avg_court_per_round = [
         {"round": r, "avg_court": sum(v) / len(v), "sample_count": len(v)}
         for r, v in sorted(round_courts.items())
@@ -372,7 +401,9 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
     avg_court_overall = sum(all_courts) / len(all_courts) if all_courts else None
 
     return {
-        "avg_score_per_round": avg_score_per_round,
+        "avg_score_per_round": _avg_score_series(rows),
+        "avg_score_per_round_last_month": _avg_score_series(rows_month),
+        "avg_score_per_round_last_week": _avg_score_series(rows_week),
         "avg_court_per_round": avg_court_per_round,
         "avg_court_overall": avg_court_overall,
         "match_wdl": {"wins": wins, "draws": draws, "losses": losses},
