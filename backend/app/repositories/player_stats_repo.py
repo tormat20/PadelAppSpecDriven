@@ -37,6 +37,10 @@ class PlayerStatsRepository:
                 deltas.get("mexicano_event_score", 0),  # candidate for GREATEST highscore
                 event_wins_delta,
                 event_wins_delta,  # second use: CASE WHEN ? = 1 THEN NOW()
+                deltas.get("americano_score_delta", 0),
+                deltas.get("team_mexicano_score_delta", 0),
+                deltas.get("mexicano_events_delta", 0),
+                deltas.get("team_mexicano_events_delta", 0),
             ],
         )
 
@@ -81,6 +85,10 @@ class PlayerStatsRepository:
             "mexicano_best_event_score": row[10],
             "event_wins": row[11],
             "last_win_at": row[12],
+            "americano_score_total": row[13],
+            "team_mexicano_score_total": row[14],
+            "mexicano_events_played": row[15],
+            "team_mexicano_events_played": row[16],
         }
 
     def get_player_of_month(self, year: int, month: int) -> list[dict]:
@@ -148,6 +156,33 @@ class PlayerStatsRepository:
         """Return player IDs whose last_win_at is within the past 7 days."""
         rows = self.conn.execute(load_sql("player_stats/get_on_fire_player_ids.sql")).fetchall()
         return [row[0] for row in rows]
+
+    def get_deep_dive_matches(self, player_id: str) -> list[dict]:
+        """
+        Return all completed matches for a player across all finished events,
+        with event_type, is_team_mexicano, round_number, court_number, scores, etc.
+        """
+        rows = self.conn.execute(
+            load_sql("player_stats/get_deep_dive_matches.sql"),
+            [player_id, player_id, player_id, player_id, player_id, player_id],
+        ).fetchall()
+        return [
+            {
+                "event_type": row[0],
+                "is_team_mexicano": bool(row[1]),
+                "round_number": row[2],
+                "court_number": row[3],
+                "result_type": row[4],
+                "team1_score": row[5],
+                "team2_score": row[6],
+                "winner_team": row[7],
+                "is_draw": bool(row[8]),
+                "player_team": row[9],
+                "event_date": str(row[10]),
+                "event_id": row[11],
+            }
+            for row in rows
+        ]
 
     def reset_all_stats(self) -> None:
         """Clear all accumulated stats so events can be re-applied from scratch."""

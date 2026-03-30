@@ -225,8 +225,12 @@ export type PlayerStats = {
   playerId: string
   displayName: string
   mexicanoScoreTotal: number
+  americanoScoreTotal: number
+  teamMexicanoScoreTotal: number
   rbScoreTotal: number
   eventsAttended: number
+  mexicanoEventsPlayed: number
+  teamMexicanoEventsPlayed: number
   wcMatchesPlayed: number
   wcWins: number
   wcLosses: number
@@ -235,6 +239,64 @@ export type PlayerStats = {
   rbDraws: number
   eventWins: number
   mexicanoBestEventScore: number
+}
+
+// ── Player deep-dive stats ─────────────────────────────────────────────────────
+
+export type RoundAvgScore = {
+  round: number
+  avgScore: number
+  sampleCount: number
+}
+
+export type RoundAvgCourt = {
+  round: number
+  avgCourt: number
+  sampleCount: number
+}
+
+export type MatchWDL = {
+  wins: number
+  draws: number
+  losses: number
+}
+
+export type Score24ModeStats = {
+  avgScorePerRound: RoundAvgScore[]
+  avgScorePerRoundLastMonth: RoundAvgScore[]
+  avgScorePerRoundLastWeek: RoundAvgScore[]
+  avgCourtPerRound: RoundAvgCourt[]
+  avgCourtOverall: number | null
+  matchWdl: MatchWDL
+}
+
+export type RoundWDL = {
+  round: number
+  wins: number
+  draws: number
+  losses: number
+}
+
+export type EloPoint = {
+  eventDate: string
+  cumulativeScore: number
+}
+
+export type RankedBoxDeepDive = {
+  perRoundWdl: RoundWDL[]
+  eloTimeline: EloPoint[]
+}
+
+export type WinnersCourtDeepDive = {
+  perRoundWdl: RoundWDL[]
+}
+
+export type PlayerDeepDive = {
+  mexicano: Score24ModeStats
+  americano: Score24ModeStats
+  teamMexicano: Score24ModeStats
+  rankedBox: RankedBoxDeepDive
+  winnersCourt: WinnersCourtDeepDive
 }
 
 // ── Leaderboards ──────────────────────────────────────────────────────────────

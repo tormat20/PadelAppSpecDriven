@@ -57,17 +57,26 @@ class PlayerStatsService:
 
         # Accumulate stats from every completed match
         rounds = self.rounds_repo.list_rounds(event_id)
+        is_team_mexicano = getattr(event, "is_team_mexicano", False) or False
         for round_obj in rounds:
             for match in self.matches_repo.list_by_round(round_obj.id):
                 if match.status != MatchStatus.COMPLETED:
                     continue
                 all_completed_matches.append(match)
-                self._accumulate_match(match, event.event_type, all_time_deltas, monthly_deltas)
+                self._accumulate_match(
+                    match, event.event_type, is_team_mexicano, all_time_deltas, monthly_deltas
+                )
 
         # Each player attended this event (add 1 to events_attended)
         for pid in player_ids:
             all_time_deltas[pid]["events_attended_delta"] += 1
             monthly_deltas[pid]["events_played_delta"] += 1
+            # Track per-mode event counts
+            if event.event_type == EventType.MEXICANO:
+                if is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_events_delta"] += 1
+                else:
+                    all_time_deltas[pid]["mexicano_events_delta"] += 1
 
         # Derive crowned (winning) players for this event
         crowned_ids = self._derive_crowned_player_ids(
@@ -77,10 +86,15 @@ class PlayerStatsService:
             if pid in all_time_deltas:
                 all_time_deltas[pid]["event_wins_delta"] += 1
 
-        # For Mexicano/Americano: record each player's total event score as candidate highscore
+        # For Mexicano/Americano/TeamMexicano: record each player's total event score as candidate highscore
         if event.event_type in (EventType.MEXICANO, EventType.AMERICANO):
             for pid in player_ids:
-                score = all_time_deltas[pid]["mexicano_score_delta"]
+                if event.event_type == EventType.AMERICANO:
+                    score = all_time_deltas[pid]["americano_score_delta"]
+                elif is_team_mexicano:
+                    score = all_time_deltas[pid]["team_mexicano_score_delta"]
+                else:
+                    score = all_time_deltas[pid]["mexicano_score_delta"]
                 all_time_deltas[pid]["mexicano_event_score"] = score
 
         # Write deltas
@@ -129,6 +143,14 @@ class PlayerStatsService:
         """Returns player IDs whose last event win was within the past 7 days."""
         return self.player_stats_repo.get_on_fire_player_ids()
 
+    def get_player_deep_dive(self, player_id: str) -> dict:
+        """
+        Compute deep-dive stats for a player from raw match history.
+        Returns a dict matching the PlayerDeepDiveResponse shape.
+        """
+        rows = self.player_stats_repo.get_deep_dive_matches(player_id)
+        return _compute_deep_dive(rows)
+
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _derive_crowned_player_ids(
@@ -147,7 +169,12 @@ class PlayerStatsService:
         if event_type in (EventType.MEXICANO, EventType.AMERICANO):
             if not all_time_deltas:
                 return []
-            scores = {pid: d["mexicano_score_delta"] for pid, d in all_time_deltas.items()}
+            delta_key = (
+                "americano_score_delta"
+                if event_type == EventType.AMERICANO
+                else "mexicano_score_delta"
+            )
+            scores = {pid: d[delta_key] for pid, d in all_time_deltas.items()}
             top_score = max(scores.values(), default=0)
             if top_score <= 0:
                 return []
@@ -174,6 +201,7 @@ class PlayerStatsService:
         self,
         match,
         event_type: EventType,
+        is_team_mexicano: bool,
         all_time_deltas: dict[str, dict],
         monthly_deltas: dict[str, dict],
     ) -> None:
@@ -188,11 +216,16 @@ class PlayerStatsService:
             player_team = 1 if pid in players_on_team1 else 2
 
             if match.result_type == ResultType.SCORE_24:
-                # Mexicano: accumulate score
+                # Mexicano/Americano/TeamMexicano: accumulate score into separate totals
                 score = (
                     int(match.team1_score or 0) if player_team == 1 else int(match.team2_score or 0)
                 )
-                all_time_deltas[pid]["mexicano_score_delta"] += score
+                if event_type == EventType.AMERICANO:
+                    all_time_deltas[pid]["americano_score_delta"] += score
+                elif is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_score_delta"] += score
+                else:
+                    all_time_deltas[pid]["mexicano_score_delta"] += score
                 monthly_deltas[pid]["mexicano_score_delta"] += score
 
             elif match.result_type == ResultType.WIN_LOSS:
@@ -224,8 +257,12 @@ class PlayerStatsService:
 def _zero_all_time_deltas() -> dict:
     return {
         "mexicano_score_delta": 0,
+        "americano_score_delta": 0,
+        "team_mexicano_score_delta": 0,
         "rb_score_delta": 0,
         "events_attended_delta": 0,
+        "mexicano_events_delta": 0,
+        "team_mexicano_events_delta": 0,
         "wc_matches_played_delta": 0,
         "wc_wins_delta": 0,
         "wc_losses_delta": 0,
@@ -249,8 +286,12 @@ def _zero_all_time_stats(player_id: str) -> dict:
     return {
         "player_id": player_id,
         "mexicano_score_total": 0,
+        "americano_score_total": 0,
+        "team_mexicano_score_total": 0,
         "rb_score_total": 0,
         "events_attended": 0,
+        "mexicano_events_played": 0,
+        "team_mexicano_events_played": 0,
         "wc_matches_played": 0,
         "wc_wins": 0,
         "wc_losses": 0,
@@ -279,3 +320,181 @@ def _assign_ranks(rows: list[dict], key: tuple) -> list[dict]:
             prev_key_values = current_key
         result.append({**row, "rank": rank})
     return result
+
+
+# ── Deep-dive computation ──────────────────────────────────────────────────────
+
+
+def _empty_score24_stats() -> dict:
+    return {
+        "avg_score_per_round": [],
+        "avg_score_per_round_last_month": [],
+        "avg_score_per_round_last_week": [],
+        "avg_court_per_round": [],
+        "avg_court_overall": None,
+        "match_wdl": {"wins": 0, "draws": 0, "losses": 0},
+    }
+
+
+def _avg_score_series(rows: list[dict]) -> list[dict]:
+    """Return avg_score_per_round list from the given match rows."""
+    from collections import defaultdict
+
+    round_scores: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        score = (
+            int(row["team1_score"] or 0)
+            if row["player_team"] == 1
+            else int(row["team2_score"] or 0)
+        )
+        round_scores[row["round_number"]].append(score)
+    return [
+        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_scores.items())
+    ]
+
+
+def _compute_score24_stats(rows: list[dict]) -> dict:
+    """Compute avg_score_per_round (all-time + windowed), avg_court_per_round, match_wdl for Score24 rows."""
+    from collections import defaultdict
+    from datetime import date, timedelta
+
+    round_courts: dict[int, list[int]] = defaultdict(list)
+    all_courts: list[int] = []
+    wins = draws = losses = 0
+
+    today = date.today()
+    cutoff_month = today - timedelta(days=30)
+    cutoff_week = today - timedelta(days=7)
+
+    for row in rows:
+        score = (
+            int(row["team1_score"] or 0)
+            if row["player_team"] == 1
+            else int(row["team2_score"] or 0)
+        )
+        rnum = row["round_number"]
+        round_courts[rnum].append(row["court_number"])
+        all_courts.append(row["court_number"])
+
+        if score > 12:
+            wins += 1
+        elif score < 12:
+            losses += 1
+        else:
+            draws += 1
+
+    # Parse event_date once per row for windowing
+    def _parse_date(row: dict) -> date:
+        raw = row["event_date"]
+        if isinstance(raw, date):
+            return raw
+        return date.fromisoformat(str(raw)[:10])
+
+    rows_month = [r for r in rows if _parse_date(r) >= cutoff_month]
+    rows_week = [r for r in rows if _parse_date(r) >= cutoff_week]
+
+    avg_court_per_round = [
+        {"round": r, "avg_court": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_courts.items())
+    ]
+    avg_court_overall = sum(all_courts) / len(all_courts) if all_courts else None
+
+    return {
+        "avg_score_per_round": _avg_score_series(rows),
+        "avg_score_per_round_last_month": _avg_score_series(rows_month),
+        "avg_score_per_round_last_week": _avg_score_series(rows_week),
+        "avg_court_per_round": avg_court_per_round,
+        "avg_court_overall": avg_court_overall,
+        "match_wdl": {"wins": wins, "draws": draws, "losses": losses},
+    }
+
+
+def _compute_wdl_per_round(rows: list[dict]) -> list[dict]:
+    """Compute per-round win/draw/loss counts for WinLoss or WinLossDraw rows."""
+    from collections import defaultdict
+
+    round_wdl: dict[int, dict] = defaultdict(lambda: {"wins": 0, "draws": 0, "losses": 0})
+
+    for row in rows:
+        rnum = row["round_number"]
+        if row["is_draw"]:
+            round_wdl[rnum]["draws"] += 1
+        elif row["winner_team"] == row["player_team"]:
+            round_wdl[rnum]["wins"] += 1
+        else:
+            round_wdl[rnum]["losses"] += 1
+
+    return [{"round": r, **wdl} for r, wdl in sorted(round_wdl.items())]
+
+
+def _compute_rb_elo(rows: list[dict]) -> list[dict]:
+    """
+    Compute cumulative RB score over time, one data point per finished event.
+    Rows must be ordered by event_date ASC, event_id ASC.
+    """
+    from collections import defaultdict
+
+    # Group score deltas by (event_date, event_id)
+    event_scores: dict[tuple, int] = defaultdict(int)
+    event_order: list[tuple] = []
+
+    for row in rows:
+        key = (row["event_date"], row["event_id"])
+        if key not in event_scores:
+            event_order.append(key)
+        if row["is_draw"]:
+            event_scores[key] += 5
+        elif row["winner_team"] == row["player_team"]:
+            event_scores[key] += 25
+        else:
+            event_scores[key] -= 15
+
+    # Build cumulative timeline
+    cumulative = 0
+    timeline = []
+    for key in event_order:
+        cumulative += event_scores[key]
+        timeline.append({"event_date": key[0], "cumulative_score": cumulative})
+
+    return timeline
+
+
+def _compute_deep_dive(rows: list[dict]) -> dict:
+    """Compute the full deep-dive response from raw match rows."""
+    mexicano_rows = [
+        r
+        for r in rows
+        if r["event_type"] == "Mexicano"
+        and not r["is_team_mexicano"]
+        and r["result_type"] == "Score24"
+    ]
+    americano_rows = [
+        r for r in rows if r["event_type"] == "Americano" and r["result_type"] == "Score24"
+    ]
+    team_mex_rows = [
+        r
+        for r in rows
+        if r["event_type"] == "Mexicano" and r["is_team_mexicano"] and r["result_type"] == "Score24"
+    ]
+    rb_rows = [r for r in rows if r["event_type"] == "RankedBox"]
+    wc_rows = [r for r in rows if r["event_type"] == "WinnersCourt"]
+
+    return {
+        "mexicano": _compute_score24_stats(mexicano_rows)
+        if mexicano_rows
+        else _empty_score24_stats(),
+        "americano": _compute_score24_stats(americano_rows)
+        if americano_rows
+        else _empty_score24_stats(),
+        "team_mexicano": _compute_score24_stats(team_mex_rows)
+        if team_mex_rows
+        else _empty_score24_stats(),
+        "ranked_box": {
+            "per_round_wdl": _compute_wdl_per_round(rb_rows),
+            "elo_timeline": _compute_rb_elo(rb_rows),
+        },
+        "winners_court": {
+            "per_round_wdl": _compute_wdl_per_round(wc_rows),
+        },
+    }

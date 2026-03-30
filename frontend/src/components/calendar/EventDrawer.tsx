@@ -251,6 +251,7 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
     )
     setPendingPick((current) => (current && validIds.has(current) ? current : null))
   }, [assignedPlayers, currentStep, teamMexicanoActive])
+
   const stepperSteps = useMemo(
     () =>
       teamMexicanoActive
@@ -614,7 +615,7 @@ export default function EventDrawer({ state, onSave, onDelete, onStart, onClose 
                   {unpairedPlayers.length > 0 && (
                     <>
                       <p className="muted">Unpaired players ({unpairedPlayers.length}):</p>
-                      <div className="form-grid" style={{ gap: "0.5rem" }}>
+                      <div className="form-grid form-grid--two-col" style={{ gap: "0.5rem" }}>
                         {unpairedPlayers.map((player) => (
                           <button
                             key={player.id}

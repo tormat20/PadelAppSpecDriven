@@ -14,6 +14,7 @@ from app.services.winners_court_service import WinnersCourtService
 from app.services.ranked_box_service import RankedBoxService
 from app.services.event_lifecycle import derive_lifecycle_status
 from app.services.mexicano_service import MexicanoService
+from app.services.team_mexicano_service import TeamMexicanoService
 
 
 class RoundService:
@@ -32,6 +33,7 @@ class RoundService:
         self.event_teams_repo = event_teams_repo
         self.winners_court_service = WinnersCourtService()
         self.mexicano_service = MexicanoService()
+        self.team_mexicano_service = TeamMexicanoService()
         self.rb_service = RankedBoxService()
 
     def go_previous_round(self, event_id: str) -> dict:
@@ -340,12 +342,11 @@ class RoundService:
                 fixed_teams = [(t.player1_id, t.player2_id) for t in fixed_teams_objs]
                 totals = self._calculate_player_totals(event_id, player_ids)
                 self._upsert_event_scores(event_id, list(totals.keys()), totals)
-                plan = self.mexicano_service.generate_next_round_team_mexicano(
+                plan = self.team_mexicano_service.generate_next_round(
                     current_round.round_number,
                     fixed_teams,
                     courts,
                     previous_scores=totals,
-                    event_seed=event_seed,
                 )
             else:
                 ordered_players, totals = self._rank_players_for_mexicano(event_id, player_ids)

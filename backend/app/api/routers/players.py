@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import TokenData, require_admin, services_scope, read_services_scope
 from app.api.schemas.players import CreatePlayerRequest, PlayerResponse, UpdatePlayerRequest
-from app.api.schemas.stats import OnFireResponse, PlayerStatsResponse
+from app.api.schemas.stats import OnFireResponse, PlayerDeepDiveResponse, PlayerStatsResponse
 from app.services.name_format import format_display_name
 
 router = APIRouter(prefix="/players", tags=["players"])
@@ -51,6 +51,8 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             player_id=player_id,
             display_name=format_display_name(player.display_name),
             mexicano_score_total=stats["mexicano_score_total"],
+            americano_score_total=stats["americano_score_total"],
+            team_mexicano_score_total=stats["team_mexicano_score_total"],
             rb_score_total=stats["rb_score_total"],
             events_attended=stats["events_attended"],
             wc_matches_played=stats["wc_matches_played"],
@@ -61,7 +63,19 @@ def get_player_stats(player_id: str) -> PlayerStatsResponse:
             rb_draws=stats["rb_draws"],
             event_wins=stats["event_wins"],
             mexicano_best_event_score=stats["mexicano_best_event_score"],
+            mexicano_events_played=stats["mexicano_events_played"],
+            team_mexicano_events_played=stats["team_mexicano_events_played"],
         )
+
+
+@router.get("/{player_id}/stats/deep-dive", response_model=PlayerDeepDiveResponse)
+def get_player_deep_dive(player_id: str) -> PlayerDeepDiveResponse:
+    with services_scope() as services:
+        player = services["player_service"].get_player(player_id)
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        data = services["player_stats_service"].get_player_deep_dive(player_id)
+    return PlayerDeepDiveResponse(**data)
 
 
 @router.get("/{player_id}", response_model=PlayerResponse)

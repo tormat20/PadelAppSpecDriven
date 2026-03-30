@@ -7,7 +7,12 @@ from app.domain.models import Match, RoundPlan, RoundPlanMatch
 Pairing = tuple[tuple[str, str], tuple[str, str]]
 
 
-def generate_round_1(event_type: EventType, player_ids: list[str], courts: list[int]) -> RoundPlan:
+def generate_round_1(
+    event_type: EventType,
+    player_ids: list[str],
+    courts: list[int],
+    event_seed: str = "",
+) -> RoundPlan:
     if len(player_ids) < 4:
         raise ValueError("At least 4 players are required")
     if len(player_ids) % 4 != 0:
@@ -18,9 +23,14 @@ def generate_round_1(event_type: EventType, player_ids: list[str], courts: list[
     matches: list[RoundPlanMatch] = []
     result_type = _result_type(event_type)
 
+    # Shuffle players before grouping so round 1 is randomised but reproducible.
+    shuffled = list(player_ids)
+    rng = random.Random(event_seed or "mexicano-r1")
+    rng.shuffle(shuffled)
+
     for i in range(max_matches):
         base = i * 4
-        quartet = player_ids[base : base + 4]
+        quartet = shuffled[base : base + 4]
         matches.append(
             RoundPlanMatch(
                 court_number=ordered_courts[i],
