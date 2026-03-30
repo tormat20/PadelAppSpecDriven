@@ -12,17 +12,13 @@ Team Mexicano rules under test:
        rank 1 vs rank 2 on the highest court,
        rank 3 vs rank 4 on the next court, ...
        rank (2n-1) vs rank 2n on the lowest court.
-  4. No-repeat guard: if adjacent pair [i] faced each other last round,
-     swap with pair [i+1] to avoid the repeat when possible.
-  5. Tiebreak on equal scores: stable sort preserves original list order (insertion order).
+  4. Tiebreak on equal scores: stable sort preserves original list order (insertion order).
 """
 
 import pytest
 
 from app.services.team_mexicano_service import (
     TeamMexicanoService,
-    _opponent_key,
-    build_last_round_opponent_pairs,
 )
 
 # ---------------------------------------------------------------------------
@@ -151,14 +147,13 @@ class TestTeamMexicanoNextRoundAdjacentPairing:
     This is the OPPOSITE of the old "best vs worst" logic.
     """
 
-    def _plan(self, last_pairs=None):
+    def _plan(self):
         svc = TeamMexicanoService()
         return svc.generate_next_round(
             1,
             TEAMS_12,
             COURTS_6,
             previous_scores=SCORES_12,
-            last_round_opponent_pairs=last_pairs,
         )
 
     def _court_teams(self, plan, court: int) -> frozenset[tuple[str, str]]:
@@ -234,105 +229,6 @@ class TestTeamMexicanoNextRoundAdjacentPairing:
         # team_12 (index 11) and team_11 (index 10) should be on top court
         assert TEAMS_12[11] in top_pair
         assert TEAMS_12[10] in top_pair
-
-
-# ---------------------------------------------------------------------------
-# No-repeat guard
-# ---------------------------------------------------------------------------
-
-
-class TestTeamMexicanoNoRepeatGuard:
-    def test_repeat_pair_is_swapped_away(self):
-        """
-        Last round: team_01 vs team_02 (the natural adjacent pair at the top).
-        This round: team_01 and team_02 should NOT face each other again.
-        """
-        svc = TeamMexicanoService()
-        last_pairs = {_opponent_key(TEAMS_12[0], TEAMS_12[1])}
-        plan = svc.generate_next_round(
-            1,
-            TEAMS_12,
-            COURTS_6,
-            previous_scores=SCORES_12,
-            last_round_opponent_pairs=last_pairs,
-        )
-        for m in plan.matches:
-            pair = frozenset({m.team1, m.team2})
-            assert frozenset({TEAMS_12[0], TEAMS_12[1]}) != pair, (
-                "team_01 vs team_02 repeated — no-repeat guard failed"
-            )
-
-    def test_swap_result_is_rank1_vs_rank3_and_rank2_vs_rank4(self):
-        """
-        When rank1 vs rank2 is a repeat, the swap gives rank1 vs rank3
-        and rank2 vs rank4 (cross-pair from adjacent pair[i+1]).
-        """
-        svc = TeamMexicanoService()
-        last_pairs = {_opponent_key(TEAMS_12[0], TEAMS_12[1])}
-        plan = svc.generate_next_round(
-            1,
-            TEAMS_12,
-            COURTS_6,
-            previous_scores=SCORES_12,
-            last_round_opponent_pairs=last_pairs,
-        )
-        court_5_or_6_pairs = {
-            frozenset({m.team1, m.team2}) for m in plan.matches if m.court_number in (5, 6)
-        }
-        # After swap: {team_01, team_03} and {team_02, team_04}
-        assert frozenset({TEAMS_12[0], TEAMS_12[2]}) in court_5_or_6_pairs
-        assert frozenset({TEAMS_12[1], TEAMS_12[3]}) in court_5_or_6_pairs
-
-    def test_no_repeat_guard_off_by_default(self):
-        """Without last_round_opponent_pairs, no swaps occur (pure adjacent pairing)."""
-        svc = TeamMexicanoService()
-        plan = svc.generate_next_round(
-            1,
-            TEAMS_12,
-            COURTS_6,
-            previous_scores=SCORES_12,
-            last_round_opponent_pairs=None,
-        )
-        top = frozenset(
-            {m.team1 if m.court_number == 6 else None for m in plan.matches}
-            | {m.team2 if m.court_number == 6 else None for m in plan.matches} - {None}
-        )
-        # Without guard: rank1 vs rank2 on top court
-        court6 = next(m for m in plan.matches if m.court_number == 6)
-        assert frozenset({court6.team1, court6.team2}) == frozenset({TEAMS_12[0], TEAMS_12[1]})
-
-    def test_unavoidable_repeat_still_produces_match(self):
-        """With only 2 teams the repeat is unavoidable — match must still be generated."""
-        svc = TeamMexicanoService()
-        t0, t1 = TEAMS_12[0], TEAMS_12[1]
-        last_pairs = {_opponent_key(t0, t1)}
-        plan = svc.generate_next_round(
-            1,
-            [t0, t1],
-            [1],
-            previous_scores=SCORES_12,
-            last_round_opponent_pairs=last_pairs,
-        )
-        assert len(plan.matches) == 1
-        assert frozenset({plan.matches[0].team1, plan.matches[0].team2}) == frozenset({t0, t1})
-
-    def test_non_repeat_pair_not_swapped(self):
-        """If ranks 3 and 4 did NOT face each other last round, they stay paired."""
-        svc = TeamMexicanoService()
-        # Only mark ranks 1v2 as repeat; ranks 3v4 should stay adjacent
-        last_pairs = {_opponent_key(TEAMS_12[0], TEAMS_12[1])}
-        plan = svc.generate_next_round(
-            1,
-            TEAMS_12,
-            COURTS_6,
-            previous_scores=SCORES_12,
-            last_round_opponent_pairs=last_pairs,
-        )
-        # Court 4 or 5 should have team_03 facing team_04 after the swap propagates
-        all_pairs = {frozenset({m.team1, m.team2}) for m in plan.matches}
-        # After swap: pair[0]=(t01,t03), pair[1]=(t02,t04), pair[2]=(t05,t06)...
-        # team_05 vs team_06 should be untouched
-        assert frozenset({TEAMS_12[4], TEAMS_12[5]}) in all_pairs
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import { createPortal } from "react-dom"
 
@@ -27,14 +26,6 @@ export default function ConfirmDialog({
     variant === "danger"
       ? withInteractiveSurface("button--danger")
       : withInteractiveSurface("button")
-
-  // Lock body scroll while dialog is open
-  useEffect(() => {
-    document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [])
 
   if (typeof document === "undefined") {
     return null

@@ -225,8 +225,12 @@ export type PlayerStats = {
   playerId: string
   displayName: string
   mexicanoScoreTotal: number
+  americanoScoreTotal: number
+  teamMexicanoScoreTotal: number
   rbScoreTotal: number
   eventsAttended: number
+  mexicanoEventsPlayed: number
+  teamMexicanoEventsPlayed: number
   wcMatchesPlayed: number
   wcWins: number
   wcLosses: number
@@ -259,6 +263,8 @@ export type MatchWDL = {
 
 export type Score24ModeStats = {
   avgScorePerRound: RoundAvgScore[]
+  avgScorePerRoundLastMonth: RoundAvgScore[]
+  avgScorePerRoundLastWeek: RoundAvgScore[]
   avgCourtPerRound: RoundAvgCourt[]
   avgCourtOverall: number | null
   matchWdl: MatchWDL

@@ -412,8 +412,12 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
     playerId: data.player_id,
     displayName: data.display_name,
     mexicanoScoreTotal: data.mexicano_score_total ?? 0,
+    americanoScoreTotal: data.americano_score_total ?? 0,
+    teamMexicanoScoreTotal: data.team_mexicano_score_total ?? 0,
     rbScoreTotal: data.rb_score_total ?? 0,
     eventsAttended: data.events_attended ?? 0,
+    mexicanoEventsPlayed: data.mexicano_events_played ?? 0,
+    teamMexicanoEventsPlayed: data.team_mexicano_events_played ?? 0,
     wcMatchesPlayed: data.wc_matches_played ?? 0,
     wcWins: data.wc_wins ?? 0,
     wcLosses: data.wc_losses ?? 0,
@@ -428,6 +432,16 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
 function normalizeScore24Mode(raw: any) {
   return {
     avgScorePerRound: (raw?.avg_score_per_round ?? []).map((r: any) => ({
+      round: r.round,
+      avgScore: r.avg_score,
+      sampleCount: r.sample_count,
+    })),
+    avgScorePerRoundLastMonth: (raw?.avg_score_per_round_last_month ?? []).map((r: any) => ({
+      round: r.round,
+      avgScore: r.avg_score,
+      sampleCount: r.sample_count,
+    })),
+    avgScorePerRoundLastWeek: (raw?.avg_score_per_round_last_week ?? []).map((r: any) => ({
       round: r.round,
       avgScore: r.avg_score,
       sampleCount: r.sample_count,

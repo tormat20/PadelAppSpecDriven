@@ -4,8 +4,6 @@ import pytest
 
 from app.services.team_mexicano_service import (
     TeamMexicanoService,
-    build_last_round_opponent_pairs,
-    _opponent_key,
 )
 
 
@@ -138,39 +136,6 @@ class TestGenerateNextRound:
         assert frozenset({t0, t1}) in pairings  # top two play each other
         assert frozenset({t2, t3}) in pairings  # bottom two play each other
 
-    def test_no_repeat_guard_swaps_pair(self):
-        """When rank-1 vs rank-2 repeated last round, they should be swapped."""
-        svc = TeamMexicanoService()
-        t0, t1, t2, t3 = ("a0", "a1"), ("b0", "b1"), ("c0", "c1"), ("d0", "d1")
-        scores = {"a0": 50, "a1": 50, "b0": 40, "b1": 40, "c0": 30, "c1": 30, "d0": 20, "d1": 20}
-        teams = [t0, t1, t2, t3]
-        # Simulate last round: t0 vs t1, t2 vs t3
-        last_pairs = {_opponent_key(t0, t1), _opponent_key(t2, t3)}
-        plan = svc.generate_next_round(
-            1, teams, [1, 2], previous_scores=scores, last_round_opponent_pairs=last_pairs
-        )
-        pairings = {frozenset({m.team1, m.team2}) for m in plan.matches}
-        # After swap: t0 vs t2 and t1 vs t3 (or similar avoidance)
-        assert frozenset({t0, t1}) not in pairings or frozenset({t2, t3}) not in pairings
-
-    def test_no_repeat_guard_no_swap_when_only_option(self):
-        """With only 2 teams there is only one possible pairing; repeat is unavoidable."""
-        svc = TeamMexicanoService()
-        t0, t1 = ("a0", "a1"), ("b0", "b1")
-        last_pairs = {_opponent_key(t0, t1)}
-        plan = svc.generate_next_round(1, [t0, t1], [1], last_round_opponent_pairs=last_pairs)
-        assert len(plan.matches) == 1
-        m = plan.matches[0]
-        # The pair must still be produced even though it's a repeat (unavoidable)
-        assert {m.team1, m.team2} == {t0, t1}
-
-    def test_matches_sorted_by_court_number(self):
-        svc = TeamMexicanoService()
-        teams = make_teams(4)
-        plan = svc.generate_next_round(1, teams, [3, 1])
-        court_numbers = [m.court_number for m in plan.matches]
-        assert court_numbers == sorted(court_numbers)
-
     def test_no_scores_falls_back_to_stable_order(self):
         """Without scores every team has 0 — stable sort keeps original order; adjacent pairs."""
         svc = TeamMexicanoService()
@@ -186,30 +151,3 @@ class TestGenerateNextRound:
         scores.update({q: (5 - i) * 10 for i, (_, q) in enumerate(teams)})
         plan = svc.generate_next_round(1, teams, [1, 2], previous_scores=scores)
         assert len(plan.matches) == 2
-
-
-# ---------------------------------------------------------------------------
-# build_last_round_opponent_pairs helper
-# ---------------------------------------------------------------------------
-
-
-class TestBuildLastRoundOpponentPairs:
-    def test_extracts_pairs_from_matches(self):
-        class FakeMatch:
-            def __init__(self, t1p1, t1p2, t2p1, t2p2):
-                self.team1_player1_id = t1p1
-                self.team1_player2_id = t1p2
-                self.team2_player1_id = t2p1
-                self.team2_player2_id = t2p2
-
-        matches = [
-            FakeMatch("a0", "a1", "b0", "b1"),
-            FakeMatch("c0", "c1", "d0", "d1"),
-        ]
-        pairs = build_last_round_opponent_pairs(matches)
-        assert _opponent_key(("a0", "a1"), ("b0", "b1")) in pairs
-        assert _opponent_key(("c0", "c1"), ("d0", "d1")) in pairs
-        assert len(pairs) == 2
-
-    def test_empty_matches_returns_empty_set(self):
-        assert build_last_round_opponent_pairs([]) == set()

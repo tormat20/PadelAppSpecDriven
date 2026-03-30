@@ -57,17 +57,26 @@ class PlayerStatsService:
 
         # Accumulate stats from every completed match
         rounds = self.rounds_repo.list_rounds(event_id)
+        is_team_mexicano = getattr(event, "is_team_mexicano", False) or False
         for round_obj in rounds:
             for match in self.matches_repo.list_by_round(round_obj.id):
                 if match.status != MatchStatus.COMPLETED:
                     continue
                 all_completed_matches.append(match)
-                self._accumulate_match(match, event.event_type, all_time_deltas, monthly_deltas)
+                self._accumulate_match(
+                    match, event.event_type, is_team_mexicano, all_time_deltas, monthly_deltas
+                )
 
         # Each player attended this event (add 1 to events_attended)
         for pid in player_ids:
             all_time_deltas[pid]["events_attended_delta"] += 1
             monthly_deltas[pid]["events_played_delta"] += 1
+            # Track per-mode event counts
+            if event.event_type == EventType.MEXICANO:
+                if is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_events_delta"] += 1
+                else:
+                    all_time_deltas[pid]["mexicano_events_delta"] += 1
 
         # Derive crowned (winning) players for this event
         crowned_ids = self._derive_crowned_player_ids(
@@ -77,10 +86,15 @@ class PlayerStatsService:
             if pid in all_time_deltas:
                 all_time_deltas[pid]["event_wins_delta"] += 1
 
-        # For Mexicano/Americano: record each player's total event score as candidate highscore
+        # For Mexicano/Americano/TeamMexicano: record each player's total event score as candidate highscore
         if event.event_type in (EventType.MEXICANO, EventType.AMERICANO):
             for pid in player_ids:
-                score = all_time_deltas[pid]["mexicano_score_delta"]
+                if event.event_type == EventType.AMERICANO:
+                    score = all_time_deltas[pid]["americano_score_delta"]
+                elif is_team_mexicano:
+                    score = all_time_deltas[pid]["team_mexicano_score_delta"]
+                else:
+                    score = all_time_deltas[pid]["mexicano_score_delta"]
                 all_time_deltas[pid]["mexicano_event_score"] = score
 
         # Write deltas
@@ -155,7 +169,12 @@ class PlayerStatsService:
         if event_type in (EventType.MEXICANO, EventType.AMERICANO):
             if not all_time_deltas:
                 return []
-            scores = {pid: d["mexicano_score_delta"] for pid, d in all_time_deltas.items()}
+            delta_key = (
+                "americano_score_delta"
+                if event_type == EventType.AMERICANO
+                else "mexicano_score_delta"
+            )
+            scores = {pid: d[delta_key] for pid, d in all_time_deltas.items()}
             top_score = max(scores.values(), default=0)
             if top_score <= 0:
                 return []
@@ -182,6 +201,7 @@ class PlayerStatsService:
         self,
         match,
         event_type: EventType,
+        is_team_mexicano: bool,
         all_time_deltas: dict[str, dict],
         monthly_deltas: dict[str, dict],
     ) -> None:
@@ -196,11 +216,16 @@ class PlayerStatsService:
             player_team = 1 if pid in players_on_team1 else 2
 
             if match.result_type == ResultType.SCORE_24:
-                # Mexicano: accumulate score
+                # Mexicano/Americano/TeamMexicano: accumulate score into separate totals
                 score = (
                     int(match.team1_score or 0) if player_team == 1 else int(match.team2_score or 0)
                 )
-                all_time_deltas[pid]["mexicano_score_delta"] += score
+                if event_type == EventType.AMERICANO:
+                    all_time_deltas[pid]["americano_score_delta"] += score
+                elif is_team_mexicano:
+                    all_time_deltas[pid]["team_mexicano_score_delta"] += score
+                else:
+                    all_time_deltas[pid]["mexicano_score_delta"] += score
                 monthly_deltas[pid]["mexicano_score_delta"] += score
 
             elif match.result_type == ResultType.WIN_LOSS:
@@ -232,8 +257,12 @@ class PlayerStatsService:
 def _zero_all_time_deltas() -> dict:
     return {
         "mexicano_score_delta": 0,
+        "americano_score_delta": 0,
+        "team_mexicano_score_delta": 0,
         "rb_score_delta": 0,
         "events_attended_delta": 0,
+        "mexicano_events_delta": 0,
+        "team_mexicano_events_delta": 0,
         "wc_matches_played_delta": 0,
         "wc_wins_delta": 0,
         "wc_losses_delta": 0,
@@ -257,8 +286,12 @@ def _zero_all_time_stats(player_id: str) -> dict:
     return {
         "player_id": player_id,
         "mexicano_score_total": 0,
+        "americano_score_total": 0,
+        "team_mexicano_score_total": 0,
         "rb_score_total": 0,
         "events_attended": 0,
+        "mexicano_events_played": 0,
+        "team_mexicano_events_played": 0,
         "wc_matches_played": 0,
         "wc_wins": 0,
         "wc_losses": 0,
@@ -295,20 +328,44 @@ def _assign_ranks(rows: list[dict], key: tuple) -> list[dict]:
 def _empty_score24_stats() -> dict:
     return {
         "avg_score_per_round": [],
+        "avg_score_per_round_last_month": [],
+        "avg_score_per_round_last_week": [],
         "avg_court_per_round": [],
         "avg_court_overall": None,
         "match_wdl": {"wins": 0, "draws": 0, "losses": 0},
     }
 
 
-def _compute_score24_stats(rows: list[dict]) -> dict:
-    """Compute avg_score_per_round, avg_court_per_round, match_wdl for Score24 rows."""
+def _avg_score_series(rows: list[dict]) -> list[dict]:
+    """Return avg_score_per_round list from the given match rows."""
     from collections import defaultdict
 
     round_scores: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        score = (
+            int(row["team1_score"] or 0)
+            if row["player_team"] == 1
+            else int(row["team2_score"] or 0)
+        )
+        round_scores[row["round_number"]].append(score)
+    return [
+        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_scores.items())
+    ]
+
+
+def _compute_score24_stats(rows: list[dict]) -> dict:
+    """Compute avg_score_per_round (all-time + windowed), avg_court_per_round, match_wdl for Score24 rows."""
+    from collections import defaultdict
+    from datetime import date, timedelta
+
     round_courts: dict[int, list[int]] = defaultdict(list)
     all_courts: list[int] = []
     wins = draws = losses = 0
+
+    today = date.today()
+    cutoff_month = today - timedelta(days=30)
+    cutoff_week = today - timedelta(days=7)
 
     for row in rows:
         score = (
@@ -317,7 +374,6 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
             else int(row["team2_score"] or 0)
         )
         rnum = row["round_number"]
-        round_scores[rnum].append(score)
         round_courts[rnum].append(row["court_number"])
         all_courts.append(row["court_number"])
 
@@ -328,10 +384,16 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
         else:
             draws += 1
 
-    avg_score_per_round = [
-        {"round": r, "avg_score": sum(v) / len(v), "sample_count": len(v)}
-        for r, v in sorted(round_scores.items())
-    ]
+    # Parse event_date once per row for windowing
+    def _parse_date(row: dict) -> date:
+        raw = row["event_date"]
+        if isinstance(raw, date):
+            return raw
+        return date.fromisoformat(str(raw)[:10])
+
+    rows_month = [r for r in rows if _parse_date(r) >= cutoff_month]
+    rows_week = [r for r in rows if _parse_date(r) >= cutoff_week]
+
     avg_court_per_round = [
         {"round": r, "avg_court": sum(v) / len(v), "sample_count": len(v)}
         for r, v in sorted(round_courts.items())
@@ -339,7 +401,9 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
     avg_court_overall = sum(all_courts) / len(all_courts) if all_courts else None
 
     return {
-        "avg_score_per_round": avg_score_per_round,
+        "avg_score_per_round": _avg_score_series(rows),
+        "avg_score_per_round_last_month": _avg_score_series(rows_month),
+        "avg_score_per_round_last_week": _avg_score_series(rows_week),
         "avg_court_per_round": avg_court_per_round,
         "avg_court_overall": avg_court_overall,
         "match_wdl": {"wins": wins, "draws": draws, "losses": losses},

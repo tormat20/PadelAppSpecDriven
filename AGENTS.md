@@ -159,6 +159,14 @@ For cross-stack changes:
 - If task lists exist, keep task checkboxes in sync with real completion state.
 - When behavior changes materially, update `spec.md`, `plan.md`, and `tasks.md` together.
 
+## Git Workflow (Agent Guardrails)
+
+- `main` = production only. Never commit or push directly to `main`.
+- `dev` = continuous integration. All feature branches merge here via PR.
+- Always branch off `dev`, never off `main`.
+- Never push directly to `main` or `dev`; always use PRs.
+- Full workflow reference (push/pull/release/customer laptop): load the `git-workflow` skill.
+
 ## Practical Guardrails for Agents
 
 - Do not revert unrelated dirty worktree changes.

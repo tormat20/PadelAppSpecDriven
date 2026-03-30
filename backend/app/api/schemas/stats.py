@@ -24,6 +24,8 @@ class MatchWDL(BaseModel):
 
 class Score24ModeStats(BaseModel):
     avg_score_per_round: list[RoundAvgScore]
+    avg_score_per_round_last_month: list[RoundAvgScore]
+    avg_score_per_round_last_week: list[RoundAvgScore]
     avg_court_per_round: list[RoundAvgCourt]
     avg_court_overall: float | None
     match_wdl: MatchWDL
@@ -65,6 +67,8 @@ class PlayerStatsResponse(BaseModel):
     player_id: str
     display_name: str
     mexicano_score_total: int
+    americano_score_total: int
+    team_mexicano_score_total: int
     rb_score_total: int
     events_attended: int
     wc_matches_played: int
@@ -75,6 +79,8 @@ class PlayerStatsResponse(BaseModel):
     rb_draws: int
     event_wins: int
     mexicano_best_event_score: int
+    mexicano_events_played: int
+    team_mexicano_events_played: int
 
 
 class LeaderboardEntryResponse(BaseModel):

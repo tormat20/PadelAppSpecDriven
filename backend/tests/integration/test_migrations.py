@@ -28,4 +28,8 @@ def test_migrations_apply_once(tmp_path):
         "014_player_stats_wins_highscore.sql",
         "015_event_duration_minutes.sql",
         "016_match_result_corrections.sql",
+        "017_ocr_corrections.sql",
+        "018_players_drop_unique_display_name.sql",
+        "019_americano_score_split.sql",
+        "020_score_and_event_count_split.sql",
     ]

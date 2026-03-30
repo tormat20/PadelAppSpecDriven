@@ -3,8 +3,8 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import {
-  buildBarSegments,
   buildDoughnutSegments,
+  buildGroupedBars,
   buildLinePoints,
   buildStackedBars,
 } from "../features/player-stats/chartData"
@@ -26,6 +26,7 @@ import type {
 const COLOR_TEAL = "#0c8a8f"
 const COLOR_RED = "#ef4444"
 const COLOR_AMBER = "#f59e0b"
+const COLOR_GREEN = "#22c55e"
 
 // ── Doughnut chart ─────────────────────────────────────────────────────────────
 
@@ -62,13 +63,14 @@ function Doughnut({ segments, title }: DoughnutProps) {
 
 interface StatCardProps {
   label: string
-  value: number
+  value: number | string
 }
 
 function StatCard({ label, value }: StatCardProps) {
+  const display = typeof value === "number" ? formatStatValue(value) : value
   return (
     <div className="stats-stat-card">
-      <span className="stats-stat-value">{formatStatValue(value)}</span>
+      <span className="stats-stat-value">{display}</span>
       <span className="stats-stat-label">{label}</span>
     </div>
   )
@@ -92,107 +94,207 @@ function LegendRow({ color, label, value }: LegendRowProps) {
   )
 }
 
-// ── Avg Score Bar Chart ───────────────────────────────────────────────────────
+// ── Avg Score Line Chart (multi-series) ───────────────────────────────────────
 
-const BAR_W = 340
-const BAR_H = 120
-const BAR_PAD_X = 32
-const BAR_PAD_Y = 12
-const SCORE24_Y_MIN = 0
-const SCORE24_Y_MAX = 24
+const SCORE_W = 340
+const SCORE_H = 180
+const SCORE_PAD_X = 32
+const SCORE_PAD_Y = 14
+const SCORE_Y_MIN = 0
+const SCORE_Y_MAX = 24
+const SCORE_Y_RANGE = SCORE_Y_MAX - SCORE_Y_MIN
 
-interface AvgScoreBarChartProps {
-  data: RoundAvgScore[]
+interface AvgScoreLineChartProps {
+  allTime: RoundAvgScore[]
+  lastMonth: RoundAvgScore[]
+  lastWeek: RoundAvgScore[]
 }
 
-function AvgScoreBarChart({ data }: AvgScoreBarChartProps) {
-  const bars = buildBarSegments(
-    data.map((r) => ({ label: `R${r.round}`, value: r.avgScore })),
-    COLOR_TEAL,
-    BAR_W,
-    BAR_H,
-    BAR_PAD_X,
-    BAR_PAD_Y,
-    SCORE24_Y_MIN,
-    SCORE24_Y_MAX,
-  )
-  const plotH = BAR_H - BAR_PAD_Y * 2
+function AvgScoreLineChart({ allTime, lastMonth, lastWeek }: AvgScoreLineChartProps) {
+  if (allTime.length === 0 && lastMonth.length === 0 && lastWeek.length === 0) return null
+
+  // Use the all-time series as the X-axis spine; fall back to whichever series has data
+  const spine = allTime.length > 0 ? allTime : lastMonth.length > 0 ? lastMonth : lastWeek
+  const rounds = spine.map((r) => r.round)
+  const plotW = SCORE_W - SCORE_PAD_X * 2
+  const plotH = SCORE_H - SCORE_PAD_Y * 2
+
+  // Map a round number → X pixel position based on its index in the spine
+  function xForRound(round: number): number {
+    const idx = rounds.indexOf(round)
+    if (idx === -1) return SCORE_PAD_X
+    return SCORE_PAD_X + (rounds.length === 1 ? plotW / 2 : (idx / (rounds.length - 1)) * plotW)
+  }
+
+  // Map an avg score → Y pixel position (clamped to axis range)
+  function yForScore(score: number): number {
+    const clamped = Math.max(SCORE_Y_MIN, Math.min(SCORE_Y_MAX, score))
+    return SCORE_PAD_Y + plotH - ((clamped - SCORE_Y_MIN) / SCORE_Y_RANGE) * plotH
+  }
+
+  // Build SVG path + dot list for one series
+  function buildSeries(data: RoundAvgScore[]) {
+    if (data.length === 0) return { pathD: "", pts: [] as Array<{ x: number; y: number }> }
+    const pts = data.map((r) => ({ x: xForRound(r.round), y: yForScore(r.avgScore) }))
+    const pathD =
+      pts.length === 1
+        ? ""
+        : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+    return { pathD, pts }
+  }
+
+  const seriesAllTime = buildSeries(allTime)
+  const seriesMonth = buildSeries(lastMonth)
+  const seriesWeek = buildSeries(lastWeek)
+
+  // Legend — only show entries that have data, and only if >1 series is present
+  const activeSeries = [
+    lastMonth.length > 0 && { color: COLOR_GREEN, label: "Last 30 days" },
+    lastWeek.length > 0 && { color: COLOR_AMBER, label: "Last 7 days" },
+    allTime.length > 0 && { color: COLOR_RED, label: "All time" },
+  ].filter(Boolean) as Array<{ color: string; label: string }>
 
   return (
     <div className="dd-chart-wrap" aria-label="Average score per round">
       <p className="dd-chart-label">Avg score per round</p>
       <div className="dd-chart-scroll">
         <svg
-          width={Math.max(BAR_W, data.length * 32)}
-          height={BAR_H}
-          viewBox={`0 0 ${Math.max(BAR_W, data.length * 32)} ${BAR_H}`}
+          width={SCORE_W}
+          height={SCORE_H}
+          viewBox={`0 0 ${SCORE_W} ${SCORE_H}`}
           role="img"
-          aria-label="Average score per round bar chart"
+          aria-label="Average score per round line chart"
         >
           {/* Y-axis reference lines */}
           {[0, 6, 12, 18, 24].map((v) => {
-            const y = BAR_PAD_Y + plotH - ((v - SCORE24_Y_MIN) / (SCORE24_Y_MAX - SCORE24_Y_MIN)) * plotH
+            const y = yForScore(v)
             return (
               <g key={v}>
                 <line
-                  x1={BAR_PAD_X}
+                  x1={SCORE_PAD_X}
                   y1={y}
-                  x2={Math.max(BAR_W, data.length * 32) - BAR_PAD_X}
+                  x2={SCORE_W - SCORE_PAD_X}
                   y2={y}
                   stroke="var(--color-border)"
                   strokeWidth={1}
                 />
-                <text x={BAR_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
+                <text x={SCORE_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
                   {v}
                 </text>
               </g>
             )
           })}
-          {/* Bars */}
-          {bars.map((b) => (
-            <g key={b.label}>
-              <rect x={b.x} y={b.y} width={b.width} height={b.height} fill={b.color} rx={3} />
-            </g>
+
+          {/* All-time series — red, drawn first (bottom layer) */}
+          {seriesAllTime.pathD && (
+            <path
+              d={seriesAllTime.pathD}
+              fill="none"
+              stroke={COLOR_RED}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesAllTime.pts.map((p, i) => (
+            <circle key={`at-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_RED} />
           ))}
-          {/* X-axis labels */}
-          {bars.map((b) => (
+
+          {/* Last-month series — green */}
+          {seriesMonth.pathD && (
+            <path
+              d={seriesMonth.pathD}
+              fill="none"
+              stroke={COLOR_GREEN}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesMonth.pts.map((p, i) => (
+            <circle key={`lm-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_GREEN} />
+          ))}
+
+          {/* Last-week series — amber, drawn last (top layer) */}
+          {seriesWeek.pathD && (
+            <path
+              d={seriesWeek.pathD}
+              fill="none"
+              stroke={COLOR_AMBER}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          )}
+          {seriesWeek.pts.map((p, i) => (
+            <circle key={`lw-${i}`} cx={p.x} cy={p.y} r={3} fill={COLOR_AMBER} />
+          ))}
+
+          {/* X-axis labels (round numbers from spine) */}
+          {spine.map((r, i) => (
             <text
-              key={`lbl-${b.label}`}
-              x={b.x + b.width / 2}
-              y={BAR_H - 2}
+              key={`lbl-${r.round}`}
+              x={SCORE_PAD_X + (rounds.length === 1 ? plotW / 2 : (i / (rounds.length - 1)) * plotW)}
+              y={SCORE_H - 2}
               textAnchor="middle"
               className="dd-axis-tick"
             >
-              {b.label}
+              R{r.round}
             </text>
           ))}
         </svg>
       </div>
+
+      {/* Legend — only when more than one series has data */}
+      {activeSeries.length > 1 && (
+        <div className="dd-score-legend">
+          {activeSeries.map(({ color, label }) => (
+            <span key={label} className="dd-score-legend-item">
+              <svg width="16" height="4" aria-hidden="true">
+                <rect x="0" y="0" width="16" height="4" rx="2" fill={color} />
+              </svg>
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Avg Court Bar Chart ───────────────────────────────────────────────────────
+// ── Avg Court Line Chart ──────────────────────────────────────────────────────
 
-interface AvgCourtBarChartProps {
+const COURT_W = 340
+const COURT_H = 180
+const COURT_PAD_X = 32
+const COURT_PAD_Y = 14
+
+interface CourtLineChartProps {
   data: RoundAvgCourt[]
   avgCourtOverall: number | null
 }
 
-function AvgCourtBarChart({ data, avgCourtOverall }: AvgCourtBarChartProps) {
+function CourtLineChart({ data, avgCourtOverall }: CourtLineChartProps) {
   if (data.length === 0) return null
+
+  const minCourt = 1
   const maxCourt = Math.max(...data.map((r) => r.avgCourt), 1)
-  const bars = buildBarSegments(
-    data.map((r) => ({ label: `R${r.round}`, value: r.avgCourt })),
-    COLOR_TEAL,
-    BAR_W,
-    BAR_H,
-    BAR_PAD_X,
-    BAR_PAD_Y,
-    1,
-    maxCourt,
-  )
-  const plotH = BAR_H - BAR_PAD_Y * 2
+  const maxCourtInt = Math.ceil(maxCourt)
+  const plotW = COURT_W - COURT_PAD_X * 2
+  const plotH = COURT_H - COURT_PAD_Y * 2
+  const range = maxCourtInt - minCourt || 1
+
+  const pts = data.map((r, i) => ({
+    x: COURT_PAD_X + (data.length === 1 ? plotW / 2 : (i / (data.length - 1)) * plotW),
+    y: COURT_PAD_Y + plotH - ((r.avgCourt - minCourt) / range) * plotH,
+    label: `R${r.round}`,
+    value: r.avgCourt,
+  }))
+
+  const pathD =
+    pts.length === 1
+      ? ""
+      : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+
+  // Y-axis ticks: every integer from minCourt to maxCourtInt
+  const allCourtTicks = Array.from({ length: maxCourtInt - minCourt + 1 }, (_, i) => minCourt + i)
 
   return (
     <div className="dd-chart-wrap" aria-label="Average court per round">
@@ -204,45 +306,58 @@ function AvgCourtBarChart({ data, avgCourtOverall }: AvgCourtBarChartProps) {
       </p>
       <div className="dd-chart-scroll">
         <svg
-          width={Math.max(BAR_W, data.length * 32)}
-          height={BAR_H}
-          viewBox={`0 0 ${Math.max(BAR_W, data.length * 32)} ${BAR_H}`}
+          width={COURT_W}
+          height={COURT_H}
+          viewBox={`0 0 ${COURT_W} ${COURT_H}`}
           role="img"
-          aria-label="Average court per round bar chart"
+          aria-label="Average court per round line chart"
         >
-          {/* Y-axis reference lines */}
-          {[1, Math.ceil(maxCourt / 2), Math.ceil(maxCourt)].map((v) => {
-            const y = BAR_PAD_Y + plotH - ((v - 1) / (maxCourt - 1 || 1)) * plotH
+          {/* Y-axis reference lines + labels */}
+          {allCourtTicks.map((v) => {
+            const y = COURT_PAD_Y + plotH - ((v - minCourt) / range) * plotH
             return (
               <g key={v}>
                 <line
-                  x1={BAR_PAD_X}
+                  x1={COURT_PAD_X}
                   y1={y}
-                  x2={Math.max(BAR_W, data.length * 32) - BAR_PAD_X}
+                  x2={COURT_W - COURT_PAD_X}
                   y2={y}
                   stroke="var(--color-border)"
                   strokeWidth={1}
                 />
-                <text x={BAR_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
+                <text x={COURT_PAD_X - 4} y={y + 4} textAnchor="end" className="dd-axis-tick">
                   {v}
                 </text>
               </g>
             )
           })}
-          {bars.map((b) => (
-            <g key={b.label}>
-              <rect x={b.x} y={b.y} width={b.width} height={b.height} fill={b.color} rx={3} />
-            </g>
+          {/* Baseline */}
+          <line
+            x1={COURT_PAD_X}
+            y1={COURT_PAD_Y + plotH}
+            x2={COURT_W - COURT_PAD_X}
+            y2={COURT_PAD_Y + plotH}
+            stroke="var(--color-border)"
+            strokeWidth={1}
+          />
+          {/* Line */}
+          {pathD && (
+            <path d={pathD} fill="none" stroke={COLOR_TEAL} strokeWidth={2} strokeLinejoin="round" />
+          )}
+          {/* Dots */}
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={COLOR_TEAL} />
           ))}
-          {bars.map((b) => (
+          {/* X-axis labels */}
+          {pts.map((p) => (
             <text
-              key={`lbl-${b.label}`}
-              x={b.x + b.width / 2}
-              y={BAR_H - 2}
+              key={`lbl-${p.label}`}
+              x={p.x}
+              y={COURT_H - 2}
               textAnchor="middle"
               className="dd-axis-tick"
             >
-              {b.label}
+              {p.label}
             </text>
           ))}
         </svg>
@@ -416,7 +531,189 @@ function EloLineChart({ timeline }: EloLineChartProps) {
   )
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
+// ── Grouped bar chart ─────────────────────────────────────────────────────────
+
+const GROUPED_W = 260
+const GROUPED_H = 120
+const GROUPED_PAD_X = 8
+const GROUPED_PAD_Y = 8
+
+interface GroupedBarChartProps {
+  rounds: RoundWDL[]
+  showDraw: boolean
+  title: string
+}
+
+function GroupedBarChart({ rounds, showDraw, title }: GroupedBarChartProps) {
+  const groups = buildGroupedBars(
+    rounds,
+    showDraw,
+    GROUPED_W,
+    GROUPED_H,
+    GROUPED_PAD_X,
+    GROUPED_PAD_Y,
+  )
+
+  const baseline = GROUPED_PAD_Y + (GROUPED_H - GROUPED_PAD_Y * 2)
+
+  // Legend aggregates
+  const totalWins = rounds.reduce((s, r) => s + r.wins, 0)
+  const totalDraws = rounds.reduce((s, r) => s + r.draws, 0)
+  const totalLosses = rounds.reduce((s, r) => s + r.losses, 0)
+
+  return (
+    <div className="dd-stacked-wrap">
+      <div className="dd-chart-scroll">
+        <svg
+          width={GROUPED_W}
+          height={GROUPED_H}
+          viewBox={`0 0 ${GROUPED_W} ${GROUPED_H}`}
+          role="img"
+          aria-label={title}
+        >
+          <title>{title}</title>
+          {/* Shared baseline */}
+          <line
+            x1={GROUPED_PAD_X}
+            y1={baseline}
+            x2={GROUPED_W - GROUPED_PAD_X}
+            y2={baseline}
+            stroke="var(--color-border)"
+            strokeWidth={1}
+          />
+          {groups.map((group) => (
+            <g key={group.roundLabel}>
+              {group.bars.map((bar) => (
+                <rect
+                  key={`${group.roundLabel}-${bar.label}`}
+                  x={bar.x}
+                  y={bar.y}
+                  width={bar.width}
+                  height={bar.height}
+                  fill={bar.color}
+                  rx={2}
+                />
+              ))}
+              <text
+                x={group.labelX}
+                y={GROUPED_H - 2}
+                textAnchor="middle"
+                className="dd-axis-tick"
+              >
+                {group.roundLabel}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="stats-chart-details">
+        <LegendRow color="#0c8a8f" label="Wins" value={totalWins} />
+        {showDraw && <LegendRow color="#f59e0b" label="Draws" value={totalDraws} />}
+        <LegendRow color="#ef4444" label="Losses" value={totalLosses} />
+      </div>
+    </div>
+  )
+}
+
+// ── Overview panel with tabs ──────────────────────────────────────────────────
+
+type OverviewTab = "all" | "mexicano" | "americano" | "team_mexicano"
+
+const OVERVIEW_TABS: Array<{ id: OverviewTab; label: string }> = [
+  { id: "all", label: "All Stats" },
+  { id: "mexicano", label: "Mexicano" },
+  { id: "americano", label: "Americano" },
+  { id: "team_mexicano", label: "Team Mexicano" },
+]
+
+interface OverviewPanelProps {
+  stats: PlayerStats
+  deepDive: PlayerDeepDive | null
+}
+
+function OverviewPanel({ stats, deepDive }: OverviewPanelProps) {
+  const [activeTab, setActiveTab] = useState<OverviewTab>("all")
+
+  function renderTabContent() {
+    if (activeTab === "all") {
+      const mexAvg =
+        stats.mexicanoEventsPlayed > 0
+          ? Math.round(stats.mexicanoScoreTotal / stats.mexicanoEventsPlayed)
+          : "—"
+      const tmAvg =
+        stats.teamMexicanoEventsPlayed > 0
+          ? Math.round(stats.teamMexicanoScoreTotal / stats.teamMexicanoEventsPlayed)
+          : "—"
+      return (
+        <div className="stats-cards-row">
+          <StatCard label="Events Attended" value={stats.eventsAttended} />
+          <StatCard label="Event Wins" value={stats.eventWins} />
+          <StatCard label="Mexicano Total" value={stats.mexicanoScoreTotal} />
+          <StatCard label="TM Total" value={stats.teamMexicanoScoreTotal} />
+          <StatCard label="Americano Total" value={stats.americanoScoreTotal} />
+          <StatCard label="RB Score" value={stats.rbScoreTotal} />
+          <StatCard label="Mex Avg/Event" value={mexAvg} />
+          <StatCard label="TM Avg/Event" value={tmAvg} />
+        </div>
+      )
+    }
+
+    if (deepDive === null) {
+      return <p className="muted">Loading…</p>
+    }
+
+    let wdl: MatchWDL
+    if (activeTab === "mexicano") {
+      wdl = deepDive.mexicano.matchWdl
+    } else if (activeTab === "americano") {
+      wdl = deepDive.americano.matchWdl
+    } else {
+      wdl = deepDive.teamMexicano.matchWdl
+    }
+
+    return (
+      <div className="stats-cards-row">
+        <StatCard label="Matches Played" value={wdl.wins + wdl.draws + wdl.losses} />
+        <StatCard label="Wins" value={wdl.wins} />
+        <StatCard label="Draws" value={wdl.draws} />
+        <StatCard label="Losses" value={wdl.losses} />
+      </div>
+    )
+  }
+
+  return (
+    <section className="panel">
+      <h2 className="stats-section-heading">Overview</h2>
+
+      {/* Tab pills */}
+      <div className="dd-tab-bar" role="tablist" aria-label="Overview mode">
+        {OVERVIEW_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={activeTab === id}
+            aria-controls={`ov-panel-${id}`}
+            id={`ov-tab-${id}`}
+            className={`dd-tab-pill${activeTab === id ? " dd-tab-pill--active" : ""}`}
+            onClick={() => setActiveTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id={`ov-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`ov-tab-${activeTab}`}
+      >
+        {renderTabContent()}
+      </div>
+    </section>
+  )
+}
+
+
 
 function DeepDiveEmpty() {
   return (
@@ -441,10 +738,7 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
 
   return (
     <div className="dd-tab-content">
-      {/* Avg score per round */}
-      {data.avgScorePerRound.length > 0 && <AvgScoreBarChart data={data.avgScorePerRound} />}
-
-      {/* Win/Draw/Loss doughnut */}
+      {/* Win/Draw/Loss doughnut — first */}
       <div className="dd-row">
         <div className="stats-doughnut-wrapper">
           <Doughnut
@@ -466,9 +760,16 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
         </div>
       </div>
 
+      {/* Avg score per round — multi-series line chart */}
+      <AvgScoreLineChart
+        allTime={data.avgScorePerRound}
+        lastMonth={data.avgScorePerRoundLastMonth}
+        lastWeek={data.avgScorePerRoundLastWeek}
+      />
+
       {/* Avg court per round */}
       {data.avgCourtPerRound.length > 0 && (
-        <AvgCourtBarChart data={data.avgCourtPerRound} avgCourtOverall={data.avgCourtOverall} />
+        <CourtLineChart data={data.avgCourtPerRound} avgCourtOverall={data.avgCourtOverall} />
       )}
     </div>
   )
@@ -490,7 +791,7 @@ function RankedBoxTab({ perRoundWdl, eloTimeline }: RankedBoxTabProps) {
       {perRoundWdl.length > 0 && (
         <div className="dd-chart-wrap">
           <p className="dd-chart-label">Win / Draw / Loss per round</p>
-          <StackedBarChart rounds={perRoundWdl} showDraw={true} title="Ranked Box per-round WDL" />
+          <GroupedBarChart rounds={perRoundWdl} showDraw={true} title="Ranked Box per-round WDL" />
         </div>
       )}
       {eloTimeline.length > 0 && <EloLineChart timeline={eloTimeline} />}
@@ -502,17 +803,39 @@ function RankedBoxTab({ perRoundWdl, eloTimeline }: RankedBoxTabProps) {
 
 interface WinnersCourtTabProps {
   perRoundWdl: RoundWDL[]
+  wcWins: number
+  wcLosses: number
+  wcMatchesPlayed: number
 }
 
-function WinnersCourtTab({ perRoundWdl }: WinnersCourtTabProps) {
+function WinnersCourtTab({ perRoundWdl, wcWins, wcLosses, wcMatchesPlayed }: WinnersCourtTabProps) {
   const hasData = perRoundWdl.length > 0
   if (!hasData) return <DeepDiveEmpty />
 
   return (
     <div className="dd-tab-content">
+      {/* Summary doughnut */}
+      <div className="dd-row">
+        <div className="stats-doughnut-wrapper">
+          <Doughnut
+            title="WinnersCourt win/loss split"
+            segments={[
+              { label: "Wins", value: wcWins, color: COLOR_TEAL },
+              { label: "Losses", value: wcLosses, color: COLOR_RED },
+            ]}
+          />
+        </div>
+        <div className="stats-chart-details">
+          <p className="stats-matches-played">
+            {formatStatValue(wcMatchesPlayed, "matches played")}
+          </p>
+          <LegendRow color={COLOR_TEAL} label="Wins" value={wcWins} />
+          <LegendRow color={COLOR_RED} label="Losses" value={wcLosses} />
+        </div>
+      </div>
       <div className="dd-chart-wrap">
         <p className="dd-chart-label">Win / Loss per round</p>
-        <StackedBarChart rounds={perRoundWdl} showDraw={false} title="Winners Court per-round WL" />
+        <GroupedBarChart rounds={perRoundWdl} showDraw={false} title="Winners Court per-round WL" />
       </div>
     </div>
   )
@@ -532,9 +855,10 @@ const TAB_LABELS: Array<{ id: DeepDiveTab; label: string }> = [
 
 interface DeepDivePanelProps {
   data: PlayerDeepDive
+  stats: PlayerStats
 }
 
-function DeepDivePanel({ data }: DeepDivePanelProps) {
+function DeepDivePanel({ data, stats }: DeepDivePanelProps) {
   const [activeTab, setActiveTab] = useState<DeepDiveTab>("mexicano")
 
   return (
@@ -597,7 +921,12 @@ function DeepDivePanel({ data }: DeepDivePanelProps) {
         aria-labelledby="dd-tab-winners_court"
         hidden={activeTab !== "winners_court"}
       >
-        <WinnersCourtTab perRoundWdl={data.winnersCourt.perRoundWdl} />
+        <WinnersCourtTab
+            perRoundWdl={data.winnersCourt.perRoundWdl}
+            wcWins={stats.wcWins}
+            wcLosses={stats.wcLosses}
+            wcMatchesPlayed={stats.wcMatchesPlayed}
+          />
       </div>
     </section>
   )
@@ -662,67 +991,11 @@ export default function PlayerStatsPage() {
 
       {!loading && !error && stats && (
         <>
-          {/* ── Summary cards ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">Overview</h2>
-            <div className="stats-cards-row">
-              <StatCard label="Events Attended" value={stats.eventsAttended} />
-              <StatCard label="Event Wins" value={stats.eventWins} />
-              <StatCard label="Mexicano / Americano Total" value={stats.mexicanoScoreTotal} />
-              <StatCard label="Ranked Box Total" value={stats.rbScoreTotal} />
-            </div>
-          </section>
-
-          {/* ── WinnersCourt ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">WinnersCourt</h2>
-            <div className="stats-chart-row">
-              <div className="stats-doughnut-wrapper">
-                <Doughnut
-                  title="WinnersCourt win/loss split"
-                  segments={[
-                    { label: "Wins", value: stats.wcWins, color: COLOR_TEAL },
-                    { label: "Losses", value: stats.wcLosses, color: COLOR_RED },
-                  ]}
-                />
-              </div>
-              <div className="stats-chart-details">
-                <p className="stats-matches-played">
-                  {formatStatValue(stats.wcMatchesPlayed, "matches played")}
-                </p>
-                <LegendRow color={COLOR_TEAL} label="Wins" value={stats.wcWins} />
-                <LegendRow color={COLOR_RED} label="Losses" value={stats.wcLosses} />
-              </div>
-            </div>
-          </section>
-
-          {/* ── Ranked Box ── */}
-          <section className="panel">
-            <h2 className="stats-section-heading">Ranked Box</h2>
-            <div className="stats-chart-row">
-              <div className="stats-doughnut-wrapper">
-                <Doughnut
-                  title="Ranked Box win/loss/draw split"
-                  segments={[
-                    { label: "Wins", value: stats.rbWins, color: COLOR_TEAL },
-                    { label: "Losses", value: stats.rbLosses, color: COLOR_RED },
-                    { label: "Draws", value: stats.rbDraws, color: COLOR_AMBER },
-                  ]}
-                />
-              </div>
-              <div className="stats-chart-details">
-                <p className="stats-rb-score">
-                  {formatStatValue(stats.rbScoreTotal, "pts total")}
-                </p>
-                <LegendRow color={COLOR_TEAL} label="Wins (+25)" value={stats.rbWins} />
-                <LegendRow color={COLOR_RED} label="Losses (−15)" value={stats.rbLosses} />
-                <LegendRow color={COLOR_AMBER} label="Draws (+5)" value={stats.rbDraws} />
-              </div>
-            </div>
-          </section>
+          {/* ── Overview (tabbed) ── */}
+          <OverviewPanel stats={stats} deepDive={deepDive} />
 
           {/* ── Deep-dive panel ── */}
-          {deepDive && <DeepDivePanel data={deepDive} />}
+          {deepDive && <DeepDivePanel data={deepDive} stats={stats} />}
         </>
       )}
 
