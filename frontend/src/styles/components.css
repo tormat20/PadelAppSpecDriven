@@ -641,31 +641,6 @@
   z-index: 30;
 }
 
-.run-fullscreen-overlay .court-card {
-  min-height: 360px;
-}
-
-.run-fullscreen-overlay .team-grouping {
-  min-height: 5.5rem;
-  padding: 0.85rem 1rem;
-}
-
-.run-fullscreen-overlay .team-player-name {
-  font-size: 1.1rem;
-}
-
-.run-fullscreen-overlay .team-result-badge {
-  font-size: 1.05rem;
-  min-width: 2.8rem;
-  padding: 0.35rem 0.7rem;
-}
-
-.run-fullscreen-overlay .court-fire-icon,
-.run-fullscreen-overlay .court-snowflake-icon {
-  height: 1.2rem;
-  width: 1.2rem;
-}
-
 .run-fullscreen-overlay .grid-columns-2 {
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
@@ -833,6 +808,35 @@
 .team-grouping[data-selected="true"] {
   background: linear-gradient(140deg, rgba(14, 142, 144, 0.92), rgba(40, 86, 178, 0.92));
   color: #fff;
+}
+
+/* ── Fullscreen overlay scale-up overrides ───────────────────────── */
+/* Placed after all base .court-card / .team-grouping rules so       */
+/* source order reinforces the higher specificity (0,3,0).           */
+
+.run-fullscreen-overlay .match-card.court-card {
+  min-height: 420px;
+}
+
+.run-fullscreen-overlay .match-card .team-grouping {
+  min-height: 5.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.run-fullscreen-overlay .match-card .team-player-name {
+  font-size: 1.1rem;
+}
+
+.run-fullscreen-overlay .match-card .team-result-badge {
+  font-size: 1.05rem;
+  min-width: 2.8rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.run-fullscreen-overlay .match-card .court-fire-icon,
+.run-fullscreen-overlay .match-card .court-snowflake-icon {
+  height: 1.2rem;
+  width: 1.2rem;
 }
 
 .result-modal-backdrop {
