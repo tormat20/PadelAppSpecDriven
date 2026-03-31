@@ -67,7 +67,7 @@ export default function EventBlock({
     .join(" ")
 
   const eventTypeLabel = getCalendarEventTypeLabel(event)
-  const scheduleMoment = formatEventMomentLabel(event.eventDate, event.eventTime24h)
+  const statusLabel = getEventStatusLabel(event.status)
   const timeRangeLabel = formatEventTimeRange(event.eventTime24h, event.durationMinutes)
 
   const canResize = isLobby && !recurringSelectMode && Boolean(onResizeStart)
@@ -131,7 +131,7 @@ export default function EventBlock({
         {eventTypeLabel}
       </button>
 
-      <span className="calendar-event-block__moment">{scheduleMoment}</span>
+      <span className="calendar-event-block__moment">{statusLabel}</span>
       <span className="calendar-event-block__time-range">{timeRangeLabel}</span>
       {event.durationMinutes >= 120 && <span className="calendar-event-block__duration">{formatDurationLabel(event.durationMinutes)}</span>}
 
@@ -213,4 +213,10 @@ export function formatEventMomentLabel(eventDate: string, eventTime24h: string |
           : "Evening"
 
   return `${weekday} ${category}`
+}
+
+function getEventStatusLabel(status: string): string {
+  if (status === "Running") return "Ongoing"
+  if (status === "Finished") return "Finished"
+  return "Planned"
 }

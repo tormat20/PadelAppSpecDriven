@@ -348,21 +348,19 @@ export default function RunEventPage() {
 
   return (
     <section className="page-shell" aria-label="Run event page">
-      <header className="page-header panel">
-        <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
-        <p className="page-subtitle">Submit each result to unlock the next round.</p>
-        {roundStepperProps && (
-          <Stepper
-            steps={roundStepperProps.steps}
-            currentStep={roundStepperProps.currentStep}
-            direction={1}
-          >
-            <></>
-          </Stepper>
-        )}
-      </header>
-
       <section className="panel run-grid">
+        <div className="run-grid__round-header">
+          <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
+          {roundStepperProps && (
+            <Stepper
+              steps={roundStepperProps.steps}
+              currentStep={roundStepperProps.currentStep}
+              direction={1}
+            >
+              <></>
+            </Stepper>
+          )}
+        </div>
         <CourtGrid
           matches={roundData.matches}
           showCourtImage

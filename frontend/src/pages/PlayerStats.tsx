@@ -261,8 +261,8 @@ function AvgScoreLineChart({ allTime, lastMonth, lastWeek }: AvgScoreLineChartPr
 
 // ── Avg Court Line Chart ──────────────────────────────────────────────────────
 
-const COURT_W = 340
-const COURT_H = 180
+const COURT_W = 420
+const COURT_H = 240
 const COURT_PAD_X = 32
 const COURT_PAD_Y = 14
 
@@ -276,7 +276,7 @@ function CourtLineChart({ data, avgCourtOverall }: CourtLineChartProps) {
 
   const minCourt = 1
   const maxCourt = Math.max(...data.map((r) => r.avgCourt), 1)
-  const maxCourtInt = Math.ceil(maxCourt)
+  const maxCourtInt = Math.max(Math.ceil(maxCourt), 7)
   const plotW = COURT_W - COURT_PAD_X * 2
   const plotH = COURT_H - COURT_PAD_Y * 2
   const range = maxCourtInt - minCourt || 1
