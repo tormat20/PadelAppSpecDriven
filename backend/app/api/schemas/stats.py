@@ -10,10 +10,20 @@ class RoundAvgScore(BaseModel):
     sample_count: int
 
 
-class RoundAvgCourt(BaseModel):
+class RoundAvgCourtScore(BaseModel):
     round: int
-    avg_court: float
+    avg_court_score: float
     sample_count: int
+
+
+class ScoreDistEntry(BaseModel):
+    score: int
+    count: int
+
+
+class ScoreDistPerCourt(BaseModel):
+    court_number: int
+    distribution: list[ScoreDistEntry]
 
 
 class MatchWDL(BaseModel):
@@ -26,9 +36,13 @@ class Score24ModeStats(BaseModel):
     avg_score_per_round: list[RoundAvgScore]
     avg_score_per_round_last_month: list[RoundAvgScore]
     avg_score_per_round_last_week: list[RoundAvgScore]
-    avg_court_per_round: list[RoundAvgCourt]
-    avg_court_overall: float | None
+    avg_court_score_per_round: list[RoundAvgCourtScore]
+    avg_court_score_per_round_last_month: list[RoundAvgCourtScore]
+    avg_court_score_per_round_last_week: list[RoundAvgCourtScore]
+    avg_court_score_overall: float | None
     match_wdl: MatchWDL
+    score_distribution: list[ScoreDistEntry]
+    score_distribution_per_court: list[ScoreDistPerCourt]
 
 
 class RoundWDL(BaseModel):

@@ -27,6 +27,11 @@ type CourtGridProps = {
   onFireNames?: Set<string>
   onColdNames?: Set<string>
   badgeVariant?: "crown" | "fire"
+  /**
+   * When true, forces exactly two rows by computing cols = ceil(n / 2).
+   * Top row gets the larger half for odd counts (e.g. 5 → 3 top + 2 bottom).
+   */
+  fullscreen?: boolean
 }
 
 export function selectTeamGrouping(
@@ -60,6 +65,7 @@ export function CourtGrid({
   onFireNames,
   onColdNames,
   badgeVariant = "crown",
+  fullscreen = false,
 }: CourtGridProps) {
   const badgeSrc = badgeVariant === "fire" ? "/images/icons/fire.svg" : "/images/icons/crown-color.png"
   const badgeAlt = badgeVariant === "fire" ? "Hot streak" : "Recent winner"
@@ -90,8 +96,12 @@ export function CourtGrid({
     return null
   }
 
+  const gridStyle = fullscreen
+    ? { gridTemplateColumns: `repeat(${Math.ceil(matches.length / 2)}, 1fr)` }
+    : undefined
+
   return (
-    <div className="grid-columns-2">
+    <div className="grid-columns-2" style={gridStyle}>
       {[...matches].sort((a, b) => b.courtNumber - a.courtNumber).map((match) => (
         <article key={match.matchId} className="match-card court-card" data-has-image={showCourtImage}>
           {showCourtImage ? <img src={COURT_IMAGE_SRC} alt="" aria-hidden="true" className="court-card-image" /> : null}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate, useParams } from "react-router-dom"
 
 import { CourtGrid, selectTeamGrouping } from "../components/courts/CourtGrid"
@@ -148,6 +149,23 @@ export default function RunEventPage() {
   const [inlineSummary, setInlineSummary] = useState<InlineSummaryView | null>(null)
   const [inlineSummaryError, setInlineSummaryError] = useState("")
   const [previousRoundWarning, setPreviousRoundWarning] = useState("")
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const fullscreenOverlayRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isFullscreen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false)
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isFullscreen])
+
+  useEffect(() => {
+    if (isFullscreen) {
+      fullscreenOverlayRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }, [isFullscreen])
 
   const applyMomentumNames = (
     summary: InlineSummaryView,
@@ -348,46 +366,228 @@ export default function RunEventPage() {
 
   return (
     <section className="page-shell" aria-label="Run event page">
-      <header className="page-header panel">
-        <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
-        <p className="page-subtitle">Submit each result to unlock the next round.</p>
-        {roundStepperProps && (
-          <Stepper
-            steps={roundStepperProps.steps}
-            currentStep={roundStepperProps.currentStep}
-            direction={1}
-          >
-            <></>
-          </Stepper>
-        )}
-      </header>
+      {isFullscreen ? (
+        createPortal(<div className="run-fullscreen-overlay" ref={fullscreenOverlayRef}>
+          <section className="panel run-grid">
+            <div className="run-grid__round-header">
+              <div className="run-grid__round-header-left">
+                <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
+                {roundStepperProps && (
+                  <Stepper
+                    steps={roundStepperProps.steps}
+                    currentStep={roundStepperProps.currentStep}
+                    direction={1}
+                  >
+                    <></>
+                  </Stepper>
+                )}
+              </div>
+              <button
+                type="button"
+                className={withInteractiveSurface("button-secondary")}
+                aria-label="Exit fullscreen"
+                onClick={() => setIsFullscreen(false)}
+              >
+                Exit Fullscreen
+              </button>
+            </div>
+            <CourtGrid
+              matches={roundData.matches}
+              showCourtImage
+              fullscreen
+              selectedTeamByMatch={selectedTeamGroupings}
+              hoveredTeamByMatch={hoveredTeamGroupings}
+              resultBadgeByMatch={badgeByMatch}
+              onTeamGroupClick={onTeamSideClick}
+              onTeamGroupHover={(matchId, teamNumber) => {
+                setHoveredTeamGroupings((current) => {
+                  if (!teamNumber) {
+                    const next = { ...current }
+                    delete next[matchId]
+                    return next
+                  }
+                  return { ...current, [matchId]: teamNumber }
+                })
+              }}
+              onFireNames={hotStreakNames}
+              onColdNames={coldStreakNames}
+              badgeVariant="fire"
+            />
+          </section>
 
-      <section className="panel run-grid">
-        <CourtGrid
-          matches={roundData.matches}
-          showCourtImage
-          selectedTeamByMatch={selectedTeamGroupings}
-          hoveredTeamByMatch={hoveredTeamGroupings}
-          resultBadgeByMatch={badgeByMatch}
-          onTeamGroupClick={onTeamSideClick}
-          onTeamGroupHover={(matchId, teamNumber) => {
-            setHoveredTeamGroupings((current) => {
-              if (!teamNumber) {
-                const next = { ...current }
-                delete next[matchId]
-                return next
-              }
-              return { ...current, [matchId]: teamNumber }
-            })
-          }}
-          onFireNames={hotStreakNames}
-          onColdNames={coldStreakNames}
-          badgeVariant="fire"
-        />
-      </section>
+          <section className="panel grid-columns-2">
+            <div className="run-action-panel">
+              <div className="run-action-row">
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => void previous()}
+                  aria-label={RUN_PAGE_ACTIONS[0]}
+                >
+                  {RUN_PAGE_ACTIONS[0]}
+                </button>
+                <button
+                  className={withInteractiveSurface("button")}
+                  onClick={() => void next()}
+                  disabled={!isComplete || (!isMexicano && isFinalRound)}
+                  aria-label={RUN_PAGE_ACTIONS[1]}
+                >
+                  {RUN_PAGE_ACTIONS[1]}
+                </button>
+              </div>
+
+              <div className="run-action-row">
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => {
+                    const next = !showInlineSummary
+                    setShowInlineSummary(next)
+                    if (next) {
+                      void getOngoingInlineSummary(eventId)
+                        .then((summary) => {
+                          setInlineSummary(summary)
+                          setInlineSummaryError("")
+                        })
+                        .catch((err) => {
+                          setInlineSummaryError(
+                            err instanceof Error ? err.message : "Could not load inline summary.",
+                          )
+                        })
+                    }
+                  }}
+                  aria-label={RUN_PAGE_ACTIONS[2]}
+                >
+                  {showInlineSummary ? "Hide Summary" : RUN_PAGE_ACTIONS[2]}
+                </button>
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={async () => {
+                    await finishEvent(eventId)
+                    navigate(`/events/${eventId}/summary`)
+                  }}
+                  disabled={isMexicano ? !isComplete : !isComplete || !isFinalRound}
+                  aria-label={RUN_PAGE_ACTIONS[3]}
+                >
+                  {RUN_PAGE_ACTIONS[3]}
+                </button>
+              </div>
+
+              {previousRoundWarning && <p className="warning-text">{previousRoundWarning}</p>}
+            </div>
+          </section>
+        </div>, document.body)
+      ) : (
+        <>
+          <section className="panel run-grid">
+            <div className="run-grid__round-header">
+              <div className="run-grid__round-header-left">
+                <h2 className="page-title">Run Event - Round {roundData.roundNumber}</h2>
+                {roundStepperProps && (
+                  <Stepper
+                    steps={roundStepperProps.steps}
+                    currentStep={roundStepperProps.currentStep}
+                    direction={1}
+                  >
+                    <></>
+                  </Stepper>
+                )}
+              </div>
+              <button
+                type="button"
+                className={withInteractiveSurface("button-secondary")}
+                aria-label="Enter fullscreen"
+                onClick={() => setIsFullscreen(true)}
+              >
+                Fullscreen
+              </button>
+            </div>
+            <CourtGrid
+              matches={roundData.matches}
+              showCourtImage
+              selectedTeamByMatch={selectedTeamGroupings}
+              hoveredTeamByMatch={hoveredTeamGroupings}
+              resultBadgeByMatch={badgeByMatch}
+              onTeamGroupClick={onTeamSideClick}
+              onTeamGroupHover={(matchId, teamNumber) => {
+                setHoveredTeamGroupings((current) => {
+                  if (!teamNumber) {
+                    const next = { ...current }
+                    delete next[matchId]
+                    return next
+                  }
+                  return { ...current, [matchId]: teamNumber }
+                })
+              }}
+              onFireNames={hotStreakNames}
+              onColdNames={coldStreakNames}
+              badgeVariant="fire"
+            />
+          </section>
+
+          <section className="panel grid-columns-2">
+            <div className="run-action-panel">
+              <div className="run-action-row">
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => void previous()}
+                  aria-label={RUN_PAGE_ACTIONS[0]}
+                >
+                  {RUN_PAGE_ACTIONS[0]}
+                </button>
+                <button
+                  className={withInteractiveSurface("button")}
+                  onClick={() => void next()}
+                  disabled={!isComplete || (!isMexicano && isFinalRound)}
+                  aria-label={RUN_PAGE_ACTIONS[1]}
+                >
+                  {RUN_PAGE_ACTIONS[1]}
+                </button>
+              </div>
+
+              <div className="run-action-row">
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={() => {
+                    const next = !showInlineSummary
+                    setShowInlineSummary(next)
+                    if (next) {
+                      void getOngoingInlineSummary(eventId)
+                        .then((summary) => {
+                          setInlineSummary(summary)
+                          setInlineSummaryError("")
+                        })
+                        .catch((err) => {
+                          setInlineSummaryError(
+                            err instanceof Error ? err.message : "Could not load inline summary.",
+                          )
+                        })
+                    }
+                  }}
+                  aria-label={RUN_PAGE_ACTIONS[2]}
+                >
+                  {showInlineSummary ? "Hide Summary" : RUN_PAGE_ACTIONS[2]}
+                </button>
+                <button
+                  className={withInteractiveSurface("button-secondary")}
+                  onClick={async () => {
+                    await finishEvent(eventId)
+                    navigate(`/events/${eventId}/summary`)
+                  }}
+                  disabled={isMexicano ? !isComplete : !isComplete || !isFinalRound}
+                  aria-label={RUN_PAGE_ACTIONS[3]}
+                >
+                  {RUN_PAGE_ACTIONS[3]}
+                </button>
+              </div>
+
+              {previousRoundWarning && <p className="warning-text">{previousRoundWarning}</p>}
+            </div>
+          </section>
+        </>
+      )}
 
       <ResultModal
         isOpen={!!modalContext}
+        isFullscreen={isFullscreen}
         mode={eventData.eventType}
         selectedSide={modalContext?.selectedSide ?? 1}
         selectedPayload={modalContext ? submittedPayloads[modalContext.matchId] : undefined}
@@ -397,66 +597,6 @@ export default function RunEventPage() {
           void submit(modalContext.matchId, payload)
         }}
       />
-
-      <section className="panel grid-columns-2">
-        <div className="run-action-panel">
-          <div className="run-action-row">
-            <button
-              className={withInteractiveSurface("button-secondary")}
-              onClick={() => void previous()}
-              aria-label={RUN_PAGE_ACTIONS[0]}
-            >
-              {RUN_PAGE_ACTIONS[0]}
-            </button>
-            <button
-              className={withInteractiveSurface("button")}
-              onClick={() => void next()}
-              disabled={!isComplete || (!isMexicano && isFinalRound)}
-              aria-label={RUN_PAGE_ACTIONS[1]}
-            >
-              {RUN_PAGE_ACTIONS[1]}
-            </button>
-          </div>
-
-          <div className="run-action-row">
-            <button
-              className={withInteractiveSurface("button-secondary")}
-              onClick={() => {
-                const next = !showInlineSummary
-                setShowInlineSummary(next)
-                if (next) {
-                  void getOngoingInlineSummary(eventId)
-                    .then((summary) => {
-                      setInlineSummary(summary)
-                      setInlineSummaryError("")
-                    })
-                    .catch((err) => {
-                      setInlineSummaryError(
-                        err instanceof Error ? err.message : "Could not load inline summary.",
-                      )
-                    })
-                }
-              }}
-              aria-label={RUN_PAGE_ACTIONS[2]}
-            >
-              {showInlineSummary ? "Hide Summary" : RUN_PAGE_ACTIONS[2]}
-            </button>
-            <button
-              className={withInteractiveSurface("button-secondary")}
-              onClick={async () => {
-                await finishEvent(eventId)
-                navigate(`/events/${eventId}/summary`)
-              }}
-              disabled={isMexicano ? !isComplete : !isComplete || !isFinalRound}
-              aria-label={RUN_PAGE_ACTIONS[3]}
-            >
-              {RUN_PAGE_ACTIONS[3]}
-            </button>
-          </div>
-
-          {previousRoundWarning && <p className="warning-text">{previousRoundWarning}</p>}
-        </div>
-      </section>
 
       {inlineSummaryError && <section className="panel"><p className="warning-text">{inlineSummaryError}</p></section>}
 
