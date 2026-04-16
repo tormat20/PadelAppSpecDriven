@@ -249,10 +249,20 @@ export type RoundAvgScore = {
   sampleCount: number
 }
 
-export type RoundAvgCourt = {
+export type RoundAvgCourtScore = {
   round: number
-  avgCourt: number
+  avgCourtScore: number
   sampleCount: number
+}
+
+export type ScoreDistEntry = {
+  score: number
+  count: number
+}
+
+export type ScoreDistPerCourt = {
+  courtNumber: number
+  distribution: ScoreDistEntry[]
 }
 
 export type MatchWDL = {
@@ -265,9 +275,13 @@ export type Score24ModeStats = {
   avgScorePerRound: RoundAvgScore[]
   avgScorePerRoundLastMonth: RoundAvgScore[]
   avgScorePerRoundLastWeek: RoundAvgScore[]
-  avgCourtPerRound: RoundAvgCourt[]
-  avgCourtOverall: number | null
+  avgCourtScorePerRound: RoundAvgCourtScore[]
+  avgCourtScorePerRoundLastMonth: RoundAvgCourtScore[]
+  avgCourtScorePerRoundLastWeek: RoundAvgCourtScore[]
+  avgCourtScoreOverall: number | null
   matchWdl: MatchWDL
+  scoreDistribution: ScoreDistEntry[]
+  scoreDistributionPerCourt: ScoreDistPerCourt[]
 }
 
 export type RoundWDL = {

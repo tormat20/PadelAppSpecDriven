@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom"
+
 import { ModeInputs } from "../../features/run-event/modeInputs"
 import type { EventType } from "../../lib/types"
 import type { TeamSide, WinnerPayload } from "../../features/run-event/resultEntry"
@@ -5,6 +7,7 @@ import { withInteractiveSurface } from "../../features/interaction/surfaceClass"
 
 type Props = {
   isOpen: boolean
+  isFullscreen?: boolean
   mode: EventType
   selectedSide: TeamSide
   selectedPayload?: WinnerPayload
@@ -14,6 +17,7 @@ type Props = {
 
 export function ResultModal({
   isOpen,
+  isFullscreen = false,
   mode,
   selectedSide,
   selectedPayload,
@@ -22,9 +26,17 @@ export function ResultModal({
 }: Props) {
   if (!isOpen) return null
 
-  return (
+  if (typeof document === "undefined") return null
+
+  return createPortal(
     <div className="result-modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="result-modal" role="dialog" aria-modal="true" aria-label="Submit match result" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={isFullscreen ? "result-modal result-modal--fullscreen" : "result-modal"}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Submit match result"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="result-modal-header">
           <h3 className="match-title">Submit Result</h3>
           <button type="button" className={withInteractiveSurface("button-secondary")} onClick={onClose}>Close</button>
@@ -37,6 +49,7 @@ export function ResultModal({
           onPayload={onSubmitPayload}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

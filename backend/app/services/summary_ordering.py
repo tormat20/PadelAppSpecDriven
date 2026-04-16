@@ -14,7 +14,8 @@ def compute_consecutive_momentum(matches_with_round: list[tuple[int, Any]]) -> d
     - "snowflake" after >=3 consecutive losses
     - "none" otherwise
     """
-    outcomes: dict[str, list[str]] = {}
+    streak_kind_by_player: dict[str, str] = {}
+    streak_count_by_player: dict[str, int] = {}
 
     for _round_number, match in sorted(
         matches_with_round, key=lambda x: (x[0], getattr(x[1], "court_number", 0))
@@ -27,37 +28,34 @@ def compute_consecutive_momentum(matches_with_round: list[tuple[int, Any]]) -> d
         team1 = [getattr(match, "team1_player1_id", ""), getattr(match, "team1_player2_id", "")]
         team2 = [getattr(match, "team2_player1_id", ""), getattr(match, "team2_player2_id", "")]
 
-        # Draws are neutral: they do not advance or break active streaks.
         if is_draw:
             continue
 
-        winners = team1 if winner_team == 1 else team2
-        losers = team2 if winner_team == 1 else team1
-        for pid in winners:
-            outcomes.setdefault(pid, []).append("W")
-        for pid in losers:
-            outcomes.setdefault(pid, []).append("L")
+        outcome_by_player: dict[str, str] = {}
+        for pid in team1:
+            outcome_by_player[pid] = "W" if winner_team == 1 else "L"
+        for pid in team2:
+            outcome_by_player[pid] = "W" if winner_team == 2 else "L"
+
+        for pid, outcome in outcome_by_player.items():
+            previous_kind = streak_kind_by_player.get(pid)
+            previous_count = streak_count_by_player.get(pid, 0)
+
+            if outcome == previous_kind:
+                streak_count_by_player[pid] = previous_count + 1
+            else:
+                streak_kind_by_player[pid] = outcome
+                streak_count_by_player[pid] = 1
 
     momentum: dict[str, str] = {}
-    for pid, seq in outcomes.items():
-        if len(seq) < 3:
+    for pid, streak_count in streak_count_by_player.items():
+        if streak_count < 3:
             momentum[pid] = "none"
             continue
 
-        consecutive = 0
-        marker = ""
-        for value in reversed(seq):
-            if marker == "":
-                marker = value
-                consecutive = 1
-            elif value == marker:
-                consecutive += 1
-            else:
-                break
-
-        if marker == "W" and consecutive >= 3:
+        if streak_kind_by_player.get(pid) == "W":
             momentum[pid] = "fire"
-        elif marker == "L" and consecutive >= 3:
+        elif streak_kind_by_player.get(pid) == "L":
             momentum[pid] = "snowflake"
         else:
             momentum[pid] = "none"

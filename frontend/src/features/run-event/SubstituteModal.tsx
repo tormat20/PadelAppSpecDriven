@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom"
 import { useEffect, useRef, useState } from "react"
 
 import { withInteractiveSurface } from "../interaction/surfaceClass"
@@ -90,7 +91,9 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
 
   if (!isOpen) return null
 
-  return (
+  if (typeof document === "undefined") return null
+
+  return createPortal(
     <div
       className="result-modal-backdrop"
       role="presentation"
@@ -231,6 +234,7 @@ export function SubstituteModal({ isOpen, eventId, currentPlayers, onClose, onSu
           </button>
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
