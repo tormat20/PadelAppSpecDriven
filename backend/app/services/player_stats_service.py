@@ -149,7 +149,12 @@ class PlayerStatsService:
         Returns a dict matching the PlayerDeepDiveResponse shape.
         """
         rows = self.player_stats_repo.get_deep_dive_matches(player_id)
-        return _compute_deep_dive(rows)
+        distinct_event_ids = {r["event_id"] for r in rows}
+        court_score_map: dict[str, dict[int, float]] = {}
+        for eid in distinct_event_ids:
+            courts = sorted(self.events_repo.list_courts(eid))
+            court_score_map[eid] = {c: _normalize_court_score(c, courts) for c in courts}
+        return _compute_deep_dive(rows, court_score_map)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -330,9 +335,13 @@ def _empty_score24_stats() -> dict:
         "avg_score_per_round": [],
         "avg_score_per_round_last_month": [],
         "avg_score_per_round_last_week": [],
-        "avg_court_per_round": [],
-        "avg_court_overall": None,
+        "avg_court_score_per_round": [],
+        "avg_court_score_per_round_last_month": [],
+        "avg_court_score_per_round_last_week": [],
+        "avg_court_score_overall": None,
         "match_wdl": {"wins": 0, "draws": 0, "losses": 0},
+        "score_distribution": [{"score": i, "count": 0} for i in range(25)],
+        "score_distribution_per_court": [],
     }
 
 
@@ -354,14 +363,46 @@ def _avg_score_series(rows: list[dict]) -> list[dict]:
     ]
 
 
-def _compute_score24_stats(rows: list[dict]) -> dict:
-    """Compute avg_score_per_round (all-time + windowed), avg_court_per_round, match_wdl for Score24 rows."""
+def _avg_court_score_series(
+    rows: list[dict], court_score_map: dict[str, dict[int, float]]
+) -> list[dict]:
+    """Return avg_court_score_per_round list from the given match rows."""
+    from collections import defaultdict
+
+    round_court_scores: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        event_id = row["event_id"]
+        court_number = row["court_number"]
+        event_map = court_score_map.get(event_id, {})
+        court_score = event_map.get(court_number)
+        if court_score is not None:
+            round_court_scores[row["round_number"]].append(court_score)
+    return [
+        {"round": r, "avg_court_score": sum(v) / len(v), "sample_count": len(v)}
+        for r, v in sorted(round_court_scores.items())
+    ]
+
+
+def _normalize_court_score(court_number: int, sorted_courts: list[int]) -> float:
+    """Return a 0–10 normalized score for court_number within sorted_courts."""
+    if len(sorted_courts) <= 1:
+        return 10.0
+    rank = sorted_courts.index(court_number)
+    return (rank / (len(sorted_courts) - 1)) * 10.0
+
+
+def _compute_score24_stats(rows: list[dict], court_score_map: dict[str, dict[int, float]]) -> dict:
+    """Compute avg_court_score_per_round, match_wdl, score_distribution, and score_distribution_per_court."""
     from collections import defaultdict
     from datetime import date, timedelta
 
-    round_courts: dict[int, list[int]] = defaultdict(list)
-    all_courts: list[int] = []
+    round_court_scores: dict[int, list[float]] = defaultdict(list)
+    all_court_scores: list[float] = []
     wins = draws = losses = 0
+
+    # Score distribution accumulators
+    dist_counts: list[int] = [0] * 25
+    court_dist_counts: dict[int, list[int]] = defaultdict(lambda: [0] * 25)
 
     today = date.today()
     cutoff_month = today - timedelta(days=30)
@@ -374,15 +415,30 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
             else int(row["team2_score"] or 0)
         )
         rnum = row["round_number"]
-        round_courts[rnum].append(row["court_number"])
-        all_courts.append(row["court_number"])
+        event_id = row["event_id"]
+        court_number = row["court_number"]
 
+        # Normalized court score
+        event_map = court_score_map.get(event_id, {})
+        court_score = event_map.get(court_number)
+        if court_score is not None:
+            round_court_scores[rnum].append(court_score)
+            all_court_scores.append(court_score)
+
+        # Win/draw/loss
         if score > 12:
             wins += 1
         elif score < 12:
             losses += 1
         else:
             draws += 1
+
+        # Score distribution — count both team scores independently
+        for s in (row["team1_score"], row["team2_score"]):
+            v = int(s or 0)
+            if 0 <= v <= 24:
+                dist_counts[v] += 1
+                court_dist_counts[court_number][v] += 1
 
     # Parse event_date once per row for windowing
     def _parse_date(row: dict) -> date:
@@ -394,19 +450,35 @@ def _compute_score24_stats(rows: list[dict]) -> dict:
     rows_month = [r for r in rows if _parse_date(r) >= cutoff_month]
     rows_week = [r for r in rows if _parse_date(r) >= cutoff_week]
 
-    avg_court_per_round = [
-        {"round": r, "avg_court": sum(v) / len(v), "sample_count": len(v)}
-        for r, v in sorted(round_courts.items())
+    avg_court_score_per_round = _avg_court_score_series(rows, court_score_map)
+    avg_court_score_per_round_last_month = _avg_court_score_series(rows_month, court_score_map)
+    avg_court_score_per_round_last_week = _avg_court_score_series(rows_week, court_score_map)
+    avg_court_score_overall = (
+        sum(all_court_scores) / len(all_court_scores) if all_court_scores else None
+    )
+
+    score_distribution = [{"score": i, "count": dist_counts[i]} for i in range(25)]
+
+    score_distribution_per_court = [
+        {
+            "court_number": cn,
+            "distribution": [{"score": i, "count": counts[i]} for i in range(25)],
+        }
+        for cn, counts in sorted(court_dist_counts.items())
+        if sum(counts) > 0
     ]
-    avg_court_overall = sum(all_courts) / len(all_courts) if all_courts else None
 
     return {
         "avg_score_per_round": _avg_score_series(rows),
         "avg_score_per_round_last_month": _avg_score_series(rows_month),
         "avg_score_per_round_last_week": _avg_score_series(rows_week),
-        "avg_court_per_round": avg_court_per_round,
-        "avg_court_overall": avg_court_overall,
+        "avg_court_score_per_round": avg_court_score_per_round,
+        "avg_court_score_per_round_last_month": avg_court_score_per_round_last_month,
+        "avg_court_score_per_round_last_week": avg_court_score_per_round_last_week,
+        "avg_court_score_overall": avg_court_score_overall,
         "match_wdl": {"wins": wins, "draws": draws, "losses": losses},
+        "score_distribution": score_distribution,
+        "score_distribution_per_court": score_distribution_per_court,
     }
 
 
@@ -460,7 +532,7 @@ def _compute_rb_elo(rows: list[dict]) -> list[dict]:
     return timeline
 
 
-def _compute_deep_dive(rows: list[dict]) -> dict:
+def _compute_deep_dive(rows: list[dict], court_score_map: dict[str, dict[int, float]]) -> dict:
     """Compute the full deep-dive response from raw match rows."""
     mexicano_rows = [
         r
@@ -481,13 +553,13 @@ def _compute_deep_dive(rows: list[dict]) -> dict:
     wc_rows = [r for r in rows if r["event_type"] == "WinnersCourt"]
 
     return {
-        "mexicano": _compute_score24_stats(mexicano_rows)
+        "mexicano": _compute_score24_stats(mexicano_rows, court_score_map)
         if mexicano_rows
         else _empty_score24_stats(),
-        "americano": _compute_score24_stats(americano_rows)
+        "americano": _compute_score24_stats(americano_rows, court_score_map)
         if americano_rows
         else _empty_score24_stats(),
-        "team_mexicano": _compute_score24_stats(team_mex_rows)
+        "team_mexicano": _compute_score24_stats(team_mex_rows, court_score_map)
         if team_mex_rows
         else _empty_score24_stats(),
         "ranked_box": {

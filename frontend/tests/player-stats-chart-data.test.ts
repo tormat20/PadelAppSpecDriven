@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { buildDoughnutSegments, buildGroupedBars } from "../src/features/player-stats/chartData"
+import { buildBarSegments, buildDoughnutSegments, buildGroupedBars } from "../src/features/player-stats/chartData"
 
 describe("buildDoughnutSegments", () => {
   const cx = 50
@@ -164,5 +164,57 @@ describe("buildGroupedBars", () => {
         expect(bar.height).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+// ── buildBarSegments (score distribution) ────────────────────────────────────
+
+describe("buildBarSegments — score distribution", () => {
+  const makeDist = (counts: number[]) =>
+    counts.map((count, i) => ({ label: String(i), value: count }))
+
+  const svgW = 420
+  const svgH = 120
+  const padX = 8
+  const padY = 8
+
+  it("25-item distribution input produces 25 BarSegment outputs", () => {
+    const items = makeDist(Array(25).fill(1))
+    const bars = buildBarSegments(items, "#0c8a8f", svgW, svgH, padX, padY, 0, 5)
+    expect(bars).toHaveLength(25)
+  })
+
+  it("all-zero distribution still produces 25 segments with height >= 1", () => {
+    const items = makeDist(Array(25).fill(0))
+    const bars = buildBarSegments(items, "#0c8a8f", svgW, svgH, padX, padY, 0, 1)
+    expect(bars).toHaveLength(25)
+    // existing impl floors height at 1
+    for (const b of bars) {
+      expect(b.height).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it("x positions are monotonically increasing", () => {
+    const items = makeDist(Array(25).fill(2))
+    const bars = buildBarSegments(items, "#0c8a8f", svgW, svgH, padX, padY, 0, 5)
+    for (let i = 1; i < bars.length; i++) {
+      expect(bars[i].x).toBeGreaterThan(bars[i - 1].x)
+    }
+  })
+
+  it("bar labeled '12' exists at index 12", () => {
+    const items = makeDist(Array(25).fill(1))
+    const bars = buildBarSegments(items, "#0c8a8f", svgW, svgH, padX, padY, 0, 5)
+    expect(bars[12].label).toBe("12")
+  })
+
+  it("taller bar rendered for higher-count score", () => {
+    const counts = Array(25).fill(1)
+    counts[5] = 10  // score 5 has much higher count
+    const items = makeDist(counts)
+    const bars = buildBarSegments(items, "#0c8a8f", svgW, svgH, padX, padY, 0, 10)
+    const bar5 = bars.find((b) => b.label === "5")!
+    const bar0 = bars.find((b) => b.label === "0")!
+    expect(bar5.height).toBeGreaterThan(bar0.height)
   })
 })

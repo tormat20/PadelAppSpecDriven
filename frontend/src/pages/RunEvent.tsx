@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate, useParams } from "react-router-dom"
 
 import { CourtGrid, selectTeamGrouping } from "../components/courts/CourtGrid"
@@ -366,7 +367,7 @@ export default function RunEventPage() {
   return (
     <section className="page-shell" aria-label="Run event page">
       {isFullscreen ? (
-        <div className="run-fullscreen-overlay" ref={fullscreenOverlayRef}>
+        createPortal(<div className="run-fullscreen-overlay" ref={fullscreenOverlayRef}>
           <section className="panel run-grid">
             <div className="run-grid__round-header">
               <div className="run-grid__round-header-left">
@@ -393,6 +394,7 @@ export default function RunEventPage() {
             <CourtGrid
               matches={roundData.matches}
               showCourtImage
+              fullscreen
               selectedTeamByMatch={selectedTeamGroupings}
               hoveredTeamByMatch={hoveredTeamGroupings}
               resultBadgeByMatch={badgeByMatch}
@@ -472,7 +474,7 @@ export default function RunEventPage() {
               {previousRoundWarning && <p className="warning-text">{previousRoundWarning}</p>}
             </div>
           </section>
-        </div>
+        </div>, document.body)
       ) : (
         <>
           <section className="panel run-grid">
@@ -585,6 +587,7 @@ export default function RunEventPage() {
 
       <ResultModal
         isOpen={!!modalContext}
+        isFullscreen={isFullscreen}
         mode={eventData.eventType}
         selectedSide={modalContext?.selectedSide ?? 1}
         selectedPayload={modalContext ? submittedPayloads[modalContext.matchId] : undefined}

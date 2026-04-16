@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
 import {
+  buildBarSegments,
   buildDoughnutSegments,
   buildGroupedBars,
   buildLinePoints,
@@ -15,10 +16,12 @@ import type {
   MatchWDL,
   PlayerDeepDive,
   PlayerStats,
-  RoundAvgCourt,
+  RoundAvgCourtScore,
   RoundAvgScore,
   RoundWDL,
   Score24ModeStats,
+  ScoreDistEntry,
+  ScoreDistPerCourt,
 } from "../lib/types"
 
 // ── Colour constants ──────────────────────────────────────────────────────────
@@ -30,10 +33,10 @@ const COLOR_GREEN = "#22c55e"
 
 // ── Doughnut chart ─────────────────────────────────────────────────────────────
 
-const CX = 48
-const CY = 48
-const R = 36
-const INNER_R = 22
+const CX = 62
+const CY = 62
+const R = 47
+const INNER_R = 29
 
 interface DoughnutProps {
   segments: Array<{ label: string; value: number; color: string }>
@@ -96,8 +99,8 @@ function LegendRow({ color, label, value }: LegendRowProps) {
 
 // ── Avg Score Line Chart (multi-series) ───────────────────────────────────────
 
-const SCORE_W = 340
-const SCORE_H = 180
+const SCORE_W = 560
+const SCORE_H = 220
 const SCORE_PAD_X = 32
 const SCORE_PAD_Y = 14
 const SCORE_Y_MIN = 0
@@ -157,6 +160,7 @@ function AvgScoreLineChart({ allTime, lastMonth, lastWeek }: AvgScoreLineChartPr
   return (
     <div className="dd-chart-wrap" aria-label="Average score per round">
       <p className="dd-chart-label">Avg score per round</p>
+      <p className="dd-chart-desc">Your average match score (0–24) across rounds, showing how consistently you score over time.</p>
       <div className="dd-chart-scroll">
         <svg
           width={SCORE_W}
@@ -259,62 +263,86 @@ function AvgScoreLineChart({ allTime, lastMonth, lastWeek }: AvgScoreLineChartPr
   )
 }
 
-// ── Avg Court Line Chart ──────────────────────────────────────────────────────
+// ── Avg Court Score Line Chart ────────────────────────────────────────────────
 
-const COURT_W = 420
-const COURT_H = 240
+const COURT_W = 560
+const COURT_H = 220
 const COURT_PAD_X = 32
 const COURT_PAD_Y = 14
 
 interface CourtLineChartProps {
-  data: RoundAvgCourt[]
-  avgCourtOverall: number | null
+  allTime: RoundAvgCourtScore[]
+  lastMonth: RoundAvgCourtScore[]
+  lastWeek: RoundAvgCourtScore[]
+  avgCourtScoreOverall: number | null
 }
 
-function CourtLineChart({ data, avgCourtOverall }: CourtLineChartProps) {
-  if (data.length === 0) return null
+function CourtLineChart({ allTime, lastMonth, lastWeek, avgCourtScoreOverall }: CourtLineChartProps) {
+  if (allTime.length === 0 && lastMonth.length === 0 && lastWeek.length === 0) return null
 
-  const minCourt = 1
-  const maxCourt = Math.max(...data.map((r) => r.avgCourt), 1)
-  const maxCourtInt = Math.max(Math.ceil(maxCourt), 7)
+  const minScore = 0
+  const maxScore = 10
   const plotW = COURT_W - COURT_PAD_X * 2
   const plotH = COURT_H - COURT_PAD_Y * 2
-  const range = maxCourtInt - minCourt || 1
+  const range = maxScore - minScore
 
-  const pts = data.map((r, i) => ({
-    x: COURT_PAD_X + (data.length === 1 ? plotW / 2 : (i / (data.length - 1)) * plotW),
-    y: COURT_PAD_Y + plotH - ((r.avgCourt - minCourt) / range) * plotH,
-    label: `R${r.round}`,
-    value: r.avgCourt,
-  }))
+  // Use all-time as X-axis spine; fall back to whichever series has data
+  const spine = allTime.length > 0 ? allTime : lastMonth.length > 0 ? lastMonth : lastWeek
+  const rounds = spine.map((r) => r.round)
 
-  const pathD =
-    pts.length === 1
-      ? ""
-      : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+  function xForRound(round: number): number {
+    const idx = rounds.indexOf(round)
+    if (idx === -1) return COURT_PAD_X
+    return COURT_PAD_X + (rounds.length === 1 ? plotW / 2 : (idx / (rounds.length - 1)) * plotW)
+  }
 
-  // Y-axis ticks: every integer from minCourt to maxCourtInt
-  const allCourtTicks = Array.from({ length: maxCourtInt - minCourt + 1 }, (_, i) => minCourt + i)
+  function yForScore(score: number): number {
+    const clamped = Math.max(minScore, Math.min(maxScore, score))
+    return COURT_PAD_Y + plotH - ((clamped - minScore) / range) * plotH
+  }
+
+  function buildSeries(data: RoundAvgCourtScore[]) {
+    if (data.length === 0) return { pathD: "", pts: [] as Array<{ x: number; y: number }> }
+    const pts = data.map((r) => ({ x: xForRound(r.round), y: yForScore(r.avgCourtScore) }))
+    const pathD =
+      pts.length === 1
+        ? ""
+        : pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
+    return { pathD, pts }
+  }
+
+  const seriesAllTime = buildSeries(allTime)
+  const seriesMonth = buildSeries(lastMonth)
+  const seriesWeek = buildSeries(lastWeek)
+
+  const activeSeries = [
+    lastMonth.length > 0 && { color: COLOR_GREEN, label: "Last 30 days" },
+    lastWeek.length > 0 && { color: COLOR_AMBER, label: "Last 7 days" },
+    allTime.length > 0 && { color: COLOR_RED, label: "All time" },
+  ].filter(Boolean) as Array<{ color: string; label: string }>
+
+  const yTicks = [0, 2, 4, 6, 8, 10]
 
   return (
-    <div className="dd-chart-wrap" aria-label="Average court per round">
+    <div className="dd-chart-wrap" aria-label="Average court-score per round">
       <p className="dd-chart-label">
-        Avg court per round
-        {avgCourtOverall !== null && (
-          <span className="dd-sub-stat"> — overall avg: {avgCourtOverall.toFixed(1)}</span>
+        Avg court-score per round
+        {avgCourtScoreOverall !== null && (
+          <span className="dd-sub-stat"> — overall avg: {avgCourtScoreOverall.toFixed(1)}</span>
         )}
       </p>
+      <p className="dd-chart-desc">Court score is normalized to 0–10 regardless of format, so results are comparable across event types.</p>
       <div className="dd-chart-scroll">
         <svg
           width={COURT_W}
           height={COURT_H}
           viewBox={`0 0 ${COURT_W} ${COURT_H}`}
           role="img"
-          aria-label="Average court per round line chart"
+          aria-label="Average court-score per round line chart"
         >
           {/* Y-axis reference lines + labels */}
-          {allCourtTicks.map((v) => {
-            const y = COURT_PAD_Y + plotH - ((v - minCourt) / range) * plotH
+          {yTicks.map((v) => {
+            const y = yForScore(v)
             return (
               <g key={v}>
                 <line
@@ -331,34 +359,112 @@ function CourtLineChart({ data, avgCourtOverall }: CourtLineChartProps) {
               </g>
             )
           })}
-          {/* Baseline */}
-          <line
-            x1={COURT_PAD_X}
-            y1={COURT_PAD_Y + plotH}
-            x2={COURT_W - COURT_PAD_X}
-            y2={COURT_PAD_Y + plotH}
-            stroke="var(--color-border)"
-            strokeWidth={1}
-          />
-          {/* Line */}
-          {pathD && (
-            <path d={pathD} fill="none" stroke={COLOR_TEAL} strokeWidth={2} strokeLinejoin="round" />
+
+          {/* All-time series — red, drawn first (bottom layer) */}
+          {seriesAllTime.pathD && (
+            <path d={seriesAllTime.pathD} fill="none" stroke={COLOR_RED} strokeWidth={2} strokeLinejoin="round" />
           )}
-          {/* Dots */}
-          {pts.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={COLOR_TEAL} />
+          {seriesAllTime.pts.map((p, i) => (
+            <circle key={`at-${i}`} cx={p.x} cy={p.y} r={3.5} fill={COLOR_RED} />
           ))}
+
+          {/* Last-month series — green */}
+          {seriesMonth.pathD && (
+            <path d={seriesMonth.pathD} fill="none" stroke={COLOR_GREEN} strokeWidth={2} strokeLinejoin="round" />
+          )}
+          {seriesMonth.pts.map((p, i) => (
+            <circle key={`lm-${i}`} cx={p.x} cy={p.y} r={3.5} fill={COLOR_GREEN} />
+          ))}
+
+          {/* Last-week series — amber, drawn last (top layer) */}
+          {seriesWeek.pathD && (
+            <path d={seriesWeek.pathD} fill="none" stroke={COLOR_AMBER} strokeWidth={2} strokeLinejoin="round" />
+          )}
+          {seriesWeek.pts.map((p, i) => (
+            <circle key={`lw-${i}`} cx={p.x} cy={p.y} r={3.5} fill={COLOR_AMBER} />
+          ))}
+
           {/* X-axis labels */}
-          {pts.map((p) => (
+          {spine.map((r, i) => (
             <text
-              key={`lbl-${p.label}`}
-              x={p.x}
+              key={`lbl-${r.round}`}
+              x={COURT_PAD_X + (rounds.length === 1 ? plotW / 2 : (i / (rounds.length - 1)) * plotW)}
               y={COURT_H - 2}
               textAnchor="middle"
               className="dd-axis-tick"
             >
-              {p.label}
+              R{r.round}
             </text>
+          ))}
+        </svg>
+      </div>
+
+      {/* Legend — only when more than one series has data */}
+      {activeSeries.length > 1 && (
+        <div className="dd-score-legend">
+          {activeSeries.map(({ color, label }) => (
+            <span key={label} className="dd-score-legend-item">
+              <svg width="16" height="4" aria-hidden="true">
+                <rect x="0" y="0" width="16" height="4" rx="2" fill={color} />
+              </svg>
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Score Distribution Bar Chart ─────────────────────────────────────────────
+
+const DIST_W = 420
+const DIST_H = 120
+const DIST_PAD_X = 8
+const DIST_PAD_Y = 8
+
+interface ScoreDistChartProps {
+  distribution: ScoreDistEntry[]
+  title: string
+}
+
+function ScoreDistChart({ distribution, title }: ScoreDistChartProps) {
+  const allZero = distribution.every((d) => d.count === 0)
+  if (allZero) {
+    return (
+      <div className="dd-chart-wrap">
+        <p className="dd-chart-label">{title}</p>
+        <p className="dd-empty-state muted">No score data yet.</p>
+      </div>
+    )
+  }
+
+  const maxCount = Math.max(1, ...distribution.map((d) => d.count))
+  const items = distribution.map((d) => ({ label: String(d.score), value: d.count }))
+  const bars = buildBarSegments(items, COLOR_TEAL, DIST_W, DIST_H, DIST_PAD_X, DIST_PAD_Y, 0, maxCount)
+
+  return (
+    <div className="dd-chart-wrap">
+      <p className="dd-chart-label">{title}</p>
+      <div className="dd-chart-scroll">
+        <svg
+          width={DIST_W}
+          height={DIST_H}
+          viewBox={`0 0 ${DIST_W} ${DIST_H}`}
+          role="img"
+          aria-label={title}
+        >
+          <title>{title}</title>
+          {bars.map((b) => (
+            <rect
+              key={b.label}
+              x={b.x}
+              y={b.y}
+              width={b.width}
+              height={b.height}
+              fill={b.color}
+              rx={1}
+            />
           ))}
         </svg>
       </div>
@@ -738,39 +844,60 @@ function Score24Tab({ data, tabLabel }: Score24TabProps) {
 
   return (
     <div className="dd-tab-content">
-      {/* Win/Draw/Loss doughnut — first */}
-      <div className="dd-row">
-        <div className="stats-doughnut-wrapper">
-          <Doughnut
-            title={`${tabLabel} match win/draw/loss`}
-            segments={[
-              { label: "Wins", value: wins, color: COLOR_TEAL },
-              { label: "Draws", value: draws, color: COLOR_AMBER },
-              { label: "Losses", value: losses, color: COLOR_RED },
-            ]}
+      <div className="dd-two-col">
+        {/* Left column: doughnut + line charts */}
+        <div className="dd-col-left">
+          {/* Win/Draw/Loss doughnut */}
+          <div className="dd-row">
+            <div className="stats-doughnut-wrapper">
+              <Doughnut
+                title={`${tabLabel} match win/draw/loss`}
+                segments={[
+                  { label: "Wins", value: wins, color: COLOR_TEAL },
+                  { label: "Draws", value: draws, color: COLOR_AMBER },
+                  { label: "Losses", value: losses, color: COLOR_RED },
+                ]}
+              />
+            </div>
+            <div className="stats-chart-details">
+              <p className="stats-matches-played">
+                {formatStatValue(wins + draws + losses, "matches played")}
+              </p>
+              <LegendRow color={COLOR_TEAL} label="Wins" value={wins} />
+              <LegendRow color={COLOR_AMBER} label="Draws" value={draws} />
+              <LegendRow color={COLOR_RED} label="Losses" value={losses} />
+            </div>
+          </div>
+
+          {/* Avg score per round — multi-series line chart */}
+          <AvgScoreLineChart
+            allTime={data.avgScorePerRound}
+            lastMonth={data.avgScorePerRoundLastMonth}
+            lastWeek={data.avgScorePerRoundLastWeek}
           />
+
+          {/* Avg court-score per round */}
+          {(data.avgCourtScorePerRound.length > 0 || data.avgCourtScorePerRoundLastMonth.length > 0 || data.avgCourtScorePerRoundLastWeek.length > 0) && (
+            <CourtLineChart
+              allTime={data.avgCourtScorePerRound}
+              lastMonth={data.avgCourtScorePerRoundLastMonth}
+              lastWeek={data.avgCourtScorePerRoundLastWeek}
+              avgCourtScoreOverall={data.avgCourtScoreOverall}
+            />
+          )}
         </div>
-        <div className="stats-chart-details">
-          <p className="stats-matches-played">
-            {formatStatValue(wins + draws + losses, "matches played")}
-          </p>
-          <LegendRow color={COLOR_TEAL} label="Wins" value={wins} />
-          <LegendRow color={COLOR_AMBER} label="Draws" value={draws} />
-          <LegendRow color={COLOR_RED} label="Losses" value={losses} />
+
+        {/* Right column: score distribution charts */}
+        <div className="dd-col-right">
+          {/* Score distribution — All courts */}
+          <ScoreDistChart title="Score distribution — All courts" distribution={data.scoreDistribution} />
+
+          {/* Score distribution — Per court */}
+          {data.scoreDistributionPerCourt.map((c) => (
+            <ScoreDistChart key={c.courtNumber} title={`Court ${c.courtNumber}`} distribution={c.distribution} />
+          ))}
         </div>
       </div>
-
-      {/* Avg score per round — multi-series line chart */}
-      <AvgScoreLineChart
-        allTime={data.avgScorePerRound}
-        lastMonth={data.avgScorePerRoundLastMonth}
-        lastWeek={data.avgScorePerRoundLastWeek}
-      />
-
-      {/* Avg court per round */}
-      {data.avgCourtPerRound.length > 0 && (
-        <CourtLineChart data={data.avgCourtPerRound} avgCourtOverall={data.avgCourtOverall} />
-      )}
     </div>
   )
 }

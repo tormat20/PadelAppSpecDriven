@@ -446,17 +446,38 @@ function normalizeScore24Mode(raw: any) {
       avgScore: r.avg_score,
       sampleCount: r.sample_count,
     })),
-    avgCourtPerRound: (raw?.avg_court_per_round ?? []).map((r: any) => ({
+    avgCourtScorePerRound: (raw?.avg_court_score_per_round ?? []).map((r: any) => ({
       round: r.round,
-      avgCourt: r.avg_court,
+      avgCourtScore: r.avg_court_score,
       sampleCount: r.sample_count,
     })),
-    avgCourtOverall: raw?.avg_court_overall ?? null,
+    avgCourtScorePerRoundLastMonth: (raw?.avg_court_score_per_round_last_month ?? []).map((r: any) => ({
+      round: r.round,
+      avgCourtScore: r.avg_court_score,
+      sampleCount: r.sample_count,
+    })),
+    avgCourtScorePerRoundLastWeek: (raw?.avg_court_score_per_round_last_week ?? []).map((r: any) => ({
+      round: r.round,
+      avgCourtScore: r.avg_court_score,
+      sampleCount: r.sample_count,
+    })),
+    avgCourtScoreOverall: raw?.avg_court_score_overall ?? null,
     matchWdl: {
       wins: raw?.match_wdl?.wins ?? 0,
       draws: raw?.match_wdl?.draws ?? 0,
       losses: raw?.match_wdl?.losses ?? 0,
     },
+    scoreDistribution: (raw?.score_distribution ?? []).map((e: any) => ({
+      score: e.score,
+      count: e.count,
+    })),
+    scoreDistributionPerCourt: (raw?.score_distribution_per_court ?? []).map((c: any) => ({
+      courtNumber: c.court_number,
+      distribution: (c.distribution ?? []).map((e: any) => ({
+        score: e.score,
+        count: e.count,
+      })),
+    })),
   }
 }
 
