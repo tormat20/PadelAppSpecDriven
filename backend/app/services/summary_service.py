@@ -108,6 +108,16 @@ class SummaryService:
         ]
         columns.append({"id": "total", "label": "Total"})
 
+        # Collect all matches once so we can compute momentum badges.
+        matches_with_round: list[tuple[int, Any]] = []
+        matches_by_round_id: dict[str, list] = {}
+        for round_obj in rounds:
+            round_matches = self.matches_repo.list_by_round(round_obj.id)
+            matches_by_round_id[round_obj.id] = round_matches
+            matches_with_round.extend([(round_obj.round_number, m) for m in round_matches])
+
+        momentum_by_player = compute_consecutive_momentum(matches_with_round)
+
         totals_by_player = {row[1]: row[2] for row in standings}
         player_rows = []
         for player_id in self.events_repo.list_player_ids(event_id):
@@ -117,7 +127,7 @@ class SummaryService:
             cells = []
             for round_obj in rounds:
                 value = "0"
-                for match in self.matches_repo.list_by_round(round_obj.id):
+                for match in matches_by_round_id.get(round_obj.id, []):
                     if player_id in {
                         match.team1_player1_id,
                         match.team1_player2_id,
@@ -129,7 +139,14 @@ class SummaryService:
                 cells.append({"columnId": f"round-{round_obj.round_number}", "value": value})
 
             cells.append({"columnId": "total", "value": str(totals_by_player.get(player_id, 0))})
-            player_rows.append({"playerId": player_id, "displayName": display_name, "cells": cells})
+            player_rows.append(
+                {
+                    "playerId": player_id,
+                    "displayName": display_name,
+                    "momentumBadge": momentum_by_player.get(player_id, "none"),
+                    "cells": cells,
+                }
+            )
 
         global_scores: dict[str, int] = {}
         for player_id in self.events_repo.list_player_ids(event_id):

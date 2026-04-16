@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate, useParams } from "react-router-dom"
 
 import {
@@ -150,6 +151,8 @@ export default function SummaryPage() {
   const { eventId = "" } = useParams()
   const [summary, setSummary] = useState<EventSummaryResponse | null>(null)
   const [error, setError] = useState("")
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const fullscreenOverlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!eventId) return
@@ -166,6 +169,23 @@ export default function SummaryPage() {
     }
   }, [summary?.mode])
 
+  // Escape key exits fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false)
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isFullscreen])
+
+  // Scroll to top when entering fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      fullscreenOverlayRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }, [isFullscreen])
+
   if (error) return <div className="panel">{error}</div>
   if (!summary) return <div className="panel">Loading summary...</div>
 
@@ -174,6 +194,75 @@ export default function SummaryPage() {
   const showCrown = showCrownForSummaryMode(summary.mode)
   const orderedRows = sortRowsByRank(summary.playerRows)
   const displayColumns = getSummaryColumnsWithRank(summary.columns)
+
+  // ── Shared matrix table ──────────────────────────────────────────────────────
+  // Rendered in progress mode, final mode, and the fullscreen overlay.
+  // In fullscreen we never show crown icons (clean data view).
+
+  function renderMatrix(opts: { showCrownInCells: boolean }) {
+    return (
+      <div className="summary-matrix-wrap">
+        <table className="summary-matrix">
+          <thead>
+            <tr>
+              {displayColumns.map((column) => (
+                <th key={column.id} scope="col">{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {orderedRows.map((row, index) => (
+              <tr key={row.playerId}>
+                <td className="summary-rank-cell">{getRowRank(row, index)}</td>
+                <td className="summary-player-cell">
+                  <span className="summary-player-name">
+                    <span className="summary-player-label">{row.displayName}</span>
+                    {opts.showCrownInCells && isPlayerCrowned(crownedPlayers, row.playerId)
+                      ? <CrownIcon />
+                      : null}
+                  </span>
+                </td>
+                {row.cells.map((cell) => (
+                  <td key={cell.columnId}>
+                    {isCellUnderlined(cell.value)
+                      ? <u>{getProgressCellDisplay(cell.value)}</u>
+                      : getProgressCellDisplay(cell.value)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  // ── Fullscreen overlay ───────────────────────────────────────────────────────
+
+  if (isFullscreen) {
+    const heading = summary.mode === "progress" ? "Player Progress Matrix" : "Final Player Stats"
+    return createPortal(
+      <div className="summary-fullscreen-overlay" ref={fullscreenOverlayRef}>
+        <section className="panel list-stack">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
+            <h3 className="summary-rank">{heading}</h3>
+            <button
+              type="button"
+              className={withInteractiveSurface("button-secondary")}
+              aria-label="Exit fullscreen"
+              onClick={() => setIsFullscreen(false)}
+            >
+              Exit Fullscreen
+            </button>
+          </div>
+          {renderMatrix({ showCrownInCells: false })}
+        </section>
+      </div>,
+      document.body,
+    )
+  }
+
+  // ── Progress mode ────────────────────────────────────────────────────────────
 
   if (summary.mode === "progress") {
     return (
@@ -184,33 +273,18 @@ export default function SummaryPage() {
         </header>
 
         <section className="panel list-stack">
-          <h3 className="summary-rank">Player Progress Matrix</h3>
-          <div className="summary-matrix-wrap">
-            <table className="summary-matrix">
-              <thead>
-                <tr>
-                  {displayColumns.map((column) => (
-                    <th key={column.id} scope="col">{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {orderedRows.map((row, index) => (
-                   <tr key={row.playerId}>
-                     <td className="summary-rank-cell">{getRowRank(row, index)}</td>
-                     <td>{row.displayName}</td>
-                     {row.cells.map((cell) => (
-                       <td key={cell.columnId}>
-                         {isCellUnderlined(cell.value)
-                           ? <u>{getProgressCellDisplay(cell.value)}</u>
-                           : getProgressCellDisplay(cell.value)}
-                       </td>
-                     ))}
-                   </tr>
-                 ))}
-              </tbody>
-            </table>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
+            <h3 className="summary-rank">Player Progress Matrix</h3>
+            <button
+              type="button"
+              className={withInteractiveSurface("button-secondary")}
+              aria-label="Enter fullscreen"
+              onClick={() => setIsFullscreen(true)}
+            >
+              Fullscreen
+            </button>
           </div>
+          {renderMatrix({ showCrownInCells: false })}
         </section>
 
         <section className="panel">
@@ -262,38 +336,18 @@ export default function SummaryPage() {
       )}
 
       <section className="panel list-stack">
-        <h3 className="summary-rank">Final Player Stats</h3>
-        <div className="summary-matrix-wrap">
-          <table className="summary-matrix">
-              <thead>
-                <tr>
-                  {displayColumns.map((column) => (
-                    <th key={column.id} scope="col">{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {orderedRows.map((row, index) => (
-                   <tr key={row.playerId}>
-                     <td className="summary-rank-cell">{getRowRank(row, index)}</td>
-                     <td className="summary-player-cell">
-                       <span className="summary-player-name">
-                         <span className="summary-player-label">{row.displayName}</span>
-                         {showCrown && isPlayerCrowned(crownedPlayers, row.playerId) ? <CrownIcon /> : null}
-                       </span>
-                     </td>
-                   {row.cells.map((cell) => (
-                     <td key={cell.columnId}>
-                       {isCellUnderlined(cell.value)
-                         ? <u>{getProgressCellDisplay(cell.value)}</u>
-                         : getProgressCellDisplay(cell.value)}
-                     </td>
-                   ))}
-                 </tr>
-               ))}
-            </tbody>
-          </table>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
+          <h3 className="summary-rank">Final Player Stats</h3>
+          <button
+            type="button"
+            className={withInteractiveSurface("button-secondary")}
+            aria-label="Enter fullscreen"
+            onClick={() => setIsFullscreen(true)}
+          >
+            Fullscreen
+          </button>
         </div>
+        {renderMatrix({ showCrownInCells: showCrown })}
       </section>
     </section>
   )

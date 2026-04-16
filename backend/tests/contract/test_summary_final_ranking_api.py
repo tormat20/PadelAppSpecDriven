@@ -89,3 +89,54 @@ def test_mexicano_final_uses_competition_rank_for_ties(client):
     assert payload["mode"] == "final"
     assert payload["orderingMode"] == "final-mexicano-total-desc"
     assert all(row["rank"] == 1 for row in payload["playerRows"])
+
+
+def test_momentum_badge_survives_at_round_count_boundary(client):
+    """Regression: streaks must still appear when current_round == round_count.
+
+    Before the fix, build_final_round_matrix omitted momentumBadge entirely,
+    so every row defaulted to "none" the moment the event hit its round_count
+    (round 6 by default). This test drives 6 rounds where team1 always wins,
+    then verifies that the winning players carry 'fire' and the losing players
+    carry 'snowflake' in the final summary response.
+    """
+    player_ids = _seed_players(client, "STK", 4)
+    event_id = _create_event(client, "WinnersCourt", "Streak Badge Regression", player_ids, [1])
+
+    for round_number in range(1, 7):
+        current_round = client.get(f"/api/v1/events/{event_id}/rounds/current")
+        assert current_round.status_code == 200
+
+        for match in current_round.json()["matches"]:
+            # Team 1 wins every match in every round → 6-win streak for team1 players
+            result = client.post(
+                f"/api/v1/matches/{match['matchId']}/result",
+                json={"mode": "WinnersCourt", "winningTeam": 1},
+            )
+            assert result.status_code == 204
+
+        if round_number < 6:
+            advanced = client.post(f"/api/v1/events/{event_id}/next")
+            assert advanced.status_code == 200
+
+    # At round 6 (== round_count), summary switches to final mode
+    summary_response = client.get(f"/api/v1/events/{event_id}/summary")
+    assert summary_response.status_code == 200
+    payload = summary_response.json()
+    assert payload["mode"] == "final", "should be final mode at round_count"
+
+    badge_by_player = {
+        row["playerId"]: row.get("momentumBadge", "MISSING") for row in payload["playerRows"]
+    }
+
+    # Find which players were always on team1 (winners) and team2 (losers).
+    # In a 4-player 1-court event, each match has 2 players per team.
+    # We check that no badge is "MISSING" and that fire/snowflake are both present.
+    assert "MISSING" not in badge_by_player.values(), (
+        "momentumBadge must be present on every row in final summary"
+    )
+    badges = set(badge_by_player.values())
+    assert "fire" in badges, "winning players must have fire badge after 6 consecutive wins"
+    assert "snowflake" in badges, (
+        "losing players must have snowflake badge after 6 consecutive losses"
+    )

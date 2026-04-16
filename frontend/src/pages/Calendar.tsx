@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { animate, motion, useMotionValue, useTransform } from "motion/react"
 
 import WeekGrid from "../components/calendar/WeekGrid"
@@ -274,12 +275,25 @@ const TEMPLATE_PANEL_EASE: [number, number, number, number] = [0.42, 0, 0.58, 1]
 const TEMPLATE_PANEL_STAGE_DURATION = 0.34
 
 export default function CalendarPage() {
+  const navigate = useNavigate()
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()))
   const [viewMode, setViewMode] = useState<"week" | "day">("week")
   const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null)
   const [ghostBlock, setGhostBlock] = useState<GhostBlockState | null>(null)
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null)
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false })
+
+  function handleEventBlockClick(event: CalendarEventViewModel) {
+    if (event.status === "Finished") {
+      navigate(`/events/${event.id}/summary`)
+      return
+    }
+    if (event.status === "Running") {
+      navigate(`/events/${event.id}/run`)
+      return
+    }
+    setDrawerState({ open: true, mode: "edit", event })
+  }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeResizeEventId, setActiveResizeEventId] = useState<string | null>(null)
@@ -782,7 +796,7 @@ export default function CalendarPage() {
       {unscheduledEvents.length > 0 && (
         <UnscheduledStrip
           events={unscheduledEvents}
-          onBlockClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+          onBlockClick={(event) => handleEventBlockClick(event)}
         />
       )}
 
@@ -833,7 +847,7 @@ export default function CalendarPage() {
                   toggleRecurringSelection(event.id)
                   return
                 }
-                setDrawerState({ open: true, mode: "edit", event })
+                handleEventBlockClick(event)
               }}
               onBlockNameClick={(event) => {
                 if (suppressBlockClick) return
@@ -841,7 +855,7 @@ export default function CalendarPage() {
                   toggleRecurringSelection(event.id)
                   return
                 }
-                setDrawerState({ open: true, mode: "edit", event })
+                handleEventBlockClick(event)
               }}
               onDayHeaderClick={(date) => {
                 setSelectedDayDate(new Date(date))
@@ -863,7 +877,7 @@ export default function CalendarPage() {
             <DayCourtGrid
               selectedDate={selectedDayDate ?? weekStart}
               events={scheduledEvents}
-              onEventClick={(event) => setDrawerState({ open: true, mode: "edit", event })}
+              onEventClick={(event) => handleEventBlockClick(event)}
               onBackToWeek={() => {
                 setViewMode("week")
                 setSelectedDayDate(null)

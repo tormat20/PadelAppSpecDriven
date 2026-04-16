@@ -86,7 +86,7 @@ The host needs to advance or go back to a previous round. In fullscreen mode the
 ### Functional Requirements
 
 - **FR-001**: The Run Event page MUST provide a toggle button that enters and exits fullscreen mode.
-- **FR-002**: In fullscreen mode, the application navigation bar MUST NOT be visible.
+- **FR-002**: In fullscreen mode, the application navigation bar MUST NOT be visible. The bar is removed from the layout entirely (not merely covered), so no dead space is left at the top of the screen.
 - **FR-003**: In fullscreen mode, the court grid MUST be the primary visible content, filling the available screen space.
 - **FR-004**: In fullscreen mode, the Prev/Next round action buttons MUST remain accessible (visible on screen or reachable by scrolling).
 - **FR-005**: In fullscreen mode, court cards MUST be taller than in normal mode.
@@ -119,3 +119,4 @@ The host needs to advance or go back to a previous round. In fullscreen mode the
 - The result entry modal (z-index 40) naturally sits above the fullscreen overlay (z-index 30) without any additional changes — this is confirmed by the existing z-index layering in the codebase.
 - Fullscreen state is not persisted across page reloads or navigation; it resets to normal mode automatically.
 - Mobile layout support for fullscreen is not required for this feature — the mode is designed for large screens.
+- The nav bar is hidden using a CSS selector that detects the presence of the fullscreen overlay on the page; all major browsers in active use support this approach.
