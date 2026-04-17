@@ -7,6 +7,7 @@ import { ResultModal } from "../components/matches/ResultModal"
 import InlineSummaryPanel from "../components/run-event/InlineSummaryPanel"
 import Stepper from "../components/stepper/Stepper"
 import { withInteractiveSurface } from "../features/interaction/surfaceClass"
+import { useToast } from "../components/toast/ToastProvider"
 import { goToNextRound } from "../features/run-event/nextRound"
 import type { TeamSide, WinnerPayload } from "../features/run-event/resultEntry"
 import { getMirroredBadgePair } from "../features/run-event/resultEntry"
@@ -133,6 +134,7 @@ const TRANSIENT_LOAD_ERRORS = new Set([
 export default function RunEventPage() {
   const navigate = useNavigate()
   const { eventId = "" } = useParams()
+  const toast = useToast()
   const [eventData, setEventData] = useState<any>(null)
   const [roundData, setRoundData] = useState<any>(null)
   const [loadError, setLoadError] = useState("")
@@ -298,13 +300,38 @@ export default function RunEventPage() {
   const badgeByMatch = useMemo(() => mapSubmittedPayloadsToBadges(submittedPayloads), [submittedPayloads])
 
   const submit = async (matchId: string, payload: WinnerPayload) => {
+    const prevPayloads = submittedPayloads
+    const prevCompleted = completed
+
+    // Optimistic updates — close modal immediately for instant feel
     setSubmittedPayloads((current) => ({ ...current, [matchId]: payload }))
-    await submitResult(matchId, payload)
     setCompleted((prev) => ({ ...prev, [matchId]: true }))
     setModalContext(null)
+
+    try {
+      await submitResult(matchId, payload)
+    } catch (err) {
+      // Revert optimistic updates on failure
+      setSubmittedPayloads(prevPayloads)
+      setCompleted(prevCompleted)
+      const courtNum =
+        roundData?.matches?.find((m: RunMatch) => m.matchId === matchId)?.courtNumber ?? "?"
+      toast.error(`Score for Court ${courtNum} failed to save — please re-enter`)
+      console.error("[submit] match result failed", matchId, err)
+    }
   }
 
   const next = async () => {
+    // Pre-flight: ensure all matches in this round have a score
+    const incomplete: RunMatch[] = (roundData?.matches ?? []).filter(
+      (m: RunMatch) => !completed[m.matchId],
+    )
+    if (incomplete.length > 0) {
+      const courts = incomplete.map((m: RunMatch) => `Court ${m.courtNumber}`).join(", ")
+      toast.error(`${courts} missing a score — please re-enter`)
+      return
+    }
+
     setPreviousRoundWarning("")
     await goToNextRound(eventId)
     setCompleted({})
